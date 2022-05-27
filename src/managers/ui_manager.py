@@ -4,10 +4,14 @@ import wx
 class UIManager:
     def __init__(self):
         self.app = wx.App(False)
-        self.frame = wx.Frame(None, -1, "Main Window", size=(300, 200))
+        self.frame = wx.Frame(None, -1, "Launchtype", size=(500, 150))
         self.panel = wx.Panel(self.frame, -1)
 
-        self.button = wx.Button(self.panel, -1, "Add Command", pos=(100, 20))
+        self.edit = wx.TextCtrl(self.panel, -1, "", pos=(10, 100))
+
+        self.list = wx.ListView(self.panel, -1, pos=(10, 10), size=(480, 80))
+
+        self.button = wx.Button(self.panel, -1, "Add Command", pos=(10, 100))
         self.app.Bind(wx.EVT_BUTTON, self.addButtonClicked, self.button)
 
     def initialize_ui(self):
@@ -29,4 +33,4 @@ class UIManager:
 
         else:
             self.frame.Show()
-            self.button.SetFocus()
+            self.edit.SetFocus()
