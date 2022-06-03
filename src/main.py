@@ -8,7 +8,9 @@ uiManager = UIManager()
 if not dataManager.existsCommandsFile():
     uiManager.showAlert("Welcome to Launchtype",
                         "I notice that this is the first time using Launchtype. The program hotkey is control + alt + space")
-    uiManager.toggleVisibility() # We don't want to be rude, if it's first time run, let's show the program
+    dataManager.create_commands_file()
+
+uiManager.toggleVisibility()
 
 try:
     handler = WXKeyboardHandler(uiManager.frame)
