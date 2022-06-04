@@ -1,5 +1,5 @@
 import wx
-from ui.add_dialog import AddDialog
+from ui.command_edition_dialog import CommandEditionDialog
 
 
 class UIManager:
@@ -11,7 +11,7 @@ class UIManager:
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         editSizer = wx.BoxSizer(wx.HORIZONTAL)
-        editLabel = wx.StaticText(self.panel, label="Enter command")
+        editLabel = wx.StaticText(self.panel, label="Input Field")
         self.edit = wx.TextCtrl(self.panel)
         editSizer.Add(editLabel)
         editSizer.Add(self.edit)
@@ -23,7 +23,7 @@ class UIManager:
         buttonRowSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.add_button = wx.Button(
             self.panel, wx.ID_ADD, "&Add...")
-        self.app.Bind(wx.EVT_BUTTON, self.addButtonClicked, self.add_button)
+        self.app.Bind(wx.EVT_BUTTON, self.add_button_clicked, self.add_button)
         buttonRowSizer.Add(self.add_button)
 
         self.edit_button = wx.Button(
@@ -47,8 +47,8 @@ class UIManager:
         dlg.ShowModal()
         dlg.Destroy()
 
-    def addButtonClicked(self, event):
-        with AddDialog(self.frame, "Add Command") as addDialog:
+    def add_button_clicked(self, event):
+        with CommandEditionDialog(self.frame) as addDialog:
             addDialog.ShowModal()
 
     def editButtonClicked(self, event):

@@ -1,13 +1,18 @@
 import wx
 
 
-class AddDialog(wx.Dialog):
-    def __init__(self, parent, title):
-        super(AddDialog, self).__init__(parent, title=title, size=(250, 150))
+class CommandEditionDialog(wx.Dialog):
+    def __init__(self, parent, command_to_edit={}):
+        if command_to_edit == {}:
+            title = "Add Command"
+        else:
+            title = "Edit Command"
+        super(CommandEditionDialog, self).__init__(parent, title=title, size=(250, 150))
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.SetSizer(sizer)
 
-        helpLabel = wx.StaticText(self, label="Enter the information about the command you wish to add:")
+        helpLabel = wx.StaticText(
+            self, label="Enter the information about the command you wish to add:")
         helpLabel.Wrap(self.GetSize()[0])
 
         commandEditSizer = wx.BoxSizer(wx.HORIZONTAL)
