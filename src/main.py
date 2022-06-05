@@ -7,7 +7,7 @@ uiManager = UIManager()
 
 if not dataManager.existsCommandsFile():
     uiManager.show_alert("Welcome to Launchtype",
-                        "I notice that this is the first time using Launchtype. The program hotkey is control + alt + space")
+                         "I notice that this is the first time using Launchtype. The program hotkey is control + alt + space")
     dataManager.create_commands_file()
 
 uiManager.toggleVisibility()

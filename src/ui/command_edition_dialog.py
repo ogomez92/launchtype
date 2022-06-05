@@ -1,4 +1,5 @@
 import wx
+import os
 
 
 class CommandEditionDialog(wx.Dialog):
@@ -24,10 +25,16 @@ class CommandEditionDialog(wx.Dialog):
         self.command_edit = wx.TextCtrl(self)
         commandEditSizer.Add(commandEditLabel)
         commandEditSizer.Add(self.command_edit)
+
+        browse_button = wx.Button(self, wx.ID_OPEN, label="&Browse...")
+        self.Bind(wx.EVT_BUTTON, self.browse_for_file, browse_button)
+        commandEditSizer.Add(browse_button)
+
         sizer.Add(commandEditSizer)
 
         commandArgsSizer = wx.BoxSizer(wx.HORIZONTAL)
-        commandArgsLabel = wx.StaticText(self, label="Arguments (space separated):")
+        commandArgsLabel = wx.StaticText(
+            self, label="Arguments (space separated):")
         self.args_edit = wx.TextCtrl(self)
         commandArgsSizer.Add(commandArgsLabel)
         commandArgsSizer.Add(self.args_edit)
@@ -41,7 +48,8 @@ class CommandEditionDialog(wx.Dialog):
         sizer.Add(displayNameEditSizer)
 
         abreviationEditSizer = wx.BoxSizer(wx.HORIZONTAL)
-        abreviationEditLabel = wx.StaticText(self, label="Abreviation (optional):")
+        abreviationEditLabel = wx.StaticText(
+            self, label="Abreviation (optional):")
         self.abreviation_edit = wx.TextCtrl(self)
         abreviationEditSizer.Add(abreviationEditLabel)
         abreviationEditSizer.Add(self.abreviation_edit)
@@ -58,8 +66,22 @@ class CommandEditionDialog(wx.Dialog):
         sizer.Add(buttonRowSizer)
 
     def ok_button_clicked(self, event):
-        print(f"command: {self.command_edit.Value}")
+        print(f"ok clicked in main dialog, command: {self.command_edit.Value}")
         self.EndModal(wx.ID_OK)
 
     def cancel_button_clicked(self, event):
         self.EndModal(wx.ID_CANCEL)
+
+    def browse_for_file(self, event):
+        with wx.FileDialog(
+            self, message="Choose a file",
+            defaultDir=os.getcwd(),
+            defaultFile="",
+            wildcard="*.*",
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_SHOW_HIDDEN
+        ) as file_dialog:
+            if file_dialog.ShowModal() == wx.ID_OK:
+                path = file_dialog.GetPath()
+                print(f"ok here we go! {path}")
+            else:
+                print("nope")
