@@ -20,11 +20,18 @@ class CommandEditionDialog(wx.Dialog):
         helpLabel.Wrap(self.GetSize()[0])
 
         commandEditSizer = wx.BoxSizer(wx.HORIZONTAL)
-        commandEditLabel = wx.StaticText(self, label="Command to run:")
+        commandEditLabel = wx.StaticText(self, label="Path to file:")
         self.command_edit = wx.TextCtrl(self)
         commandEditSizer.Add(commandEditLabel)
         commandEditSizer.Add(self.command_edit)
         sizer.Add(commandEditSizer)
+
+        commandArgsSizer = wx.BoxSizer(wx.HORIZONTAL)
+        commandArgsLabel = wx.StaticText(self, label="Arguments (space separated):")
+        self.args_edit = wx.TextCtrl(self)
+        commandArgsSizer.Add(commandArgsLabel)
+        commandArgsSizer.Add(self.args_edit)
+        sizer.Add(commandArgsSizer)
 
         displayNameEditSizer = wx.BoxSizer(wx.HORIZONTAL)
         displayNameEditLabel = wx.StaticText(self, label="Display Name:")

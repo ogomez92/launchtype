@@ -42,8 +42,13 @@ class UIManager:
     def initialize_ui(self):
         self.app.MainLoop()
 
-    def showAlert(self, title, text):
+    def show_alert(self, title, text):
         dlg = wx.MessageDialog(None, text, title, wx.OK)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def show_error(self, title, text):
+        dlg = wx.MessageDialog(None, text, title, wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
         dlg.Destroy()
 
@@ -52,14 +57,13 @@ class UIManager:
             addDialog.ShowModal()
 
     def editButtonClicked(self, event):
-        print("not implemented")
+        pass
 
     def deleteButtonClicked(self, event):
-        print("not implemented")
+        pass
 
     def toggleVisibility(self):
         isVisible = self.frame.IsShown()
-        print("toggling visibility")
         if isVisible:
             self.frame.Hide()
 
