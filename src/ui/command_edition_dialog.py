@@ -58,6 +58,7 @@ class CommandEditionDialog(wx.Dialog):
         buttonRowSizer = wx.BoxSizer(wx.HORIZONTAL)
 
         self.ok_button = wx.Button(self, wx.ID_OK, label="&OK")
+        self.ok_button.SetDefault()
         self.Bind(wx.EVT_BUTTON, self.ok_button_clicked, self.ok_button)
         self.cancel_button = wx.Button(self, wx.ID_CANCEL, label="&Cancel")
         buttonRowSizer.Add(self.ok_button)
@@ -66,7 +67,12 @@ class CommandEditionDialog(wx.Dialog):
         sizer.Add(buttonRowSizer)
 
     def ok_button_clicked(self, event):
-        print(f"ok clicked in main dialog, command: {self.command_edit.Value}")
+        if not os.path.exists(self.command_edit.Value):
+            with wx.MessageDialog(self, "This path is incorrect.", "Error", wx.OK | wx.ICON_ERROR) as dlg:
+                dlg.ShowModal()
+
+            return
+
         self.EndModal(wx.ID_OK)
 
     def cancel_button_clicked(self, event):
@@ -82,6 +88,6 @@ class CommandEditionDialog(wx.Dialog):
         ) as file_dialog:
             if file_dialog.ShowModal() == wx.ID_OK:
                 path = file_dialog.GetPath()
-                print(f"ok here we go! {path}")
+                self.command_edit.Value = path
             else:
                 print("nope")
