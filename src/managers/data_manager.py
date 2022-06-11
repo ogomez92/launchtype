@@ -32,7 +32,7 @@ class DataManager:
             "shortcut": abreviation.lower(),
             "id": str(uuid.uuid4())
         }
-
+        print(command_dictionary)
         self.commandsData['commands'].append(command_dictionary)
         self.syncCommandsToStorage()
 

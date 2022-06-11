@@ -90,7 +90,8 @@ class CommandEditionDialog(wx.Dialog):
                 dlg.ShowModal()
             return
 
-        if not self.command_to_edit == {} and self.is_editing:
+        if not self.command_to_edit == {} and self.is_editing and not self.is_copying:
+            print("deleting")
             self.dataManager.delete_by_uuid(self.command_to_edit['id'])
 
         self.dataManager.add_command(self.command_edit.Value, self.display_name_edit.Value, self.args_edit.Value, self.abreviation_edit.Value)

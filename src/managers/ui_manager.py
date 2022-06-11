@@ -96,7 +96,7 @@ class UIManager:
         if (selected_option_index < 0):
             return
 
-        selected_option = self.commands_in_ui[selected_option_index]
+        selected_option = self.commands_in_ui[selected_option_index].copy()
         # Remove the display name and the shortcut because its a copy
         selected_option['name'] = ''
         selected_option['shortcut'] = ''
