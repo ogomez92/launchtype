@@ -1,8 +1,10 @@
 from managers.ui_manager import UIManager
 from managers.data_manager import DataManager
 from keyboard_handler.wx_handler import WXKeyboardHandler
+from services.speech_service import SpeechService
 
 dataManager = DataManager()
+SpeechService().initialize()
 uiManager = UIManager(dataManager)
 
 if not dataManager.existsCommandsFile():
