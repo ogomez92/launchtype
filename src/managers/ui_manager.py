@@ -7,6 +7,7 @@ class UIManager:
         self.app = wx.App(False)
         self.frame = wx.Frame(None, -1, "Launchtype")
         self.panel = wx.Panel(self.frame, -1)
+        self.data = data
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -53,7 +54,7 @@ class UIManager:
         dlg.Destroy()
 
     def add_button_clicked(self, event):
-        with CommandEditionDialog(self.frame, data) as addDialog:
+        with CommandEditionDialog(self.frame, self.data) as addDialog:
             addDialog.ShowModal()
 
     def editButtonClicked(self, event):

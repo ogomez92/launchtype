@@ -21,4 +21,15 @@ class DataManager:
 
     def loadCommandsFromFile(self):
         with open('commands.json', 'r') as inputFile:
-            self.commandsData = json.loads(inputFile)
+            self.commandsData = json.loads(inputFile.read())
+
+    def add_command(self, command, name, args, abreviation):
+        command_dictionary = {
+            "command": command,
+            "name": name,
+            "args": args,
+            "abreviation": abreviation
+        }
+
+        self.commandsData['commands'].append(command_dictionary)
+        self.syncCommandsToStorage()

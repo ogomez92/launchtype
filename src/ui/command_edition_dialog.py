@@ -11,6 +11,9 @@ class CommandEditionDialog(wx.Dialog):
         else:
             title = "Edit Command"
             is_editing = True
+
+        self.dataManager = data
+
         super(CommandEditionDialog, self).__init__(
             parent, title=title, size=(250, 150))
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -49,7 +52,7 @@ class CommandEditionDialog(wx.Dialog):
 
         abreviationEditSizer = wx.BoxSizer(wx.HORIZONTAL)
         abreviationEditLabel = wx.StaticText(
-            self, label="Abreviation (optional):")
+            self, label="Abre&viation (optional):")
         self.abreviation_edit = wx.TextCtrl(self)
         abreviationEditSizer.Add(abreviationEditLabel)
         abreviationEditSizer.Add(self.abreviation_edit)
@@ -77,6 +80,10 @@ class CommandEditionDialog(wx.Dialog):
                 dlg.ShowModal()
             return
 
+        print("hello")
+
+        self.dataManager.add_command(self.command_edit.Value, self.display_name_edit.Value, self.args_edit.Value, self.abreviation_edit.Value)
+        
         self.EndModal(wx.ID_OK)
 
     def cancel_button_clicked(self, event):
