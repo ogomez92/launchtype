@@ -19,6 +19,6 @@ class DataManager:
             json_string = json.dumps(self.commandsData)
             outputFile.write(json_string)
 
-    def loadCommandsFromFile():
+    def loadCommandsFromFile(self):
         with open('commands.json', 'r') as inputFile:
             self.commandsData = json.loads(inputFile)

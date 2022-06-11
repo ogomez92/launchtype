@@ -1,11 +1,11 @@
 import wx
 import os
-
+from managers.data_manager import DataManager
 
 class CommandEditionDialog(wx.Dialog):
     is_editing = False
 
-    def __init__(self, parent, command_to_edit={}):
+    def __init__(self, parent, data, command_to_edit={}):
         if command_to_edit == {}:
             title = "Add Command"
         else:
@@ -21,7 +21,7 @@ class CommandEditionDialog(wx.Dialog):
         helpLabel.Wrap(self.GetSize()[0])
 
         commandEditSizer = wx.BoxSizer(wx.HORIZONTAL)
-        commandEditLabel = wx.StaticText(self, label="Path to file:")
+        commandEditLabel = wx.StaticText(self, label="&Path to file:")
         self.command_edit = wx.TextCtrl(self)
         commandEditSizer.Add(commandEditLabel)
         commandEditSizer.Add(self.command_edit)
@@ -34,14 +34,14 @@ class CommandEditionDialog(wx.Dialog):
 
         commandArgsSizer = wx.BoxSizer(wx.HORIZONTAL)
         commandArgsLabel = wx.StaticText(
-            self, label="Arguments (space separated):")
+            self, label="&Arguments (space separated):")
         self.args_edit = wx.TextCtrl(self)
         commandArgsSizer.Add(commandArgsLabel)
         commandArgsSizer.Add(self.args_edit)
         sizer.Add(commandArgsSizer)
 
         displayNameEditSizer = wx.BoxSizer(wx.HORIZONTAL)
-        displayNameEditLabel = wx.StaticText(self, label="Display Name:")
+        displayNameEditLabel = wx.StaticText(self, label="Display &Name:")
         self.display_name_edit = wx.TextCtrl(self)
         displayNameEditSizer.Add(displayNameEditLabel)
         displayNameEditSizer.Add(self.display_name_edit)
@@ -70,7 +70,11 @@ class CommandEditionDialog(wx.Dialog):
         if not os.path.exists(self.command_edit.Value):
             with wx.MessageDialog(self, "This path is incorrect.", "Error", wx.OK | wx.ICON_ERROR) as dlg:
                 dlg.ShowModal()
+            return
 
+        if not self.display_name_edit.Value:
+            with wx.MessageDialog(self, "The command must have a display name.", "No display name provided", wx.OK | wx.ICON_ERROR) as dlg:
+                dlg.ShowModal()
             return
 
         self.EndModal(wx.ID_OK)
