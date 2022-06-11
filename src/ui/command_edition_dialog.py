@@ -12,10 +12,10 @@ class CommandEditionDialog(wx.Dialog):
             title = "Add Command"
         else:
             title = "Edit Command"
-            is_editing = True
+            self.is_editing = True
             if command_to_edit['name'] == "":
-                is_editing = False
-                is_copying = True
+                self.is_editing = False
+                self.is_copying = True
                 title="Add command from copy"
 
         self.dataManager = data
@@ -90,7 +90,7 @@ class CommandEditionDialog(wx.Dialog):
                 dlg.ShowModal()
             return
 
-        if not self.command_to_edit == {} and self.isEditing:
+        if not self.command_to_edit == {} and self.is_editing:
             self.dataManager.delete_by_uuid(self.command_to_edit['id'])
 
         self.dataManager.add_command(self.command_edit.Value, self.display_name_edit.Value, self.args_edit.Value, self.abreviation_edit.Value)

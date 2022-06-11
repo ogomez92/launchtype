@@ -37,6 +37,11 @@ class UIManager:
         self.app.Bind(wx.EVT_BUTTON, self.editButtonClicked, self.edit_button)
         buttonRowSizer.Add(self.edit_button)
 
+        self.copy_button = wx.Button(
+            self.panel, wx.ID_COPY, "&COPY...")
+        self.app.Bind(wx.EVT_BUTTON, self.copyButtonClicked, self.copy_button)
+        buttonRowSizer.Add(self.copy_button)
+
         self.delete_button = wx.Button(
             self.panel, wx.ID_DELETE, "&Delete")
         self.app.Bind(wx.EVT_BUTTON, self.deleteButtonClicked,
@@ -72,10 +77,26 @@ class UIManager:
 
     def editButtonClicked(self, event):
         selected_option_index = self.list.GetSelection()
-        if (selected_option_index < 0): return
+        if (selected_option_index < 0):
+            return
 
-        selected_option=self.commands_in_ui[selected_option_index]
-        
+        selected_option = self.commands_in_ui[selected_option_index]
+
+        with CommandEditionDialog(self.frame, self.dataManager, selected_option) as addDialog:
+            addDialog.ShowModal()
+
+        self.update_list()
+
+    def copyButtonClicked(self, event):
+        selected_option_index = self.list.GetSelection()
+        if (selected_option_index < 0):
+            return
+
+        selected_option = self.commands_in_ui[selected_option_index]
+        # Remove the display name and the shortcut because its a copy
+        selected_option['name'] = ''
+        selected_option['shortcut'] = ''
+
         with CommandEditionDialog(self.frame, self.dataManager, selected_option) as addDialog:
             addDialog.ShowModal()
 
@@ -84,9 +105,10 @@ class UIManager:
     def deleteButtonClicked(self, event):
         selected_option_index = self.list.GetSelection()
 
-        if (selected_option_index < 0): return
+        if (selected_option_index < 0):
+            return
 
-        selected_option=self.commands_in_ui[selected_option_index]
+        selected_option = self.commands_in_ui[selected_option_index]
 
         self.dataManager.delete_by_uuid(selected_option['id'])
 
@@ -126,10 +148,11 @@ class UIManager:
     def run_button_clicked(self, event):
         try:
             selected_option_index = self.list.GetSelection()
-            if (selected_option_index < 0): return
-            selected_option=self.commands_in_ui[selected_option_index]
-            selected_command=str(selected_option['path'])
-            selected_args=str(selected_option['args'])
+            if (selected_option_index < 0):
+                return
+            selected_option = self.commands_in_ui[selected_option_index]
+            selected_command = str(selected_option['path'])
+            selected_args = str(selected_option['args'])
             run_command(selected_command, selected_args)
             self.toggleVisibility()
         except Exception as e:
