@@ -4,6 +4,7 @@ from managers.data_manager import DataManager
 
 class CommandEditionDialog(wx.Dialog):
     is_editing = False
+    is_copying = False
 
     def __init__(self, parent, data, command_to_edit={}):
         self.command_to_edit = command_to_edit
@@ -12,6 +13,10 @@ class CommandEditionDialog(wx.Dialog):
         else:
             title = "Edit Command"
             is_editing = True
+            if command_to_edit['name'] == "":
+                is_editing = False
+                is_copying = True
+                title="Add command from copy"
 
         self.dataManager = data
 
@@ -85,9 +90,7 @@ class CommandEditionDialog(wx.Dialog):
                 dlg.ShowModal()
             return
 
-        print("hello")
-
-        if not self.command_to_edit == {}:
+        if not self.command_to_edit == {} and self.isEditing:
             self.dataManager.delete_by_uuid(self.command_to_edit['id'])
 
         self.dataManager.add_command(self.command_edit.Value, self.display_name_edit.Value, self.args_edit.Value, self.abreviation_edit.Value)
