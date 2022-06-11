@@ -11,7 +11,7 @@ class UIManager:
         self.app = wx.App(False)
         self.frame = wx.Frame(None, -1, "Launchtype")
         self.panel = wx.Panel(self.frame, -1)
-        self.data = data
+        self.dataManager = data
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -65,7 +65,7 @@ class UIManager:
         dlg.Destroy()
 
     def add_button_clicked(self, event):
-        with CommandEditionDialog(self.frame, self.data) as addDialog:
+        with CommandEditionDialog(self.frame, self.dataManager) as addDialog:
             addDialog.ShowModal()
 
         self.update_list()
@@ -76,13 +76,21 @@ class UIManager:
 
         selected_option=self.commands_in_ui[selected_option_index]
         
-        with CommandEditionDialog(self.frame, self.data, selected_option) as addDialog:
+        with CommandEditionDialog(self.frame, self.dataManager, selected_option) as addDialog:
             addDialog.ShowModal()
 
         self.update_list()
 
     def deleteButtonClicked(self, event):
-        pass
+        selected_option_index = self.list.GetSelection()
+
+        if (selected_option_index < 0): return
+
+        selected_option=self.commands_in_ui[selected_option_index]
+
+        self.dataManager.delete_by_uuid(selected_option['id'])
+
+        self.update_list()
 
     def toggleVisibility(self):
         isVisible = self.frame.IsShown()
@@ -96,11 +104,10 @@ class UIManager:
             self.update_list()
 
     def update_list(self, event=None):
-        print("update")
         self.commands_in_ui = []
         self.list.Clear()
 
-        for command in self.data.get_commands(self.edit.Value.lower()):
+        for command in self.dataManager.get_commands(self.edit.Value.lower()):
             self.commands_in_ui.append(command)
             command_list_string = command['name']
             if not command['shortcut'] == '':
