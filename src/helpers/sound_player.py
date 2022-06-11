@@ -1,9 +1,8 @@
-import wx
-
+import winsound
 
 class SoundPlayer:
     @staticmethod
     def play(filename):
-        sound = wx.Sound(f"./sounds/{filename}.wav")
-        sound.Stop()
-        sound.Play(wx.SOUND_ASYNC)
+        assembled_filename = f"sounds/{filename}.wav"
+        print(assembled_filename)
+        winsound.PlaySound(assembled_filename, winsound.SND_ASYNC)

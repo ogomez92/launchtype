@@ -2,6 +2,7 @@ from managers.ui_manager import UIManager
 from managers.data_manager import DataManager
 from keyboard_handler.wx_handler import WXKeyboardHandler
 from services.speech_service import SpeechService
+from helpers.sound_player import SoundPlayer
 
 dataManager = DataManager()
 SpeechService().initialize()
@@ -22,3 +23,4 @@ except Exception as e:
         "error", "There was an error registering the hotkey for the program: "+str(e))
 
 uiManager.initialize_ui()
+SoundPlayer.play("logo")

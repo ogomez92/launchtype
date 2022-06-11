@@ -47,7 +47,7 @@ class DataManager:
                 return [command]
 
         # Find closest matching command strings containing the search string
-        closest_matching__elements = difflib.get_close_matches(search_string, [command['name'] for command in self.commandsData['commands']])
+        closest_matching__elements = difflib.get_close_matches(search_string, [command['name'] for command in self.commandsData['commands']], cutoff = 0.6)
 
         # Return the commands associated with the elements
         # TODO: Is there a better way to do this?
