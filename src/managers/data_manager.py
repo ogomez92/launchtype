@@ -26,9 +26,9 @@ class DataManager:
     def add_command(self, command, name, args, abreviation):
         command_dictionary = {
             "command": command,
-            "name": name,
+            "name": name.lower(),
             "args": args,
-            "abreviation": abreviation
+            "abreviation": abreviation.lower()
         }
 
         self.commandsData['commands'].append(command_dictionary)
