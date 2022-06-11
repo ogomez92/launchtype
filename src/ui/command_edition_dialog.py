@@ -52,7 +52,7 @@ class CommandEditionDialog(wx.Dialog):
 
         abreviationEditSizer = wx.BoxSizer(wx.HORIZONTAL)
         abreviationEditLabel = wx.StaticText(
-            self, label="Abre&viation (optional):")
+            self, label="&Shortcut (optional):")
         self.abreviation_edit = wx.TextCtrl(self)
         abreviationEditSizer.Add(abreviationEditLabel)
         abreviationEditSizer.Add(self.abreviation_edit)

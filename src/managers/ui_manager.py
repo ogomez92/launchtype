@@ -3,6 +3,8 @@ from ui.command_edition_dialog import CommandEditionDialog
 
 
 class UIManager:
+    commands_in_ui = []
+
     def __init__(self, data):
         self.app = wx.App(False)
         self.frame = wx.Frame(None, -1, "Launchtype")
@@ -18,7 +20,7 @@ class UIManager:
         editSizer.Add(self.edit)
         sizer.Add(editSizer)
 
-        self.list = wx.ListView(self.panel)
+        self.list = wx.ListBox(self.panel, style=wx.LB_SINGLE)
         sizer.Add(self.list)
 
         buttonRowSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -37,6 +39,11 @@ class UIManager:
         self.app.Bind(wx.EVT_BUTTON, self.deleteButtonClicked,
                       self.delete_button)
         buttonRowSizer.Add(self.delete_button)
+
+        self.run_button = wx.Button(
+            self.panel, wx.ID_OK, "&Run")
+        self.app.Bind(wx.EVT_BUTTON, self.run_button_clicked, self.run_button)
+        buttonRowSizer.Add(self.run_button)
 
         sizer.Add(buttonRowSizer)
 
@@ -71,3 +78,21 @@ class UIManager:
         else:
             self.frame.Show()
             self.edit.SetFocus()
+            self.update_list()
+
+    def update_list(self):
+        self.commands_in_ui = []
+
+        for command in self.data.get_commands(self.edit.Value):
+            self.commands_in_ui.append(command)
+            command_list_string = command['name']
+            self.list.Append(command_list_string)
+
+        # Select the first item of the list
+        if self.list.GetCount() > 0:
+            self.list.Select(0)
+
+    def run_button_clicked(self, event):
+        selected_option_index = self.list.GetSelection()
+        selected_option = self.commands_in_ui[selected_option_index]
+        print(f"selection: {selected_option}")

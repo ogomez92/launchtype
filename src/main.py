@@ -5,15 +5,13 @@ from services.speech_service import SpeechService
 
 dataManager = DataManager()
 SpeechService().initialize()
-uiManager = UIManager(dataManager)
 
 if not dataManager.existsCommandsFile():
-    UIManager.show_alert("Welcome to Launchtype",
-                         "I notice that this is the first time using Launchtype. The program hotkey is control + alt + space")
     dataManager.create_commands_file()
 
 dataManager.loadCommandsFromFile()
 
+uiManager = UIManager(dataManager)
 uiManager.toggleVisibility()
 
 try:

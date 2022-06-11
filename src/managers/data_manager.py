@@ -25,11 +25,15 @@ class DataManager:
 
     def add_command(self, command, name, args, abreviation):
         command_dictionary = {
-            "command": command,
+            "path": command,
             "name": name.lower(),
             "args": args,
-            "abreviation": abreviation.lower()
+            "shortcut": abreviation.lower()
         }
 
         self.commandsData['commands'].append(command_dictionary)
         self.syncCommandsToStorage()
+
+    def get_commands(self, search_string=""):
+        if search_string == "":
+            return self.commandsData['commands']
