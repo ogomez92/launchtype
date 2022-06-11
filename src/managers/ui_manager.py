@@ -84,9 +84,10 @@ class UIManager:
         else:
             self.frame.Show()
             self.edit.SetFocus()
+            self.edit.SelectAll()
             self.update_list()
 
-    def update_list(self, event = None):
+    def update_list(self, event=None):
         print("update")
         self.commands_in_ui = []
         self.list.Clear()
@@ -110,9 +111,10 @@ class UIManager:
     def run_button_clicked(self, event):
         try:
             selected_option_index = self.list.GetSelection()
-            selected_option = self.commands_in_ui[selected_option_index]
-            selected_command = str(selected_option['path'])
-            selected_args = str(selected_option['args'])
+            if (selected_option_index < 0): return
+            selected_option=self.commands_in_ui[selected_option_index]
+            selected_command=str(selected_option['path'])
+            selected_args=str(selected_option['args'])
             run_command(selected_command, selected_args)
             self.toggleVisibility()
         except Exception as e:
