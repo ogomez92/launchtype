@@ -73,6 +73,8 @@ class UIManager:
         with CommandEditionDialog(self.frame, self.dataManager) as addDialog:
             addDialog.ShowModal()
 
+        self.edit.Value = ''
+
         self.update_list()
 
     def editButtonClicked(self, event):
@@ -84,6 +86,8 @@ class UIManager:
 
         with CommandEditionDialog(self.frame, self.dataManager, selected_option) as addDialog:
             addDialog.ShowModal()
+
+        self.edit.Value = ''
 
         self.update_list()
 
@@ -99,6 +103,8 @@ class UIManager:
 
         with CommandEditionDialog(self.frame, self.dataManager, selected_option) as addDialog:
             addDialog.ShowModal()
+
+        self.edit.Value = ''
 
         self.update_list()
 
@@ -122,7 +128,7 @@ class UIManager:
         else:
             self.frame.Show()
             self.edit.SetFocus()
-            self.edit.SelectAll()
+            self.edit.Value = ''
             self.update_list()
 
     def update_list(self, event=None):
