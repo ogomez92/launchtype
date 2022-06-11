@@ -100,6 +100,10 @@ class UIManager:
         if self.list.GetCount() > 0:
             self.select_first()
 
+            # If user has typed something in the edit field, speak the first result
+            if not self.edit.Value == '':
+                SpeechService.speak(self.list[0])
+
     def run_button_clicked(self, event):
         try:
             selected_option_index = self.list.GetSelection()

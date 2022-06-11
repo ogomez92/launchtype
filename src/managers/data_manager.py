@@ -38,4 +38,7 @@ class DataManager:
         if search_string == "":
             return self.commandsData['commands']
 
-        
+        # check if the string equals to any abreviation
+        for command in self.commandsData['commands']:
+            if command['shortcut'] == search_string:
+                return [command]
