@@ -37,7 +37,7 @@ class CommandEditionDialog(wx.Dialog):
 
         commandArgsSizer = wx.BoxSizer(wx.HORIZONTAL)
         commandArgsLabel = wx.StaticText(
-            self, label="&Arguments (space separated):")
+            self, label="&Arguments (optional, space separated):")
         self.args_edit = wx.TextCtrl(self)
         commandArgsSizer.Add(commandArgsLabel)
         commandArgsSizer.Add(self.args_edit)
