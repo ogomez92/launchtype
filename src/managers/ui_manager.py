@@ -1,6 +1,6 @@
 import wx
 from ui.command_edition_dialog import CommandEditionDialog
-
+from services.runner_service import run_command
 
 class UIManager:
     commands_in_ui = []
@@ -64,6 +64,8 @@ class UIManager:
         with CommandEditionDialog(self.frame, self.data) as addDialog:
             addDialog.ShowModal()
 
+        self.update_list()
+
     def editButtonClicked(self, event):
         pass
 
@@ -82,6 +84,7 @@ class UIManager:
 
     def update_list(self):
         self.commands_in_ui = []
+        self.list.Clear()
 
         for command in self.data.get_commands(self.edit.Value):
             self.commands_in_ui.append(command)
@@ -93,6 +96,13 @@ class UIManager:
             self.list.Select(0)
 
     def run_button_clicked(self, event):
-        selected_option_index = self.list.GetSelection()
-        selected_option = self.commands_in_ui[selected_option_index]
-        print(f"selection: {selected_option}")
+        try:
+            selected_option_index = self.list.GetSelection()
+            selected_option = self.commands_in_ui[selected_option_index]
+            selected_command = str(selected_option['path'])
+            selected_args = str(selected_option['args'])
+            run_command(selected_command, selected_args)
+            self.toggleVisibility()
+        except Exception as e:
+            UIManager.show_error("Oops...", f"Something went wrong while running your command: {e}")
+
