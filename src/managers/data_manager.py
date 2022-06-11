@@ -1,6 +1,7 @@
 import json
 from os.path import exists
 import uuid
+import difflib
 
 
 class DataManager:
@@ -45,6 +46,14 @@ class DataManager:
             if command['shortcut'] == search_string:
                 return [command]
 
+        # Find closest matching command strings containing the search string
+        closest_matching__elements = difflib.get_close_matches(search_string, [command['name'] for command in self.commandsData['commands']])
+
+        # Return the commands associated with the elements
+        # TODO: Is there a better way to do this?
+        return [command for command in self.commandsData['commands'] if command['name'] in closest_matching__elements]
+
+        # If nothing found return empty array
         return []
         
     def delete_by_uuid(self, id):

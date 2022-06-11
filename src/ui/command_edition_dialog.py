@@ -2,6 +2,7 @@ import wx
 import os
 from managers.data_manager import DataManager
 
+
 class CommandEditionDialog(wx.Dialog):
     is_editing = False
     is_copying = False
@@ -16,7 +17,7 @@ class CommandEditionDialog(wx.Dialog):
             if command_to_edit['name'] == "":
                 self.is_editing = False
                 self.is_copying = True
-                title="Add command from copy"
+                title = "Add command from copy"
 
         self.dataManager = data
 
@@ -32,7 +33,8 @@ class CommandEditionDialog(wx.Dialog):
         commandEditSizer = wx.BoxSizer(wx.HORIZONTAL)
         commandEditLabel = wx.StaticText(self, label="&Path to file:")
         self.command_edit = wx.TextCtrl(self)
-        if not command_to_edit == {} and command_to_edit['path']: self.command_edit.Value = command_to_edit['path']
+        if not command_to_edit == {} and command_to_edit['path']:
+            self.command_edit.Value = command_to_edit['path']
         commandEditSizer.Add(commandEditLabel)
         commandEditSizer.Add(self.command_edit)
 
@@ -46,7 +48,8 @@ class CommandEditionDialog(wx.Dialog):
         commandArgsLabel = wx.StaticText(
             self, label="&Arguments (optional, space separated):")
         self.args_edit = wx.TextCtrl(self)
-        if not command_to_edit == {} and command_to_edit['args']: self.args_edit.Value = command_to_edit['args']
+        if not command_to_edit == {} and command_to_edit['args']:
+            self.args_edit.Value = command_to_edit['args']
         commandArgsSizer.Add(commandArgsLabel)
         commandArgsSizer.Add(self.args_edit)
         sizer.Add(commandArgsSizer)
@@ -54,7 +57,8 @@ class CommandEditionDialog(wx.Dialog):
         displayNameEditSizer = wx.BoxSizer(wx.HORIZONTAL)
         displayNameEditLabel = wx.StaticText(self, label="Display &Name:")
         self.display_name_edit = wx.TextCtrl(self)
-        if not command_to_edit == {} and command_to_edit['name']: self.display_name_edit.Value = command_to_edit['name']
+        if not command_to_edit == {} and command_to_edit['name']:
+            self.display_name_edit.Value = command_to_edit['name']
         displayNameEditSizer.Add(displayNameEditLabel)
         displayNameEditSizer.Add(self.display_name_edit)
         sizer.Add(displayNameEditSizer)
@@ -63,7 +67,8 @@ class CommandEditionDialog(wx.Dialog):
         abreviationEditLabel = wx.StaticText(
             self, label="&Shortcut (optional):")
         self.abreviation_edit = wx.TextCtrl(self)
-        if not command_to_edit == {} and command_to_edit['shortcut']: self.abreviation_edit.Value = command_to_edit['shortcut']
+        if not command_to_edit == {} and command_to_edit['shortcut']:
+            self.abreviation_edit.Value = command_to_edit['shortcut']
         abreviationEditSizer.Add(abreviationEditLabel)
         abreviationEditSizer.Add(self.abreviation_edit)
         sizer.Add(abreviationEditSizer)
@@ -94,8 +99,9 @@ class CommandEditionDialog(wx.Dialog):
             print("deleting")
             self.dataManager.delete_by_uuid(self.command_to_edit['id'])
 
-        self.dataManager.add_command(self.command_edit.Value, self.display_name_edit.Value, self.args_edit.Value, self.abreviation_edit.Value)
-        
+        self.dataManager.add_command(
+            self.command_edit.Value, self.display_name_edit.Value, self.args_edit.Value, self.abreviation_edit.Value)
+
         self.EndModal(wx.ID_OK)
 
     def cancel_button_clicked(self, event):
