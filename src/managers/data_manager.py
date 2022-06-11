@@ -37,3 +37,5 @@ class DataManager:
     def get_commands(self, search_string=""):
         if search_string == "":
             return self.commandsData['commands']
+
+        

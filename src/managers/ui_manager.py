@@ -1,6 +1,8 @@
 import wx
 from ui.command_edition_dialog import CommandEditionDialog
 from services.runner_service import run_command
+from services.speech_service import SpeechService
+
 
 class UIManager:
     commands_in_ui = []
@@ -16,6 +18,7 @@ class UIManager:
         editSizer = wx.BoxSizer(wx.HORIZONTAL)
         editLabel = wx.StaticText(self.panel, label="Input Field")
         self.edit = wx.TextCtrl(self.panel)
+        self.app.Bind(wx.EVT_TEXT, self.update_list, self.edit)
         editSizer.Add(editLabel)
         editSizer.Add(self.edit)
         sizer.Add(editSizer)
@@ -83,7 +86,8 @@ class UIManager:
             self.edit.SetFocus()
             self.update_list()
 
-    def update_list(self):
+    def update_list(self, event = None):
+        print("update")
         self.commands_in_ui = []
         self.list.Clear()
 
@@ -94,7 +98,7 @@ class UIManager:
 
         # Select the first item of the list
         if self.list.GetCount() > 0:
-            self.list.Select(0)
+            self.select_first()
 
     def run_button_clicked(self, event):
         try:
@@ -105,5 +109,8 @@ class UIManager:
             run_command(selected_command, selected_args)
             self.toggleVisibility()
         except Exception as e:
-            UIManager.show_error("Oops...", f"Something went wrong while running your command: {e}")
+            UIManager.show_error(
+                "Oops...", f"Something went wrong while running your command: {e}")
 
+    def select_first(self):
+        self.list.Select(0)
