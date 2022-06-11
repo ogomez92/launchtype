@@ -100,7 +100,7 @@ class UIManager:
         self.commands_in_ui = []
         self.list.Clear()
 
-        for command in self.data.get_commands(self.edit.Value):
+        for command in self.data.get_commands(self.edit.Value.lower()):
             self.commands_in_ui.append(command)
             command_list_string = command['name']
             if not command['shortcut'] == '':

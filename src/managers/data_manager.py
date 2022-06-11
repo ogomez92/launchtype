@@ -45,6 +45,8 @@ class DataManager:
             if command['shortcut'] == search_string:
                 return [command]
 
+        return []
+        
     def delete_by_uuid(self, id):
         for command in self.commandsData['commands']:
             if command['id'] == id:
