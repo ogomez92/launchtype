@@ -43,6 +43,7 @@ class UIManager:
         self.run_button = wx.Button(
             self.panel, wx.ID_OK, "&Run")
         self.app.Bind(wx.EVT_BUTTON, self.run_button_clicked, self.run_button)
+        self.run_button.SetDefault()
         buttonRowSizer.Add(self.run_button)
 
         sizer.Add(buttonRowSizer)
