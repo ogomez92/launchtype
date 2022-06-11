@@ -94,6 +94,9 @@ class UIManager:
         for command in self.data.get_commands(self.edit.Value):
             self.commands_in_ui.append(command)
             command_list_string = command['name']
+            if not command['shortcut'] == '':
+                shortcut = command['shortcut']
+                command_list_string = command_list_string + f"({shortcut})"
             self.list.Append(command_list_string)
 
         # Select the first item of the list
@@ -102,7 +105,7 @@ class UIManager:
 
             # If user has typed something in the edit field, speak the first result
             if not self.edit.Value == '':
-                SpeechService.speak(self.list[0])
+                SpeechService.speak(self.list.GetString(0))
 
     def run_button_clicked(self, event):
         try:
