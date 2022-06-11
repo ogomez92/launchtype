@@ -71,7 +71,15 @@ class UIManager:
         self.update_list()
 
     def editButtonClicked(self, event):
-        pass
+        selected_option_index = self.list.GetSelection()
+        if (selected_option_index < 0): return
+
+        selected_option=self.commands_in_ui[selected_option_index]
+        
+        with CommandEditionDialog(self.frame, self.data, selected_option) as addDialog:
+            addDialog.ShowModal()
+
+        self.update_list()
 
     def deleteButtonClicked(self, event):
         pass

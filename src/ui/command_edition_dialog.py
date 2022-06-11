@@ -6,6 +6,7 @@ class CommandEditionDialog(wx.Dialog):
     is_editing = False
 
     def __init__(self, parent, data, command_to_edit={}):
+        self.command_to_edit = command_to_edit
         if command_to_edit == {}:
             title = "Add Command"
         else:
@@ -26,6 +27,7 @@ class CommandEditionDialog(wx.Dialog):
         commandEditSizer = wx.BoxSizer(wx.HORIZONTAL)
         commandEditLabel = wx.StaticText(self, label="&Path to file:")
         self.command_edit = wx.TextCtrl(self)
+        if not command_to_edit == {} and command_to_edit['path']: self.command_edit.Value = command_to_edit['path']
         commandEditSizer.Add(commandEditLabel)
         commandEditSizer.Add(self.command_edit)
 
@@ -39,6 +41,7 @@ class CommandEditionDialog(wx.Dialog):
         commandArgsLabel = wx.StaticText(
             self, label="&Arguments (optional, space separated):")
         self.args_edit = wx.TextCtrl(self)
+        if not command_to_edit == {} and command_to_edit['args']: self.args_edit.Value = command_to_edit['args']
         commandArgsSizer.Add(commandArgsLabel)
         commandArgsSizer.Add(self.args_edit)
         sizer.Add(commandArgsSizer)
@@ -46,6 +49,7 @@ class CommandEditionDialog(wx.Dialog):
         displayNameEditSizer = wx.BoxSizer(wx.HORIZONTAL)
         displayNameEditLabel = wx.StaticText(self, label="Display &Name:")
         self.display_name_edit = wx.TextCtrl(self)
+        if not command_to_edit == {} and command_to_edit['name']: self.display_name_edit.Value = command_to_edit['name']
         displayNameEditSizer.Add(displayNameEditLabel)
         displayNameEditSizer.Add(self.display_name_edit)
         sizer.Add(displayNameEditSizer)
@@ -54,6 +58,7 @@ class CommandEditionDialog(wx.Dialog):
         abreviationEditLabel = wx.StaticText(
             self, label="&Shortcut (optional):")
         self.abreviation_edit = wx.TextCtrl(self)
+        if not command_to_edit == {} and command_to_edit['shortcut']: self.abreviation_edit.Value = command_to_edit['shortcut']
         abreviationEditSizer.Add(abreviationEditLabel)
         abreviationEditSizer.Add(self.abreviation_edit)
         sizer.Add(abreviationEditSizer)
@@ -81,6 +86,9 @@ class CommandEditionDialog(wx.Dialog):
             return
 
         print("hello")
+
+        if not self.command_to_edit == {}:
+            self.dataManager.delete_by_uuid(self.command_to_edit['id'])
 
         self.dataManager.add_command(self.command_edit.Value, self.display_name_edit.Value, self.args_edit.Value, self.abreviation_edit.Value)
         

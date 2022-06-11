@@ -1,5 +1,6 @@
 import json
 from os.path import exists
+import uuid
 
 
 class DataManager:
@@ -28,7 +29,8 @@ class DataManager:
             "path": command,
             "name": name.lower(),
             "args": args,
-            "shortcut": abreviation.lower()
+            "shortcut": abreviation.lower(),
+            "id": str(uuid.uuid4())
         }
 
         self.commandsData['commands'].append(command_dictionary)
@@ -42,3 +44,10 @@ class DataManager:
         for command in self.commandsData['commands']:
             if command['shortcut'] == search_string:
                 return [command]
+
+    def delete_by_uuid(self, id):
+        for command in self.commandsData['commands']:
+            if command['id'] == id:
+                self.commandsData['commands'].remove(command)
+                self.syncCommandsToStorage()
+                return
