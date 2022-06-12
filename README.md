@@ -30,6 +30,12 @@ python src/main.py
 
 If you find an issue installing or running the app, please let me know. I am still unfamiliar with Python distribution, so it's probably an error on my part.
 
+Once you add a command using the Add button in the UI, in order to use it you can either:
+
+1. Select it from the list
+2. Type its shortcut (if any) in the input field of the UI.
+3. Type enough letters in the command's display name for it to show up in the list and the screen reader to speak it.
+
 ## Known issues
 
 Alt F4 closes the application and you need to run it again (will fix).
