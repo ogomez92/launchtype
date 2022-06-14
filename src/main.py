@@ -1,3 +1,4 @@
+import time
 from managers.ui_manager import UIManager
 from managers.data_manager import DataManager
 from keyboard_handler.wx_handler import WXKeyboardHandler
@@ -22,5 +23,5 @@ except Exception as e:
     UIManager.show_error(
         "error", "There was an error registering the hotkey for the program: "+str(e))
 
-uiManager.initialize_ui()
 SoundPlayer.play("logo")
+uiManager.initialize_ui()

@@ -2,7 +2,7 @@ import json
 from os.path import exists
 import uuid
 import difflib
-
+from helpers.sound_player import SoundPlayer
 
 class DataManager:
     commandsData = {}
@@ -44,6 +44,7 @@ class DataManager:
         # check if the string equals to any abreviation
         for command in self.commandsData['commands']:
             if command['shortcut'] == search_string:
+                SoundPlayer.play("match")
                 return [command]
 
         # Find closest matching command strings containing the search string
@@ -51,9 +52,11 @@ class DataManager:
 
         # Return the commands associated with the elements
         # TODO: Is there a better way to do this?
+        SoundPlayer.play("type")
         return [command for command in self.commandsData['commands'] if command['name'] in closest_matching__elements]
 
         # If nothing found return empty array
+        SoundPlayer.play("type")
         return []
         
     def delete_by_uuid(self, id):
