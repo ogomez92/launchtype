@@ -1,3 +1,4 @@
 platform_utils==0.41
 wxPython==4.1.1
-accessible-output==0.7.5
+accessible_output2==0.16
+libloader==0.21

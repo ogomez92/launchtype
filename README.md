@@ -16,7 +16,7 @@ The commands are stored in a commands.json file which is modifiable via any text
 
 ## Usage
 
-This app doesn't yet have an executable, so you will need to download [Python 3](www.python.org) and then execute the following commands:
+This app doesn't yet have an executable, so you will need to download [Python 3](www.python.org) and then execute the following commands running as administrator (wxpython needs it):
 
 ```bash
 pip install -r requirements.txt
