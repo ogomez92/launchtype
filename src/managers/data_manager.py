@@ -6,6 +6,12 @@ from helpers.sound_player import SoundPlayer
 
 class DataManager:
     commandsData = {}
+    snippets = []
+
+    def __init__(self):
+        if not exists('snippets'):
+            import os
+            os.makedirs('snippets')
 
     def existsCommandsFile(self):
         return exists('commands.json')
@@ -65,3 +71,14 @@ class DataManager:
                 self.commandsData['commands'].remove(command)
                 self.syncCommandsToStorage()
                 return
+
+    def load_snippets_from_files(self):
+        for file in os.listdir('snippets'):
+            file_without_extension = file.split('.')[0]
+            with open('snippets/' + file, 'r') as inputFile:
+                self.snippets.append({
+                    'name': file_without_extension,
+                    'content': inputFile.read()
+                    })
+
+        print(self.snippets)
