@@ -126,6 +126,7 @@ class UIManager:
 
     def toggleVisibility(self):
         isVisible = self.frame.IsShown()
+
         if isVisible:
             self.frame.Hide()
 
@@ -133,6 +134,7 @@ class UIManager:
             self.frame.Show()
             self.edit.SetFocus()
             self.edit.Value = ''
+            self.mode = UIMode.COMMANDS
             self.update_list()
 
     def update_list(self, event=None):
@@ -152,7 +154,8 @@ class UIManager:
 
         for command in self.dataManager.get_data_list_items(self.edit.Value.lower(), self.mode):
             self.commands_in_ui.append(command)
-            command_list_string = command['name']
+            command_list_string = command['name'][:25]
+            
             if not command['shortcut'] == '':
                 shortcut = command['shortcut']
                 command_list_string = command_list_string + f"({shortcut})"
