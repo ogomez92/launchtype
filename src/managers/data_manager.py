@@ -1,8 +1,11 @@
 import json
 from os.path import exists
+from enums.ui_mode import UIMode
+from enums.command_type import CommandType
 import uuid
 import difflib
 from helpers.sound_player import SoundPlayer
+import os
 
 class DataManager:
     commandsData = {}
@@ -43,7 +46,14 @@ class DataManager:
         self.commandsData['commands'].append(command_dictionary)
         self.syncCommandsToStorage()
 
-    def get_commands(self, search_string=""):
+    def get_data_list_items(self, search_string="", mode = UIMode.COMMANDS):
+        if mode == UIMode.COMMANDS:
+            return self.get_commands(search_string)
+
+        if mode == UIMode.SNIPPETS:
+            return self.get_snippets(search_string)
+
+    def get_commands(self, search_string = ''):
         if search_string == "":
             return self.commandsData['commands']
 
@@ -64,7 +74,7 @@ class DataManager:
         # If nothing found return empty array
         SoundPlayer.play("type")
         return []
-        
+
     def delete_by_uuid(self, id):
         for command in self.commandsData['commands']:
             if command['id'] == id:
@@ -77,8 +87,24 @@ class DataManager:
             file_without_extension = file.split('.')[0]
             with open('snippets/' + file, 'r') as inputFile:
                 self.snippets.append({
-                    'name': file_without_extension,
-                    'content': inputFile.read()
+                    'shortcut': file_without_extension,
+                    'contents': inputFile.read()
                     })
+                    
+    def get_snippets(self, search_string):
+        if search_string == "":
+            return map(lambda snippet: {
+                'name': snippet['contents'],
+                'shortcut': snippet['shortcut'],
+                'type': CommandType.SNIPPET
+                }, self.snippets)
 
-        print(self.snippets)
+        # check if the string equals to any abreviation
+        for snippet in self.snippets:
+            if snippet['shortcut'] == search_string:
+                SoundPlayer.play("match")
+                return [{
+                    "name": snippet['contents'],
+                    "shortcut": snippet['shortcut'],
+                    "type": CommandType.SNIPPET
+                }]

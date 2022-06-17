@@ -2,10 +2,14 @@ import wx
 from ui.command_edition_dialog import CommandEditionDialog
 from services.runner_service import run_command
 from services.speech_service import SpeechService
+from enums.ui_mode import UIMode
+from enums.command_type import CommandType
+from utility_functions import copy_to_clipboard
 
 
 class UIManager:
     commands_in_ui = []
+    mode = UIMode.COMMANDS
 
     def __init__(self, data):
         self.app = wx.App(False)
@@ -132,10 +136,15 @@ class UIManager:
             self.update_list()
 
     def update_list(self, event=None):
+        if self.edit.Value == '@':
+            SpeechService.speak("snippet mode")
+            self.mode = UIMode.SNIPPETS
+            self.edit.Value = ""
+
         self.commands_in_ui = []
         self.list.Clear()
 
-        for command in self.dataManager.get_commands(self.edit.Value.lower()):
+        for command in self.dataManager.get_data_list_items(self.edit.Value.lower(), self.mode):
             self.commands_in_ui.append(command)
             command_list_string = command['name']
             if not command['shortcut'] == '':
@@ -157,11 +166,26 @@ class UIManager:
             if (selected_option_index < 0):
                 return
             selected_option = self.commands_in_ui[selected_option_index]
-            selected_command = str(selected_option['path'])
-            selected_args = str(selected_option['args'])
-            run_command(selected_command, selected_args)
+            print(selected_option)
+
+            if not 'type' in selected_option:
+                print("no type")
+                selected_option['type'] = CommandType.COMMAND
+
+            if (selected_option['type'] == CommandType.COMMAND):
+                selected_command = str(selected_option['path'])
+                selected_args = str(selected_option['args'])
+                run_command(selected_command, selected_args)
+
+            if (selected_option['type'] == CommandType.SNIPPET):
+                print("snip")
+                selected_snippet_text = str(selected_option['name'])
+                copy_to_clipboard(selected_snippet_text)
+
             self.toggleVisibility()
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             UIManager.show_error(
                 "Oops...", f"Something went wrong while running your command: {e}")
 

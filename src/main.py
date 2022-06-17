@@ -12,6 +12,7 @@ if not dataManager.existsCommandsFile():
     dataManager.create_commands_file()
 
 dataManager.loadCommandsFromFile()
+dataManager.load_snippets_from_files()
 
 uiManager = UIManager(dataManager)
 uiManager.toggleVisibility()
