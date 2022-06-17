@@ -136,10 +136,16 @@ class UIManager:
             self.update_list()
 
     def update_list(self, event=None):
-        if self.edit.Value == '@':
+        if self.edit.Value == '-':
             SpeechService.speak("snippet mode")
             self.mode = UIMode.SNIPPETS
             self.edit.Value = ""
+
+        if self.edit.Value == '.':
+            SpeechService.speak("commands mode")
+            self.mode = UIMode.COMMANDS
+            self.edit.Value = ""
+
 
         self.commands_in_ui = []
         self.list.Clear()
