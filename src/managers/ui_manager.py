@@ -140,6 +140,7 @@ class UIManager:
     def update_list(self, event=None):
         if self.edit.Value == '-':
             SpeechService.speak("snippet mode")
+            self.dataManager.load_snippets_from_files()
             self.mode = UIMode.SNIPPETS
             self.edit.Value = ""
 
