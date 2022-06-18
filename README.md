@@ -36,6 +36,20 @@ Once you add a command using the Add button in the UI, in order to use it you ca
 2. Type its shortcut (if any) in the input field of the UI.
 3. Type enough letters in the command's display name for it to show up in the list and the screen reader to speak it.
 
+## Snippets
+
+Snippets are pieces of text that, when their filename is typed to the input field of the UI, the content  of the file is put in the clipboard.
+
+In order to use snippets, you need to create .txt files in the snippets folder of the app.
+
+The name of the file is its shortcut, without the txt extension, and the content is what gets coppied.
+
+For example, if you have a file called email.txt in the snippets folder which contains the text my_email@gmail.com, whenever you type "email" in the input field of the app and select it from the list by pressing enter, your email will be in the clipboard, my_email@gmail.com.
+
+In order to access snippets you need to be in snippets mode, you can do this by typing a dash character (-) in the input field. This will cause all the commands to be removed form the list and the snippets will show up.
+
+To go back to commands mode, you can press the period key (.). anyway, each time the app is opened by using ctrl alt space, it is by default in commands mode so nothing needs to be done.
+
 ## Known issues
 
 Alt F4 closes the application and you need to run it again (will fix).
@@ -51,3 +65,4 @@ Workaround: Open a PR and help me make it better ;)
  3. Ensure that requirements.txt is properly set up.
  4. Compile this into an executable for windows.
  5. Possibly tweak the search difflib method.
+ 6. Refactor command and snippet handling in the UI
