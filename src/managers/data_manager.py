@@ -87,7 +87,7 @@ class DataManager:
             file_without_extension = file.split('.')[0]
             with open('snippets/' + file, 'r') as inputFile:
                 self.snippets.append({
-                    'shortcut': file_without_extension,
+                    'shortcut': file_without_extension.lower(),
                     'contents': inputFile.read()
                     })
                     
