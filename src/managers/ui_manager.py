@@ -3,7 +3,6 @@ from ui.command_edition_dialog import CommandEditionDialog
 from services.runner_service import run_command
 from services.speech_service import SpeechService
 from enums.ui_mode import UIMode
-from enums.command_type import CommandType
 from utility_functions import copy_to_clipboard
 
 
@@ -180,14 +179,14 @@ class UIManager:
 
             if not 'type' in selected_option:
                 print("no type")
-                selected_option['type'] = str(CommandType.COMMAND)
+                selected_option['type'] = 'command'
 
-            if (selected_option['type'] == CommandType.COMMAND):
+            if (selected_option['type'] == 'command'):
                 selected_command = str(selected_option['path'])
                 selected_args = str(selected_option['args'])
                 run_command(selected_command, selected_args)
 
-            if (selected_option['type'] == CommandType.SNIPPET):
+            if (selected_option['type'] == 'snippet'):
                 print("snip")
                 selected_snippet_text = str(selected_option['name'])
                 copy_to_clipboard(selected_snippet_text)
