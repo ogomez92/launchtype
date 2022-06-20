@@ -180,7 +180,7 @@ class UIManager:
 
             if not 'type' in selected_option:
                 print("no type")
-                selected_option['type'] = CommandType.COMMAND
+                selected_option['type'] = str(CommandType.COMMAND)
 
             if (selected_option['type'] == CommandType.COMMAND):
                 selected_command = str(selected_option['path'])
