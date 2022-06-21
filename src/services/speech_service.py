@@ -6,8 +6,14 @@ class SpeechService:
 
     @staticmethod
     def initialize():
-        SpeechService.output_method = accessible_output2.outputs.auto.Auto()
+        try:
+            SpeechService.output_method = accessible_output2.outputs.auto.Auto()
+        except:
+            pass
 
     @staticmethod
     def speak(text, interrupt=True):
-        SpeechService.output_method.speak(text, interrupt)
+        try:
+            SpeechService.output_method.speak(text, interrupt)
+        except:
+            pass
