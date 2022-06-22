@@ -3,17 +3,22 @@ import accessible_output2.outputs.auto
 
 class SpeechService:
     output_method = None
+    fallback_method = None
+
 
     @staticmethod
     def initialize():
         try:
+            SpeechService.fallback_method = accessible_output2.outputs.nvda.NVDA()
             SpeechService.output_method = accessible_output2.outputs.auto.Auto()
-        except:
-            pass
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
 
     @staticmethod
     def speak(text, interrupt=True):
         try:
             SpeechService.output_method.speak(text, interrupt)
         except:
+            SpeechService.fallback_method.speak(text, interrupt)
             pass
