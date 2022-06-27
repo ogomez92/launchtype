@@ -1,7 +1,6 @@
 import json
 from os.path import exists
 from enums.ui_mode import UIMode
-from enums.command_type import CommandType
 import uuid
 import difflib
 from helpers.sound_player import SoundPlayer
@@ -96,7 +95,7 @@ class DataManager:
             return map(lambda snippet: {
                 'name': snippet['contents'],
                 'shortcut': snippet['shortcut'],
-                'type': CommandType.SNIPPET
+                'type': 'snippet'
                 }, self.snippets)
 
         # check if the string equals to any abreviation
@@ -106,5 +105,5 @@ class DataManager:
                 return [{
                     "name": snippet['contents'],
                     "shortcut": snippet['shortcut'],
-                    "type": CommandType.SNIPPET
+                    "type": 'snippet'
                 }]
