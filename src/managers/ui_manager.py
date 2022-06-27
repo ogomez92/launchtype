@@ -57,6 +57,12 @@ class UIManager:
         self.app.Bind(wx.EVT_BUTTON, self.run_button_clicked, self.run_button)
         self.run_button.SetDefault()
         buttonRowSizer.Add(self.run_button)
+        self.run_button.SetDefault()
+
+        self.snippets_button = wx.Button(
+            self.panel, wx.ID_OK, "Open &Snippets folder")
+        self.app.Bind(wx.EVT_BUTTON, self.snippets_button_clicked, self.snippets_button)
+        buttonRowSizer.Add(self.snippets_button)
 
         sizer.Add(buttonRowSizer)
 
@@ -201,3 +207,8 @@ class UIManager:
 
     def select_first(self):
         self.list.Select(0)
+
+    def snippets_button_clicked(self, event):
+        import os
+        snippets_folder_location = os.path.join(os.getcwd(), "snippets")
+        os.startfile(snippets_folder_location)
