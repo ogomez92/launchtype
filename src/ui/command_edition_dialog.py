@@ -46,7 +46,7 @@ class CommandEditionDialog(wx.Dialog):
 
         commandArgsSizer = wx.BoxSizer(wx.HORIZONTAL)
         commandArgsLabel = wx.StaticText(
-            self, label="&Arguments (optional, space separated):")
+            self, label="&Arguments (optional, comma separated):")
         self.args_edit = wx.TextCtrl(self)
         if not command_to_edit == {} and command_to_edit['args']:
             self.args_edit.Value = command_to_edit['args']
