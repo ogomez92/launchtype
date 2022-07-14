@@ -11,5 +11,4 @@ def run_command(path, args):
     SoundPlayer.play("run")
     command_to_run = [path]
     command_to_run.extend(comma_separated_args)
-    print(command_to_run)
     subprocess.Popen(command_to_run, cwd=cwd)

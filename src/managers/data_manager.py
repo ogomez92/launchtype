@@ -82,6 +82,7 @@ class DataManager:
                 return
 
     def load_snippets_from_files(self):
+        self.snippets = []
         for file in os.listdir('snippets'):
             file_without_extension = file.split('.')[0]
             with open('snippets/' + file, 'r') as inputFile:
@@ -107,3 +108,10 @@ class DataManager:
                     "shortcut": snippet['shortcut'],
                     "type": 'snippet'
                 }]
+
+    def check_if_shortcut_already_in_commands(self, shortcut_string):
+        for command in self.commandsData['commands']:
+            if not shortcut_string == "" and shortcut_string == command['shortcut']:
+                return True
+
+        return False

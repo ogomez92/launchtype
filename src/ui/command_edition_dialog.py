@@ -95,6 +95,11 @@ class CommandEditionDialog(wx.Dialog):
                 dlg.ShowModal()
             return
 
+        if self.dataManager.check_if_shortcut_already_in_commands(self.abreviation_edit.Value) and not self.is_editing:
+            with wx.MessageDialog(self, "The shortcut is already in use.", "Shortcut taken", wx.OK | wx.ICON_ERROR) as dlg:
+                dlg.ShowModal()
+            return
+
         if not self.command_to_edit == {} and self.is_editing and not self.is_copying:
             print("deleting")
             self.dataManager.delete_by_uuid(self.command_to_edit['id'])
