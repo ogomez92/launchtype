@@ -12,8 +12,9 @@ class SpeechService:
             SpeechService.fallback_method = accessible_output2.outputs.nvda.NVDA()
             SpeechService.output_method = accessible_output2.outputs.auto.Auto()
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            print('cannot automatically get output method, thank you accessible output2!')
+            SpeechService.output_method = accessible_output2.outputs.nvda.NVDA()
+            pass
 
     @staticmethod
     def speak(text, interrupt=True):
