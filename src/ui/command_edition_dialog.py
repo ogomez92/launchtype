@@ -101,8 +101,27 @@ class CommandEditionDialog(wx.Dialog):
             return
 
         if not self.command_to_edit == {} and self.is_editing and not self.is_copying:
-            print("deleting")
-            self.dataManager.delete_by_uuid(self.command_to_edit['id'])
+            self.dataManager.pop_by_uuid(self.command_to_edit['id'])
+
+            if self.command_to_edit['path'] != self.command_edit.Value:
+                commands_with_same_path = self.dataManager.get_commands_with_path(
+                    self.command_to_edit['path'])
+
+                if len(commands_with_same_path) > 0:
+                    actions_to_display = ""
+                    for action in commands_with_same_path[:5]:
+                        actions_to_display += action['name'] + ", "
+
+                    if len(commands_with_same_path) > 5:
+                        actions_to_display += "and " + str(len(commands_with_same_path) - 5) + " more. "
+
+                    answer = self.show_question_dialog("Edit Assistant", "This path is already in use by the following actions: " + actions_to_display + "Do you want to change the path for all of them?")
+
+                    if answer:
+                        for action in commands_with_same_path:
+                            action['path'] = self.command_edit.Value
+
+                        DataManager().syncCommandsToStorage()
 
         self.dataManager.add_command(
             self.command_edit.Value, self.display_name_edit.Value, self.args_edit.Value, self.abreviation_edit.Value)
@@ -125,3 +144,10 @@ class CommandEditionDialog(wx.Dialog):
                 self.command_edit.Value = path
             else:
                 print("nope")
+
+    def show_question_dialog(self, title, text):
+        dlg = wx.MessageDialog(self, text, title, wx.YES_NO | wx.ICON_QUESTION)
+        result = dlg.ShowModal()
+        dlg.Destroy()
+        print(result)
+        return result == wx.ID_YES

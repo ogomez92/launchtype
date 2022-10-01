@@ -72,6 +72,13 @@ class UIManager:
         dlg.ShowModal()
         dlg.Destroy()
 
+    def show_question_dialog(title, text):
+        dlg = wx.MessageDialog(None, text, title, wx.YES_NO | wx.ICON_QUESTION)
+        result = dlg.ShowModal()
+        dlg.Destroy()
+
+        return result == wx.ID_YES
+
     def show_error(title, text):
         dlg = wx.MessageDialog(None, text, title, wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
@@ -124,7 +131,7 @@ class UIManager:
 
         selected_option = self.commands_in_ui[selected_option_index]
 
-        self.dataManager.delete_by_uuid(selected_option['id'])
+        self.dataManager.pop_by_uuid(selected_option['id'])
 
         self.update_list()
 
