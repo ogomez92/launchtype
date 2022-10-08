@@ -48,6 +48,6 @@ coverage.xml
 
 # Sphinx documentation
 docs/_build/
-commands.json
+*.json
 *.dat
 snippets
