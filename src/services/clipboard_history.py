@@ -31,11 +31,12 @@ class ClipboardHistory:
 
     def add_item_to_history(self, value):
         if value not in self.history_items:
-            self.history_items.append(value)
+            self.history_items.insert(0, value)
             
         if len(self.history_items) > 50:
             self.history_items.pop(0)
-            self.sync_to_storage()
+
+        self.sync_to_storage()
 
     def get_history_items(self):
         # create list with history_items with its name as value and index as shortcut
@@ -44,7 +45,7 @@ class ClipboardHistory:
             history_items.append({"name": item, "shortcut": str(index + 1), "type": "clip"})
         return history_items
 
-    def sync_to_storage():
+    def sync_to_storage(self):
         with open('clipboard_history.json', 'w') as outputFile:
 
             json_string = json.dumps(self.history_items)
