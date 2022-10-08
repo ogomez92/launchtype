@@ -155,6 +155,11 @@ class UIManager:
             self.mode = UIMode.SNIPPETS
             self.edit.Value = ""
 
+        if self.edit.Value == '?':
+            SpeechService.speak("Clipboard history mode")
+            self.mode = UIMode.CLIPBOARD
+            self.edit.Value = ""
+
         if self.edit.Value == '.':
             SpeechService.speak("commands mode")
             self.mode = UIMode.COMMANDS
@@ -166,7 +171,7 @@ class UIManager:
 
         for command in self.dataManager.get_data_list_items(self.edit.Value.lower(), self.mode):
             self.commands_in_ui.append(command)
-            command_list_string = command['name'][:25]
+            command_list_string = command['name'][:40]
             
             if not command['shortcut'] == '':
                 shortcut = command['shortcut']
@@ -202,6 +207,9 @@ class UIManager:
                 print("snip")
                 selected_snippet_text = str(selected_option['name'])
                 copy_to_clipboard(selected_snippet_text)
+
+            if (selected_option['type'] == 'clip'):
+                copy_to_clipboard(str(selected_option['name']))
 
             self.toggleVisibility()
         except Exception as e:

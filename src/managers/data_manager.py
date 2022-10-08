@@ -1,7 +1,6 @@
 import json
-
 from os.path import exists
-
+from services.clipboard_history import ClipboardHistory
 from enums.ui_mode import UIMode
 import uuid
 
@@ -11,11 +10,10 @@ from helpers.sound_player import SoundPlayer
 import os
 
 
-
 class DataManager:
 
     commandsData = {}
-
+    clipboard_history = ClipboardHistory()
     snippets = []
 
     def __init__(self):
@@ -24,7 +22,6 @@ class DataManager:
             import os
 
             os.makedirs('snippets')
-
 
     def existsCommandsFile(self):
 
@@ -40,7 +37,6 @@ class DataManager:
 
         self.syncCommandsToStorage()
 
-
     def syncCommandsToStorage(self):
 
         with open('commands.json', 'w') as outputFile:
@@ -49,13 +45,11 @@ class DataManager:
 
             outputFile.write(json_string)
 
-
     def loadCommandsFromFile(self):
 
         with open('commands.json', 'r') as inputFile:
 
             self.commandsData = json.loads(inputFile.read())
-
 
     def add_command(self, command, name, args, abreviation):
 
@@ -79,18 +73,19 @@ class DataManager:
 
         self.syncCommandsToStorage()
 
-
     def get_data_list_items(self, search_string="", mode=UIMode.COMMANDS):
 
         if mode == UIMode.COMMANDS:
 
             return self.get_commands(search_string)
 
-
         if mode == UIMode.SNIPPETS:
 
             return self.get_snippets(search_string)
 
+        if mode == UIMode.CLIPBOARD:
+
+            return self.get_history_items(search_string)
 
     def get_commands_with_path(self, path):
 
@@ -104,13 +99,11 @@ class DataManager:
 
         return commands_to_return
 
-
     def get_commands(self, search_string=''):
 
         if search_string == "":
 
             return self.commandsData['commands']
-
 
         # check if the string equals to any abreviation
 
@@ -122,13 +115,11 @@ class DataManager:
 
                 return [command]
 
-
         # Find closest matching command strings containing the search string
 
         closest_matching__elements = difflib.get_close_matches(search_string, [
 
                                                                command['name'] for command in self.commandsData['commands']], cutoff=0.6)
-
 
         # Return the commands associated with the elements
 
@@ -137,7 +128,6 @@ class DataManager:
         SoundPlayer.play("type")
 
         return [command for command in self.commandsData['commands'] if command['name'] in closest_matching__elements]
-
 
         # If nothing found return empty array
 
@@ -173,7 +163,6 @@ class DataManager:
 
                 })
 
-
     def get_snippets(self, search_string):
 
         if search_string == "":
@@ -187,7 +176,6 @@ class DataManager:
                 'type': 'snippet'
 
             }, self.snippets)
-
 
         # check if the string equals to any abreviation
         for snippet in self.snippets:
@@ -206,7 +194,6 @@ class DataManager:
 
                 }]
 
-
     def check_if_shortcut_already_in_commands(self, shortcut_string):
 
         for command in self.commandsData['commands']:
@@ -215,6 +202,32 @@ class DataManager:
 
                 return True
 
-
         return False
 
+    def get_history_items(self, search_string):
+        clipboard_items = self.clipboard_history.get_history_items()
+
+        if search_string == "":
+
+            return clipboard_items
+
+        # check if the string equals to any abreviation
+        for item in clipboard_items:
+            if item['shortcut'] == search_string:
+                SoundPlayer.play("match")
+                return [item]
+
+        # Find closest matching command strings containing the search string
+
+        closest_matching__elements = difflib.get_close_matches(search_string, [
+
+                                                               item['name'] for item in clipboard_items], cutoff=0.6)
+
+        SoundPlayer.play("type")
+
+        return [command for command in self.commandsData['commands'] if command['name'] in closest_matching__elements]
+
+        # If nothing found return empty array
+
+        SoundPlayer.play("type")
+        return []
