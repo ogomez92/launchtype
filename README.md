@@ -50,6 +50,12 @@ In order to access snippets you need to be in snippets mode, you can do this by 
 
 To go back to commands mode, you can press the period key (.). anyway, each time the app is opened by using ctrl alt space, it is by default in commands mode so nothing needs to be done.
 
+## Clipboard History
+
+Clipboard history can be accessed by pressing ? (question mark) in the input field. It will show up to 50 text items that you coppied to your clipboard, and it persists across restarts.
+
+IT will only work with textual items, not file paths or stuff like that.
+
 ## Known issues
 
 Alt F4 closes the application and you need to run it again (will fix).

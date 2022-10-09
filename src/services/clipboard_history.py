@@ -25,7 +25,8 @@ class ClipboardHistory:
             time.sleep(0.1)
 
             value = pyperclip.paste()
-            if value != self.last_value:
+            
+            if value != "" and value != self.last_value:
                 self.add_item_to_history(value)
                 self.last_value = value
 
