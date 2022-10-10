@@ -64,6 +64,9 @@ class UIManager:
 
         sizer.Add(buttonRowSizer)
 
+        # hide frame when escape pressed
+        self.app.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
+
     def initialize_ui(self):
         self.app.MainLoop()
 
@@ -226,3 +229,10 @@ class UIManager:
         import os
         snippets_folder_location = os.path.join(os.getcwd(), "snippets")
         os.startfile(snippets_folder_location)
+
+    def on_key_down(self, event):
+        if event.GetKeyCode() == wx.WXK_ESCAPE or event.GetKeyCode() == wx.WXK_F4 and event.AltDown():
+            self.frame.Hide()
+            return
+            
+        event.Skip()
