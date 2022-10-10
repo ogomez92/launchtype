@@ -1,12 +1,15 @@
 import time
 from managers.ui_manager import UIManager
+from managers.command_line_parameters import get_command_line_parameters
 from managers.data_manager import DataManager
 
 from keyboard_handler.wx_handler import WXKeyboardHandler
 from services.speech_service import SpeechService
 from helpers.sound_player import SoundPlayer
 
-dataManager = DataManager()
+command_line = get_command_line_parameters()
+dataManager = DataManager(command_line.commands)
+
 SpeechService().initialize()
 
 if not dataManager.existsCommandsFile():
@@ -16,7 +19,9 @@ dataManager.loadCommandsFromFile()
 dataManager.load_snippets_from_files()
 
 uiManager = UIManager(dataManager)
-uiManager.toggleVisibility()
+
+if not command_line.start_minimized:
+    uiManager.toggleVisibility()
 
 try:
     handler = WXKeyboardHandler(uiManager.frame)

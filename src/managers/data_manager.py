@@ -16,7 +16,8 @@ class DataManager:
     clipboard_history = ClipboardHistory()
     snippets = []
 
-    def __init__(self):
+    def __init__(self, commands_file):
+        self.commands_file = commands_file
 
         if not exists('snippets'):
             import os
@@ -25,7 +26,7 @@ class DataManager:
 
     def existsCommandsFile(self):
 
-        return exists('commands.json')
+        return exists(self.commands_file)
 
     def create_commands_file(self):
 
@@ -39,7 +40,7 @@ class DataManager:
 
     def syncCommandsToStorage(self):
 
-        with open('commands.json', 'w') as outputFile:
+        with open(self.commands_file, 'w') as outputFile:
 
             json_string = json.dumps(self.commandsData)
 
@@ -47,7 +48,7 @@ class DataManager:
 
     def loadCommandsFromFile(self):
 
-        with open('commands.json', 'r') as inputFile:
+        with open(self.commands_file, 'r') as inputFile:
 
             self.commandsData = json.loads(inputFile.read())
 

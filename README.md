@@ -12,23 +12,11 @@ You can add commands via the UI, for example add chrome.exe using a URL as argum
 
 From the UI you can also copy existing commands, edit them, and delete.
 
-The commands are stored in a commands.json file which is modifiable via any text editor that supports JSON formatting to make it readable.
+The commands are stored in a commands.json file (or any other file you specify in the command line). which is modifiable via any text editor that supports JSON formatting to make it readable.
 
 ## Usage
 
-This app doesn't yet have an executable, so you will need to download [Python 3](www.python.org) and then execute the following commands running as administrator (wxpython needs it):
-
-```bash
-pip install -r requirements.txt
-```
-
-To use the app, simply run:
-
-```bash
-python src/main.py
-```
-
-If you find an issue installing or running the app, please let me know. I am still unfamiliar with Python distribution, so it's probably an error on my part.
+The app includes some comand line parameters, mainly -m to start minimized and -c [filename] to specify a different commands file.
 
 Once you add a command using the Add button in the UI, in order to use it you can either:
 

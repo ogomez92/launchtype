@@ -146,6 +146,7 @@ class UIManager:
 
         else:
             self.frame.Show()
+            self.frame.Raise()
             self.edit.SetFocus()
             self.edit.Value = ''
             self.mode = UIMode.COMMANDS
