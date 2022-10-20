@@ -35,7 +35,7 @@ class ClipboardHistory:
             self.history_items.insert(0, value)
             
         if len(self.history_items) > 50:
-            self.history_items.pop(0)
+            self.history_items.pop()
 
         self.sync_to_storage()
 
