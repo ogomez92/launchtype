@@ -154,7 +154,7 @@ class DataManager:
 
             file_without_extension = file.split('.')[0]
 
-            with open('snippets/' + file, 'r') as inputFile:
+            with open('snippets/' + file, 'r', encoding='utf-8') as inputFile:
 
                 self.snippets.append({
 
