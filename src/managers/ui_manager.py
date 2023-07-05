@@ -1,5 +1,6 @@
 import wx
 from ui.command_edition_dialog import CommandEditionDialog
+from ui.add_snippet_dialog import AddSnippetDialog
 from services.runner_service import run_command
 from services.speech_service import SpeechService
 from enums.ui_mode import UIMode
@@ -56,6 +57,11 @@ class UIManager:
         self.app.Bind(wx.EVT_BUTTON, self.snippets_button_clicked, self.snippets_button)
         buttonRowSizer.Add(self.snippets_button)
 
+        self.new_snippet_button = wx.Button(
+            self.panel, 12345, "&New snipet")
+        self.app.Bind(wx.EVT_BUTTON, self.new_snippet_button_clicked, self.new_snippet_button)
+        buttonRowSizer.Add(self.new_snippet_button)
+
         self.run_button = wx.Button(
             self.panel, wx.ID_OK, "&Run")
         self.app.Bind(wx.EVT_BUTTON, self.run_button_clicked, self.run_button)
@@ -70,19 +76,19 @@ class UIManager:
     def initialize_ui(self):
         self.app.MainLoop()
 
-    def show_alert(title, text):
+    def show_alert(self, title, text):
         dlg = wx.MessageDialog(None, text, title, wx.OK)
         dlg.ShowModal()
         dlg.Destroy()
 
-    def show_question_dialog(title, text):
+    def show_question_dialog(self, title, text):
         dlg = wx.MessageDialog(None, text, title, wx.YES_NO | wx.ICON_QUESTION)
         result = dlg.ShowModal()
         dlg.Destroy()
 
         return result == wx.ID_YES
 
-    def show_error(title, text):
+    def show_error(self, title, text):
         dlg = wx.MessageDialog(None, text, title, wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
         dlg.Destroy()
@@ -138,7 +144,7 @@ class UIManager:
 
         self.update_list()
 
-    def toggleVisibility(self):
+    def toggle_visibility(self):
         isVisible = self.frame.IsShown()
 
         if isVisible:
@@ -215,21 +221,31 @@ class UIManager:
             if (selected_option['type'] == 'clip'):
                 copy_to_clipboard(str(selected_option['name']))
 
-            self.toggleVisibility()
+            self.toggle_visibility()
         except Exception as e:
             import traceback
             traceback.print_exc()
-            UIManager.show_error(
+            self.show_error(
                 "Oops...", f"Something went wrong while running your command: {e}")
 
     def select_first(self):
         self.list.Select(0)
 
     def snippets_button_clicked(self, event):
-        self.toggleVisibility()
+        self.toggle_visibility()
         import os
         snippets_folder_location = os.path.join(os.getcwd(), "snippets")
         os.startfile(snippets_folder_location)
+
+    def new_snippet_button_clicked(self, event):
+        # show the add snippet dialog and print the results
+        with AddSnippetDialog(self.frame, self.dataManager) as addDialog:
+            addDialog.ShowModal()
+
+        self.edit.Value = ''
+        self.update_list()
+        self.toggle_visibility()
+
 
     def on_key_down(self, event):
         if event.GetKeyCode() == wx.WXK_ESCAPE or event.GetKeyCode() == wx.WXK_F4 and event.AltDown():

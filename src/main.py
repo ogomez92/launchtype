@@ -21,13 +21,13 @@ dataManager.load_snippets_from_files()
 uiManager = UIManager(dataManager)
 
 if not command_line.start_minimized:
-    uiManager.toggleVisibility()
+    uiManager.toggle_visibility()
 
 try:
     handler = WXKeyboardHandler(uiManager.frame)
-    handler.register_key("control+alt+space", uiManager.toggleVisibility)
+    handler.register_key("control+alt+space", uiManager.toggle_visibility)
 except Exception as e:
-    UIManager.show_error(
+    uiManager.show_error(
         "error", "There was an error registering the hotkey for the program: "+str(e))
 
 SoundPlayer.play("logo")

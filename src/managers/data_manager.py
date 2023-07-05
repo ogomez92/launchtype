@@ -232,3 +232,14 @@ class DataManager:
 
         SoundPlayer.play("type")
         return []
+
+    def add_snippet(self, name, contents):
+        with open('snippets/' + name + '.txt', 'w', encoding='utf-8') as outputFile:
+            outputFile.write(contents)
+
+            self.snippets.append({
+                'shortcut': name.lower(),
+                'contents': contents
+            })
+
+        self.load_snippets_from_files()
