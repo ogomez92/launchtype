@@ -51,3 +51,4 @@ docs/_build/
 *.json
 *.dat
 snippets
+*.plist

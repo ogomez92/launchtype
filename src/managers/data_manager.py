@@ -1,6 +1,7 @@
 import json
 from os.path import exists
 from services.clipboard_history import ClipboardHistory
+from helpers.plist_helper import parse_apple_snippets
 from enums.ui_mode import UIMode
 import uuid
 
@@ -148,8 +149,13 @@ class DataManager:
                 return
 
     def load_snippets_from_files(self):
-
         self.snippets = []
+
+        apple_snippets = parse_apple_snippets("apple_snippets.plist")
+
+        if apple_snippets:
+            self.snippets.extend(apple_snippets)
+            
         for file in os.listdir('snippets'):
 
             file_without_extension = file.split('.')[0]
