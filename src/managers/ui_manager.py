@@ -1,5 +1,6 @@
 import wx
 from ui.command_edition_dialog import CommandEditionDialog
+from helpers.sound_player import SoundPlayer
 from ui.add_snippet_dialog import AddSnippetDialog
 from services.runner_service import run_command
 from services.speech_service import SpeechService
@@ -149,9 +150,11 @@ class UIManager:
 
         if isVisible:
             self.frame.Hide()
+            SoundPlayer.play("hide")
 
         else:
             self.frame.Show()
+            SoundPlayer.play("show")
             self.frame.Raise()
             self.edit.SetFocus()
             self.edit.Value = ''
