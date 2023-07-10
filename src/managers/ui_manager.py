@@ -224,7 +224,7 @@ class UIManager:
             if (selected_option['type'] == 'clip'):
                 copy_to_clipboard(str(selected_option['name']))
 
-            self.toggle_visibility()
+            self.frame.Hide()
         except Exception as e:
             import traceback
             traceback.print_exc()
