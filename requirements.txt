@@ -1,5 +1,5 @@
-platform_utils==0.41
-wxPython==4.1.1
-accessible_output2==0.16
-libloader==0.21
-pyperclip==1.8.2
+platform_utils
+wxPython
+accessible_output2
+libloader
+pyperclip
