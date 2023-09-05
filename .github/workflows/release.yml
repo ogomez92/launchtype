@@ -28,16 +28,17 @@ jobs:
           pyinstaller ./main.spec
           copy sounds ./dist/launchtype
 
-      - name: archive binary in a zip file
-        uses: vimtor/action-zip@v1
+      - name: Archive Release
+        uses: thedoctor0/zip-release@0.7.1
         with:
-          files: ./dist/launchtype
-          dest: ./dist/launchtype.zip
+            type: 'zip'
+            path: ./dist/launchtype
+            filename: 'launchtype.zip'
 
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
-          files: ./dist/launchtype.zip
+          files: launchtype.zip
           tag_name: ${{ github.ref }}
           body: |
             This is a new release of LaunchType. For the user manual see https://www.oriolgomez.com/software/
