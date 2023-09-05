@@ -260,13 +260,10 @@ class UIManager:
         event.Skip()
 
     def openDocs(self):
-        current_dir = os.getcwd()
-        parent_dir = os.path.dirname(current_dir)
-        doc_path = os.path.join(parent_dir, "doc", "readme.html")
         self.show_alert(
             "information", "The documentation will now open in your web browser.")
         try:
-            webbrowser.open_new(doc_path)
+            webbrowser.open_new("file://doc/readme.html")
         except webbrowser.Error as e:
             self.show_alert("Documentation error",
                             f"There was an error opening the documentation: {e}")
