@@ -28,7 +28,9 @@ if not command_line.start_minimized:
 try:
     handler = WXKeyboardHandler(uiManager.frame)
     handler.register_key("control+alt+space", uiManager.toggle_visibility)
-    handler.register_key("control+alt+r", windowManager.hide_currently_focused_window)
+    handler.register_key(
+        "control+alt+r", windowManager.hide_currently_focused_window)
+    handler.register_key("control+shift+f1", uiManager.openDocs)
 except Exception as e:
     uiManager.show_error(
         "error", "There was an error registering the hotkey for the program: "+str(e))
