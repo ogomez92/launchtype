@@ -22,15 +22,22 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-ci.txt
 
-      - name: Make pyinstaller binary
+      - name: Make pyinstaller binary and copy sounds
         run: |
           pyinstaller ./main.spec
           copy sounds ./dist/launchtype
 
+      - name: archive binary in a zip file
+        uses: montudor/action-zip@v1.1.0
+        with:
+          files: |
+            ./dist/launchtype/*
+          output: ./dist/launchtype.zip
+
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
-          files: ./dist/launchtype/*
+          files: ./dist/launchtype.zip
           tag_name: ${{ github.ref }}
           body: |
             This is a new release of LaunchType. For the user manual see https://www.oriolgomez.com/software/
