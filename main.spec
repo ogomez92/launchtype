@@ -6,7 +6,6 @@ block_cipher = None
 
 a = Analysis(
     ['src\\main.py'],
-    pathex=[],
     binaries=[],
     datas=[],
     hiddenimports=[],
@@ -26,7 +25,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='main',
+    name='launchtype',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -46,5 +45,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='main',
+    name='launchtype',
 )

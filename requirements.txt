@@ -1,5 +1,5 @@
 platform_utils
-wxPython
 accessible_output2
 libloader
 pyperclip
+wxpython
