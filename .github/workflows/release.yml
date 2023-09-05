@@ -26,7 +26,7 @@ jobs:
       - name: Make pyinstaller binary and copy sounds
         run: |
           pyinstaller ./main.spec
-          copy sounds ./dist/launchtype
+          xcopy sounds dist\launchtype\sounds /E /H /C /I
 
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
