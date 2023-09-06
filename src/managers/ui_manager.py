@@ -6,6 +6,7 @@ from services.runner_service import run_command
 from services.speech_service import SpeechService
 from enums.ui_mode import UIMode
 from utility_functions import copy_to_clipboard
+import webbrowser
 
 
 class UIManager:
@@ -55,12 +56,14 @@ class UIManager:
 
         self.snippets_button = wx.Button(
             self.panel, 1234, "Open &Snippets folder")
-        self.app.Bind(wx.EVT_BUTTON, self.snippets_button_clicked, self.snippets_button)
+        self.app.Bind(wx.EVT_BUTTON, self.snippets_button_clicked,
+                      self.snippets_button)
         buttonRowSizer.Add(self.snippets_button)
 
         self.new_snippet_button = wx.Button(
             self.panel, 12345, "&New snipet")
-        self.app.Bind(wx.EVT_BUTTON, self.new_snippet_button_clicked, self.new_snippet_button)
+        self.app.Bind(wx.EVT_BUTTON, self.new_snippet_button_clicked,
+                      self.new_snippet_button)
         buttonRowSizer.Add(self.new_snippet_button)
 
         self.run_button = wx.Button(
@@ -68,6 +71,10 @@ class UIManager:
         self.app.Bind(wx.EVT_BUTTON, self.run_button_clicked, self.run_button)
         self.run_button.SetDefault()
         buttonRowSizer.Add(self.run_button)
+
+        self.help_button = wx.Button(self.panel, wx.ID_HELP, "&Help")
+        self.app.Bind(wx.EVT_BUTTON, self.openDocs, self.help_button)
+        buttonRowSizer.Add(self.help_button)
 
         sizer.Add(buttonRowSizer)
 
@@ -178,14 +185,13 @@ class UIManager:
             self.mode = UIMode.COMMANDS
             self.edit.Value = ""
 
-
         self.commands_in_ui = []
         self.list.Clear()
 
         for command in self.dataManager.get_data_list_items(self.edit.Value.lower(), self.mode):
             self.commands_in_ui.append(command)
             command_list_string = command['name'][:40]
-            
+
             if not command['shortcut'] == '':
                 shortcut = command['shortcut']
                 command_list_string = command_list_string + f"({shortcut})"
@@ -249,10 +255,19 @@ class UIManager:
         self.update_list()
         self.toggle_visibility()
 
-
     def on_key_down(self, event):
         if event.GetKeyCode() == wx.WXK_ESCAPE or event.GetKeyCode() == wx.WXK_F4 and event.AltDown():
             self.frame.Hide()
             return
-            
+
         event.Skip()
+
+    def openDocs(self, event):
+        self.show_alert(
+            "information", "The documentation will now open in your web browser.")
+        try:
+            webbrowser.open_new(
+                "https://github.com/ogomez92/launchtype/blob/main/README.md")
+        except webbrowser.Error as e:
+            self.show_alert("Documentation error",
+                            f"There was an error opening the documentation: {e}")

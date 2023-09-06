@@ -31,9 +31,9 @@ jobs:
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
         with:
-            type: 'zip'
-            path: ./dist/launchtype
-            filename: 'launchtype.zip'
+          type: "zip"
+          path: ./dist/launchtype
+          filename: "launchtype.zip"
 
       - name: Create release
         uses: softprops/action-gh-release@v1
@@ -46,5 +46,3 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-          
