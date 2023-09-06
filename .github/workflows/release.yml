@@ -27,7 +27,6 @@ jobs:
         run: |
           pyinstaller ./main.spec
           xcopy sounds dist\launchtype\sounds /E /H /C /I
-          xcopy doc dist\launchtype\doc /E /H /C /I
 
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1

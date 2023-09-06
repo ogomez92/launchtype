@@ -7,7 +7,6 @@ from services.speech_service import SpeechService
 from enums.ui_mode import UIMode
 from utility_functions import copy_to_clipboard
 import webbrowser
-import os
 
 
 class UIManager:
@@ -72,6 +71,10 @@ class UIManager:
         self.app.Bind(wx.EVT_BUTTON, self.run_button_clicked, self.run_button)
         self.run_button.SetDefault()
         buttonRowSizer.Add(self.run_button)
+
+        self.help_button = wx.Button(self.panel, wx.ID_HELP, "&Help")
+        self.app.Bind(wx.EVT_BUTTON, self.openDocs, self.help_button)
+        buttonRowSizer.Add(self.help_button)
 
         sizer.Add(buttonRowSizer)
 
@@ -259,11 +262,12 @@ class UIManager:
 
         event.Skip()
 
-    def openDocs(self):
+    def openDocs(self, event):
         self.show_alert(
             "information", "The documentation will now open in your web browser.")
         try:
-            webbrowser.open_new("file://doc/readme.html")
+            webbrowser.open_new(
+                "https://github.com/ogomez92/launchtype/blob/main/README.md")
         except webbrowser.Error as e:
             self.show_alert("Documentation error",
                             f"There was an error opening the documentation: {e}")
