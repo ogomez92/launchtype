@@ -8,7 +8,6 @@ from enums.ui_mode import UIMode
 from utility_functions import copy_to_clipboard
 import webbrowser
 
-
 class UIManager:
     commands_in_ui = []
     mode = UIMode.COMMANDS
@@ -22,7 +21,7 @@ class UIManager:
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         editSizer = wx.BoxSizer(wx.HORIZONTAL)
-        editLabel = wx.StaticText(self.panel, label="Input Field")
+        editLabel = wx.StaticText(self.panel, label=_("Input Field"))
         self.edit = wx.TextCtrl(self.panel)
         self.app.Bind(wx.EVT_TEXT, self.update_list, self.edit)
         editSizer.Add(editLabel)
@@ -34,45 +33,45 @@ class UIManager:
 
         buttonRowSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.add_button = wx.Button(
-            self.panel, wx.ID_ADD, "&Add...")
+            self.panel, wx.ID_ADD, _("&Add..."))
         self.app.Bind(wx.EVT_BUTTON, self.add_button_clicked, self.add_button)
         buttonRowSizer.Add(self.add_button)
 
         self.edit_button = wx.Button(
-            self.panel, wx.ID_EDIT, "&Edit...")
+            self.panel, wx.ID_EDIT, _("&Edit..."))
         self.app.Bind(wx.EVT_BUTTON, self.editButtonClicked, self.edit_button)
         buttonRowSizer.Add(self.edit_button)
 
         self.copy_button = wx.Button(
-            self.panel, wx.ID_COPY, "&COPY...")
+            self.panel, wx.ID_COPY, _("&COPY..."))
         self.app.Bind(wx.EVT_BUTTON, self.copyButtonClicked, self.copy_button)
         buttonRowSizer.Add(self.copy_button)
 
         self.delete_button = wx.Button(
-            self.panel, wx.ID_DELETE, "&Delete")
+            self.panel, wx.ID_DELETE, _("&Delete"))
         self.app.Bind(wx.EVT_BUTTON, self.deleteButtonClicked,
                       self.delete_button)
         buttonRowSizer.Add(self.delete_button)
 
         self.snippets_button = wx.Button(
-            self.panel, 1234, "Open &Snippets folder")
+            self.panel, 1234, _("Open &Snippets folder"))
         self.app.Bind(wx.EVT_BUTTON, self.snippets_button_clicked,
                       self.snippets_button)
         buttonRowSizer.Add(self.snippets_button)
 
         self.new_snippet_button = wx.Button(
-            self.panel, 12345, "&New snipet")
+            self.panel, 12345, _("&New snipet"))
         self.app.Bind(wx.EVT_BUTTON, self.new_snippet_button_clicked,
                       self.new_snippet_button)
         buttonRowSizer.Add(self.new_snippet_button)
 
         self.run_button = wx.Button(
-            self.panel, wx.ID_OK, "&Run")
+            self.panel, wx.ID_OK, _("&Run"))
         self.app.Bind(wx.EVT_BUTTON, self.run_button_clicked, self.run_button)
         self.run_button.SetDefault()
         buttonRowSizer.Add(self.run_button)
 
-        self.help_button = wx.Button(self.panel, wx.ID_HELP, "&Help")
+        self.help_button = wx.Button(self.panel, wx.ID_HELP, _("&Help"))
         self.app.Bind(wx.EVT_BUTTON, self.openDocs, self.help_button)
         buttonRowSizer.Add(self.help_button)
 
@@ -170,18 +169,18 @@ class UIManager:
 
     def update_list(self, event=None):
         if self.edit.Value == '-':
-            SpeechService.speak("snippet mode")
+            SpeechService.speak(_("snippet mode"))
             self.dataManager.load_snippets_from_files()
             self.mode = UIMode.SNIPPETS
             self.edit.Value = ""
 
         if self.edit.Value == '?':
-            SpeechService.speak("Clipboard history mode")
+            SpeechService.speak(_("Clipboard history mode"))
             self.mode = UIMode.CLIPBOARD
             self.edit.Value = ""
 
         if self.edit.Value == '.':
-            SpeechService.speak("commands mode")
+            SpeechService.speak(_("commands mode"))
             self.mode = UIMode.COMMANDS
             self.edit.Value = ""
 
@@ -214,7 +213,6 @@ class UIManager:
             print(selected_option)
 
             if not 'type' in selected_option:
-                print("no type")
                 selected_option['type'] = 'command'
 
             if (selected_option['type'] == 'command'):
@@ -223,7 +221,6 @@ class UIManager:
                 run_command(selected_command, selected_args)
 
             if (selected_option['type'] == 'snippet'):
-                print("snip")
                 selected_snippet_text = str(selected_option['name'])
                 copy_to_clipboard(selected_snippet_text)
 
@@ -235,7 +232,7 @@ class UIManager:
             import traceback
             traceback.print_exc()
             self.show_error(
-                "Oops...", f"Something went wrong while running your command: {e}")
+                "Oops...", _(f"Something went wrong while running your command: {e}"))
 
     def select_first(self):
         self.list.Select(0)
@@ -264,10 +261,10 @@ class UIManager:
 
     def openDocs(self, event):
         self.show_alert(
-            "information", "The documentation will now open in your web browser.")
+            _("information"), _("The documentation will now open in your web browser."))
         try:
             webbrowser.open_new(
                 "https://github.com/ogomez92/launchtype/blob/main/README.md")
         except webbrowser.Error as e:
-            self.show_alert("Documentation error",
-                            f"There was an error opening the documentation: {e}")
+            self.show_alert(_("Documentation error"),
+                            _(f"There was an error opening the documentation: ") + str(e))

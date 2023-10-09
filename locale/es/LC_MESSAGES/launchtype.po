@@ -1,0 +1,179 @@
+# Translations template for PROJECT.
+# Copyright (C) 2023 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2023.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2023-10-09 13:23+0200\n"
+"PO-Revision-Date: 2023-10-09 18:06+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.11.0\n"
+"X-Generator: Poedit 3.4\n"
+
+#: src/managers/command_line_parameters.py:6
+msgid "Start application minimized"
+msgstr "Arranca la aplicación minimizada"
+
+#: src/managers/command_line_parameters.py:8
+msgid "specify commands file to use, default is commands.json"
+msgstr "especifica el archivo de comandos a usar (por defecto commands.json)"
+
+#: src/managers/ui_manager.py:26
+msgid "Input Field"
+msgstr "Consola"
+
+#: src/managers/ui_manager.py:38
+msgid "&Add..."
+msgstr "&Añadir..."
+
+#: src/managers/ui_manager.py:43
+msgid "&Edit..."
+msgstr "&Editar..."
+
+#: src/managers/ui_manager.py:48
+msgid "&COPY..."
+msgstr "&Copiar..."
+
+#: src/managers/ui_manager.py:53
+msgid "&Delete"
+msgstr "E&liminar"
+
+#: src/managers/ui_manager.py:59
+msgid "Open &Snippets folder"
+msgstr "Abrir Carpeta de &Sustituciones"
+
+#: src/managers/ui_manager.py:65
+msgid "&New snipet"
+msgstr "&Nueva Sustitución"
+
+#: src/managers/ui_manager.py:71
+msgid "&Run"
+msgstr "Ejecuta&r"
+
+#: src/managers/ui_manager.py:76
+msgid "&Help"
+msgstr "A&yuda"
+
+#: src/managers/ui_manager.py:174
+msgid "snippet mode"
+msgstr "modo sustituciones"
+
+#: src/managers/ui_manager.py:180
+msgid "Clipboard history mode"
+msgstr "Modo historial de portapapeles"
+
+#: src/managers/ui_manager.py:185
+msgid "commands mode"
+msgstr "modo comandos"
+
+#: src/managers/ui_manager.py:266
+msgid "information"
+msgstr "información"
+
+#: src/managers/ui_manager.py:266
+msgid "The documentation will now open in your web browser."
+msgstr "Ahora abriremos la documentación en tu navegador."
+
+#: src/managers/ui_manager.py:271
+msgid "Documentation error"
+msgstr "Error al abrir la documentación"
+
+#: src/managers/ui_manager.py:272
+msgid "There was an error opening the documentation: "
+msgstr "Ha habido un error al abrir la documentación. "
+
+#: src/ui/command_edition_dialog.py:15
+msgid "Add Command"
+msgstr "Añadir comando"
+
+#: src/ui/command_edition_dialog.py:17
+msgid "Edit Command"
+msgstr "Editar comando"
+
+#: src/ui/command_edition_dialog.py:22
+msgid "Add command from copy"
+msgstr "Añadir desde copia"
+
+#: src/ui/command_edition_dialog.py:32
+msgid "Enter the information about the command you wish to add:"
+msgstr "Introduce la información sobre el comando que quieres añadir:"
+
+#: src/ui/command_edition_dialog.py:36
+msgid "&Path to file:"
+msgstr "&Ruta al Archivo:"
+
+#: src/ui/command_edition_dialog.py:43
+msgid "&Browse..."
+msgstr "&Examinar...."
+
+#: src/ui/command_edition_dialog.py:51
+msgid "&Arguments (optional, comma separated):"
+msgstr "&Argumentos de línea de comandos (separados por comas) (opcional)"
+
+#: src/ui/command_edition_dialog.py:60
+msgid "Display &Name:"
+msgstr "&Nombre a mostrar:"
+
+#: src/ui/command_edition_dialog.py:70
+msgid "&Shortcut (optional):"
+msgstr "Acce&so Abreviado:"
+
+#: src/ui/command_edition_dialog.py:80
+msgid "&OK"
+msgstr "&OK"
+
+#: src/ui/command_edition_dialog.py:83
+msgid "&Cancel"
+msgstr "&Cancelar"
+
+#: src/ui/command_edition_dialog.py:91
+msgid "This path is incorrect."
+msgstr "Esta ruta no es válida."
+
+#: src/ui/command_edition_dialog.py:96
+msgid "The command must have a display name."
+msgstr "El comando debe tener un nombre para mostrar."
+
+#: src/ui/command_edition_dialog.py:96
+msgid "No display name provided"
+msgstr "No has proporcionado un nombre"
+
+#: src/ui/command_edition_dialog.py:101
+msgid "The shortcut is already in use."
+msgstr "Este acceso abreviado ya se está usando."
+
+#: src/ui/command_edition_dialog.py:101
+msgid "Shortcut taken"
+msgstr "Acceso abreviado no disponible"
+
+#: src/ui/command_edition_dialog.py:118
+msgid "and "
+msgstr "y "
+
+#: src/ui/command_edition_dialog.py:118
+msgid " more. "
+msgstr " más. "
+
+#: src/ui/command_edition_dialog.py:120
+msgid "Edit Assistant"
+msgstr "Asistente de Edición"
+
+#: src/ui/command_edition_dialog.py:120
+msgid "This path is already in use by the following actions: "
+msgstr "Esta ruta ya se está usando en las siguientes acciones: "
+
+#: src/ui/command_edition_dialog.py:120
+msgid "Do you want to change the path for all of them?"
+msgstr "¿Quieres cambiarlas todas?"
+
+#: src/ui/command_edition_dialog.py:138
+msgid "Choose a file"
+msgstr "Elige un archivo"
