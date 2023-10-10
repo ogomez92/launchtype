@@ -223,8 +223,12 @@ class UIManager:
             if (selected_option['type'] == 'snippet'):
                 selected_snippet_text = str(selected_option['name'])
                 copy_to_clipboard(selected_snippet_text)
+                SoundPlayer.play("copy")
 
             if (selected_option['type'] == 'clip'):
+                self.dataManager.delete_clipboard_history_item_by_text(selected_option['name'])
+                self.dataManager.forget_clipboard()
+                SoundPlayer.play("copy")
                 copy_to_clipboard(str(selected_option['name']))
 
             self.frame.Hide()

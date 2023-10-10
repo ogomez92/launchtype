@@ -1,8 +1,8 @@
+import pyperclip
 import threading
 import time
-import pyperclip
+import uuid
 import json
-
 
 class ClipboardHistory:
     def __init__(self):
@@ -43,7 +43,13 @@ class ClipboardHistory:
         # create list with history_items with its name as value and index as shortcut
         history_items = []
         for index, item in enumerate(self.history_items):
-            history_items.append({"name": item, "shortcut": str(index + 1), "type": "clip"})
+            history_items.append({
+                "name": item,
+                "shortcut": str(index + 1),
+                "id": str(uuid.uuid4()),
+                "type": "clip"
+                })
+        
         return history_items
 
     def sync_to_storage(self):
@@ -65,3 +71,13 @@ class ClipboardHistory:
         except FileNotFoundError:
             with open('clipboard_history.json', 'w') as outputFile:
                 outputFile.write("[]")
+
+    def forget_last_value(self):
+        self.last_value = None
+
+    def delete_clipboard_history_item_by_text(self, text):
+        for index, item in enumerate(self.history_items):
+            if item == text:
+                self.history_items.pop(index)
+
+        self.sync_to_storage()

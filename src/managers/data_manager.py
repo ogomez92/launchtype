@@ -249,3 +249,9 @@ class DataManager:
             })
 
         self.load_snippets_from_files()
+
+    def forget_clipboard(self):
+        self.clipboard_history.forget_last_value();
+
+    def delete_clipboard_history_item_by_text(self, text_of_item):
+        self.clipboard_history.delete_clipboard_history_item_by_text(text_of_item)
