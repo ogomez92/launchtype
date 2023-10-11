@@ -39,7 +39,7 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
-          files: launchtype.zip
+          files: "launchtype ${{ github.ref }}.zip"
           tag_name: ${{ github.ref }}
           body: |
             This is a new release of LaunchType. For the user manual see https://www.oriolgomez.com/software/
