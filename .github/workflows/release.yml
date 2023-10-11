@@ -34,7 +34,7 @@ jobs:
         with:
           type: "zip"
           path: ./dist/launchtype
-          filename: "launchtype.zip"
+          filename: "launchtype ${{ github.ref }}.zip"
 
       - name: Create release
         uses: softprops/action-gh-release@v1
