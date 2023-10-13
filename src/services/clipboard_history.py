@@ -31,9 +31,11 @@ class ClipboardHistory:
                 self.last_value = value
 
     def add_item_to_history(self, value):
-        if value not in self.history_items:
-            self.history_items.insert(0, value)
-            
+        if value in self.history_items:
+            self.delete_clipboard_history_item_by_text(value)
+
+        self.history_items.insert(0, value)
+        
         if len(self.history_items) > 50:
             self.history_items.pop()
 
