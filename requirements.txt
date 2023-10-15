@@ -3,5 +3,4 @@ accessible_output2
 libloader
 pyperclip
 wxpython
-pyinstaller
 pybabel
