@@ -1,6 +1,8 @@
 import wx
 
+
 class AddSnippetDialog(wx.Dialog):
+    global _
     data = None
 
     def __init__(self, parent, data):
@@ -19,14 +21,18 @@ class AddSnippetDialog(wx.Dialog):
         contents_label = wx.StaticText(self, label=_("Contents:"))
         self.contents_entry = wx.TextCtrl(self, style=wx.TE_MULTILINE)
         contents_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        contents_sizer.Add(contents_label, flag=wx.ALIGN_CENTER_VERTICAL | wx.ALL, border=5)
-        contents_sizer.Add(self.contents_entry, proportion=1, flag=wx.EXPAND | wx.ALL, border=5)
+        contents_sizer.Add(
+            contents_label, flag=wx.ALIGN_CENTER_VERTICAL | wx.ALL, border=5
+        )
+        contents_sizer.Add(
+            self.contents_entry, proportion=1, flag=wx.EXPAND | wx.ALL, border=5
+        )
 
         # OK and Cancel buttons (with the ok and cancel ID)
 
         ok_button = wx.Button(self, wx.ID_OK, label=_("OK"))
         ok_button.Bind(wx.EVT_BUTTON, self.ok_button_clicked)
-        
+
         cancel_button = wx.Button(self, wx.ID_CANCEL, label=_("Cancel"))
         cancel_button.Bind(wx.EVT_BUTTON, self.cancel_button_clicked)
 
@@ -52,7 +58,11 @@ class AddSnippetDialog(wx.Dialog):
             self.dataManager.add_snippet(name, contents)
             self.EndModal(wx.ID_OK)
         else:
-            wx.MessageBox(_("Please enter a name and contents for the snippet."), "Error", wx.OK | wx.ICON_ERROR)
+            wx.MessageBox(
+                _("Please enter a name and contents for the snippet."),
+                "Error",
+                wx.OK | wx.ICON_ERROR,
+            )
 
     def cancel_button_clicked(self, event):
         self.EndModal(wx.ID_CANCEL)

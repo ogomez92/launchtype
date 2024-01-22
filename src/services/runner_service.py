@@ -5,11 +5,11 @@ from helpers.sound_player import SoundPlayer
 
 def run_command(path, args):
     comma_separated_args = None
-    print('args', args)
-    if args is not '':
+    print("args", args)
+    if args != "":
         # separate args by comma
 
-        comma_separated_args = [arg.strip() for arg in args.split(',')]
+        comma_separated_args = [arg.strip() for arg in args.split(",")]
 
     cwd = os.path.dirname(path)
     SoundPlayer.play("run")

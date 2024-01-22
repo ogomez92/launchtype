@@ -4,6 +4,7 @@ import time
 import uuid
 import json
 
+
 class ClipboardHistory:
     def __init__(self):
         self.last_value = None
@@ -25,7 +26,7 @@ class ClipboardHistory:
             time.sleep(0.1)
 
             value = pyperclip.paste()
-            
+
             if value != "" and value != self.last_value:
                 self.add_item_to_history(value)
                 self.last_value = value
@@ -35,7 +36,7 @@ class ClipboardHistory:
             self.delete_clipboard_history_item_by_text(value)
 
         self.history_items.insert(0, value)
-        
+
         if len(self.history_items) > 50:
             self.history_items.pop()
 
@@ -45,33 +46,33 @@ class ClipboardHistory:
         # create list with history_items with its name as value and index as shortcut
         history_items = []
         for index, item in enumerate(self.history_items):
-            history_items.append({
-                "name": item,
-                "shortcut": str(index + 1),
-                "id": str(uuid.uuid4()),
-                "type": "clip"
-                })
-        
+            history_items.append(
+                {
+                    "name": item,
+                    "shortcut": str(index + 1),
+                    "id": str(uuid.uuid4()),
+                    "type": "clip",
+                }
+            )
+
         return history_items
 
     def sync_to_storage(self):
-        with open('clipboard_history.json', 'w') as outputFile:
-
+        with open("clipboard_history.json", "w") as outputFile:
             json_string = json.dumps(self.history_items)
 
             outputFile.write(json_string)
 
     def load_history_from_file(self):
-        with open('clipboard_history.json', 'r') as inputFile:
-
+        with open("clipboard_history.json", "r") as inputFile:
             self.history_items = json.loads(inputFile.read())
 
     def createClipboardHistoryFileIFNotExists(self):
         try:
-            with open('clipboard_history.json', 'r') as inputFile:
+            with open("clipboard_history.json", "r") as inputFile:
                 pass
         except FileNotFoundError:
-            with open('clipboard_history.json', 'w') as outputFile:
+            with open("clipboard_history.json", "w") as outputFile:
                 outputFile.write("[]")
 
     def forget_last_value(self):

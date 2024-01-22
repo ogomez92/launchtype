@@ -1,13 +1,13 @@
-import language_handler
-language_handler.initialize()
-import time
-from managers.ui_manager import UIManager
 from managers.command_line_parameters import get_command_line_parameters
 from managers.data_manager import DataManager
+from managers.ui_manager import UIManager
 
 from keyboard_handler.wx_handler import WXKeyboardHandler
 from services.speech_service import SpeechService
 from helpers.sound_player import SoundPlayer
+
+import language_handler
+language_handler.initialize()
 
 command_line = get_command_line_parameters()
 dataManager = DataManager(command_line.commands)

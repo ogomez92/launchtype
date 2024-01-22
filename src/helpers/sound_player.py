@@ -1,5 +1,6 @@
 import winsound
 
+
 class SoundPlayer:
     @staticmethod
     def play(filename):
