@@ -12,6 +12,13 @@ def get_command_line_parameters():
         action="store_true",
     )
     parser.add_argument(
+        "-s",
+        "--snippets-on-invoke",
+        help=_("When app is invoked by shortcut, start with snippets mode instead of commands"),
+        action="store_true",
+    )
+
+    parser.add_argument(
         "-c",
         "--commands",
         help=_("specify commands file to use, default is commands.json"),

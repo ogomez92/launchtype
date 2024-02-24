@@ -6,6 +6,7 @@ from services.runner_service import run_command
 from services.speech_service import SpeechService
 from enums.ui_mode import UIMode
 from utility_functions import copy_to_clipboard
+from managers.command_line_parameters import get_command_line_parameters
 import webbrowser
 
 
@@ -163,6 +164,10 @@ class UIManager:
             self.edit.SetFocus()
             self.edit.Value = ""
             self.mode = UIMode.COMMANDS
+            command_line_parameters = get_command_line_parameters()
+            if command_line_parameters.snippets_on_invoke:
+                self.mode = UIMode.SNIPPETS
+                
             self.update_list()
 
     def update_list(self, event=None):
