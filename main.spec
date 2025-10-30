@@ -8,7 +8,10 @@ a = Analysis(
     ['src\\main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+        ('sounds', 'sounds'),
+        ('locale', 'locale'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

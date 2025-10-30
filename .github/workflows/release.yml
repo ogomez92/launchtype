@@ -26,11 +26,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
-      - name: Make pyinstaller binary and copy sounds
-        run: |
-          uv run pyinstaller ./main.spec
-          xcopy sounds dist\launchtype\sounds /E /H /C /I
-          xcopy locale dist\launchtype\locale /E /H /C /I
+      - name: Make pyinstaller binary
+        run: uv run pyinstaller ./main.spec
 
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
