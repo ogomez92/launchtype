@@ -296,5 +296,7 @@ class UIManager:
             )
 
     def exit_app(self, event):
+        # Stop the clipboard history background thread before exiting
+        self.dataManager.clipboard_history.stop()
         self.frame.Destroy()
         self.app.ExitMainLoop()
