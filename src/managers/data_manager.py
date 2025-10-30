@@ -2,10 +2,9 @@ import json
 from os.path import exists
 from services.clipboard_history import ClipboardHistory
 from helpers.plist_helper import parse_apple_snippets
+from helpers.search_utility import fuzzy_search, check_exact_shortcut_match
 from enums.ui_mode import UIMode
 import uuid
-
-import difflib
 
 from helpers.sound_player import SoundPlayer
 import os
@@ -81,39 +80,25 @@ class DataManager:
         if search_string == "":
             return self.commandsData["commands"]
 
-        # check if the string equals to any abreviation
+        # Check if the string equals any shortcut (exact match has priority)
+        exact_match = check_exact_shortcut_match(
+            search_string, self.commandsData["commands"], "shortcut"
+        )
+        if exact_match:
+            SoundPlayer.play("match")
+            return [exact_match]
 
-        for command in self.commandsData["commands"]:
-            if command["shortcut"] == search_string:
-                SoundPlayer.play("match")
-
-                return [command]
-
-        # Find closest matching command strings containing the search string
-
-        closest_matching__elements = difflib.get_close_matches(
-            search_string,
-            [command["name"] for command in self.commandsData["commands"]],
-            cutoff=0.6,
+        # Use fuzzy subsequence search on command names
+        results = fuzzy_search(
+            search_string, self.commandsData["commands"], lambda cmd: cmd["name"]
         )
 
-        # Return the commands associated with the elements
+        if results:
+            SoundPlayer.play("type")
+        else:
+            SoundPlayer.play("type")
 
-        # TODO: Is there a better way to do this?
-
-        SoundPlayer.play("type")
-
-        return [
-            command
-            for command in self.commandsData["commands"]
-            if command["name"] in closest_matching__elements
-        ]
-
-        # If nothing found return empty array
-
-        SoundPlayer.play("type")
-
-        return []
+        return results
 
     def pop_by_uuid(self, id):
         for command in self.commandsData["commands"]:
@@ -143,28 +128,40 @@ class DataManager:
                 )
 
     def get_snippets(self, search_string):
+        # Convert snippets to display format
+        formatted_snippets = [
+            {
+                "name": snippet["contents"],
+                "shortcut": snippet["shortcut"],
+                "type": "snippet",
+            }
+            for snippet in self.snippets
+        ]
+
         if search_string == "":
-            return map(
-                lambda snippet: {
-                    "name": snippet["contents"],
-                    "shortcut": snippet["shortcut"],
-                    "type": "snippet",
-                },
-                self.snippets,
-            )
+            return formatted_snippets
 
-        # check if the string equals to any abreviation
-        for snippet in self.snippets:
-            if snippet["shortcut"] == search_string:
-                SoundPlayer.play("match")
+        # Check if the string equals any shortcut (exact match has priority)
+        exact_match = check_exact_shortcut_match(
+            search_string, formatted_snippets, "shortcut"
+        )
+        if exact_match:
+            SoundPlayer.play("match")
+            return [exact_match]
 
-                return [
-                    {
-                        "name": snippet["contents"],
-                        "shortcut": snippet["shortcut"],
-                        "type": "snippet",
-                    }
-                ]
+        # Use fuzzy subsequence search on snippet shortcuts and contents
+        results = fuzzy_search(
+            search_string,
+            formatted_snippets,
+            lambda snip: f"{snip['shortcut']} {snip['name']}",
+        )
+
+        if results:
+            SoundPlayer.play("type")
+        else:
+            SoundPlayer.play("type")
+
+        return results
 
     def check_if_shortcut_already_in_commands(self, shortcut_string):
         for command in self.commandsData["commands"]:
@@ -179,30 +176,25 @@ class DataManager:
         if search_string == "":
             return clipboard_items
 
-        # check if the string equals to any abreviation
-        for item in clipboard_items:
-            if item["shortcut"] == search_string:
-                SoundPlayer.play("match")
-                return [item]
+        # Check if the string equals any shortcut (exact match has priority)
+        exact_match = check_exact_shortcut_match(
+            search_string, clipboard_items, "shortcut"
+        )
+        if exact_match:
+            SoundPlayer.play("match")
+            return [exact_match]
 
-        # Find closest matching command strings containing the search string
-
-        closest_matching__elements = difflib.get_close_matches(
-            search_string, [item["name"] for item in clipboard_items], cutoff=0.6
+        # Use fuzzy subsequence search on clipboard item text
+        results = fuzzy_search(
+            search_string, clipboard_items, lambda item: item["name"]
         )
 
-        SoundPlayer.play("type")
+        if results:
+            SoundPlayer.play("type")
+        else:
+            SoundPlayer.play("type")
 
-        return [
-            command
-            for command in self.commandsData["commands"]
-            if command["name"] in closest_matching__elements
-        ]
-
-        # If nothing found return empty array
-
-        SoundPlayer.play("type")
-        return []
+        return results
 
     def add_snippet(self, name, contents):
         with open("snippets/" + name + ".txt", "w", encoding="utf-8") as outputFile:

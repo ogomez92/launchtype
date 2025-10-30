@@ -66,6 +66,10 @@ msgstr "Ejecuta&r"
 msgid "&Help"
 msgstr "A&yuda"
 
+#: src/managers/ui_manager.py:73
+msgid "E&xit"
+msgstr "Sal&ir"
+
 #: src/managers/ui_manager.py:172
 msgid "snippet mode"
 msgstr "modo sustituciones"

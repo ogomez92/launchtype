@@ -70,6 +70,10 @@ class UIManager:
         self.app.Bind(wx.EVT_BUTTON, self.openDocs, self.help_button)
         buttonRowSizer.Add(self.help_button)
 
+        self.exit_button = wx.Button(self.panel, wx.ID_EXIT, _("E&xit"))
+        self.app.Bind(wx.EVT_BUTTON, self.exit_app, self.exit_button)
+        buttonRowSizer.Add(self.exit_button)
+
         sizer.Add(buttonRowSizer)
 
         # hide frame when escape pressed
@@ -290,3 +294,7 @@ class UIManager:
                 _("Documentation error"),
                 _(f"There was an error opening the documentation: {e}")
             )
+
+    def exit_app(self, event):
+        self.frame.Destroy()
+        self.app.ExitMainLoop()
