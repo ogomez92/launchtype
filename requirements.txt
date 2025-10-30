@@ -1,6 +1,0 @@
-platform_utils
-accessible_output2
-libloader
-pyperclip
-wxpython
-pybabel

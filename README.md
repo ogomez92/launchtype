@@ -56,7 +56,7 @@ Workaround: Open a PR and help me make it better ;)
 
  1. Find a way to prevent alt f4 from closing the window.
  2. Find a way to play audio on windows.
- 3. Ensure that requirements.txt is properly set up.
+ 3. Ensure that pyproject.toml dependencies are properly set up.
  4. Compile this into an executable for windows.
  5. Possibly tweak the search difflib method.
  6. Refactor command and snippet handling in the UI
