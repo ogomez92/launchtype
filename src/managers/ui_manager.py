@@ -211,7 +211,14 @@ class UIManager:
 
             # If user has typed something in the edit field, speak the first result
             if not self.edit.Value == "":
-                SpeechService.speak(self.list.GetString(0))
+                result_count = self.list.GetCount()
+                first_result = self.list.GetString(0)
+                if result_count == 1:
+                    # Single result - likely a shortcut match
+                    SpeechService.speak(first_result)
+                else:
+                    # Multiple results - announce focused result, count, and navigation hint
+                    SpeechService.speak(_("{}, {} search results shown, use tab and down arrow to access more results").format(first_result, result_count))
 
     def run_button_clicked(self, event):
         try:

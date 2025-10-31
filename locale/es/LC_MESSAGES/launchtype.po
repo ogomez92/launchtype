@@ -82,6 +82,10 @@ msgstr "Modo historial de portapapeles"
 msgid "commands mode"
 msgstr "modo comandos"
 
+#: src/managers/ui_manager.py:221
+msgid "{}, {} search results shown, use tab and down arrow to access more results"
+msgstr "{}, {} resultados de búsqueda mostrados, usa tab y flecha abajo para acceder a más resultados"
+
 #: src/managers/ui_manager.py:264
 msgid "information"
 msgstr "información"
