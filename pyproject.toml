@@ -3,7 +3,7 @@ name = "launchtype"
 version = "1.0.0"
 description = "A launcher to quickly launch commands (applications) with or without command line arguments"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 dependencies = [
     "platform_utils",
     "accessible_output2",
