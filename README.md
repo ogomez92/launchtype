@@ -16,7 +16,12 @@ The commands are stored in a commands.json file (or any other file you specify i
 
 ## Usage
 
-The app includes some comand line parameters, mainly -m to start minimized and -c [filename] to specify a different commands file.
+The app includes several command line parameters:
+
+- `-m, --start-minimized`: Start the application minimized
+- `-s, --snippets-on-invoke`: Start in snippets mode instead of commands mode
+- `-c, --commands [file]`: Specify a custom commands file (default: commands.json)
+- `-l, --steam-library [path]`: Specify a custom Steam library path (default: C:\Program Files (x86)\Steam\steamapps)
 
 Once you add a command using the Add button in the UI, in order to use it you can either:
 
@@ -42,7 +47,49 @@ To go back to commands mode, you can press the period key (.). anyway, each time
 
 Clipboard history can be accessed by pressing ? (question mark) in the input field. It will show up to 50 text items that you coppied to your clipboard, and it persists across restarts.
 
-IT will only work with textual items, not file paths or stuff like that.
+It will only work with textual items, not file paths or stuff like that.
+
+## Steam Games Launcher
+
+Steam games launcher mode can be accessed by pressing , (comma) in the input field. This mode scans your Steam library for installed games and lets you launch them directly.
+
+The scanner looks for installed games in your Steam library folder (default: C:\Program Files (x86)\Steam\steamapps) by parsing the appmanifest files. You can specify a custom Steam library path using the `-l` command line option.
+
+Once in Steam mode, you can search for games by name using fuzzy matching, just like with commands. Selecting a game will launch it through Steam.
+
+To go back to commands mode, press the period key (.).
+
+## Mode Switching Summary
+
+The app has four modes, each accessed by typing a special character in the input field:
+
+| Character | Mode | Description |
+|-----------|------|-------------|
+| (default) | Commands | Launch saved commands and applications |
+| `-` | Snippets | Copy text snippets to clipboard |
+| `?` | Clipboard | Access clipboard history |
+| `,` | Steam | Launch installed Steam games |
+| `.` | (any mode) | Return to Commands mode |
+
+## Audio Feedback
+
+The app provides audio cues for various actions:
+
+- Startup sound when the app launches
+- Show/hide sounds when toggling the window
+- Match sound when an exact shortcut is found
+- Type sound when search results update
+- Run sound when executing a command or launching a game
+- Copy sound when copying a snippet or clipboard item
+
+## Accessibility
+
+This application is designed with accessibility in mind, particularly for screen reader users:
+
+- All UI changes are announced via screen readers (using the accessible_output2 library)
+- First search result is automatically spoken
+- Fully keyboard-driven interface (no mouse required)
+- Audio feedback for all interactions
 
 ## Known issues
 
