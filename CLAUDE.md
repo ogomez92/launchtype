@@ -10,6 +10,7 @@ Launchtype is a Windows application launcher inspired by macOS's Launchbar. It p
 - Command launcher with fuzzy search
 - Text snippets system
 - Clipboard history (up to 50 items)
+- Steam games launcher (scans installed games)
 - Keyboard-driven interface designed for screen reader accessibility
 - Audio feedback for UI interactions
 
@@ -49,6 +50,7 @@ uv run python src/main.py
 # -m, --start-minimized: Start application minimized
 # -s, --snippets-on-invoke: Start in snippets mode instead of commands
 # -c, --commands [file]: Specify custom commands file (default: commands.json)
+# -l, --steam-library [path]: Specify custom Steam library path (default: C:\Program Files (x86)\Steam\steamapps)
 ```
 
 ## Architecture
@@ -75,10 +77,11 @@ The entry point is `src/main.py` which:
 
 **UIManager** (`src/managers/ui_manager.py`)
 - Manages the wxPython UI frame and controls
-- Handles three UI modes (UIMode enum):
+- Handles four UI modes (UIMode enum):
   - COMMANDS (default): Shows saved commands
   - SNIPPETS (activated by "-"): Shows text snippets
   - CLIPBOARD (activated by "?"): Shows clipboard history
+  - STEAM (activated by ","): Shows installed Steam games
 - Toggle back to COMMANDS mode with "."
 - Provides dialogs for adding/editing commands and snippets
 
@@ -95,6 +98,10 @@ The entry point is `src/main.py` which:
 - `clipboard_history.py`: Background thread monitoring clipboard with pyperclip
   - Polls every 0.1s, maintains up to 50 items
   - Persists to `clipboard_history.json`
+- `steam_scanner.py`: Scans Steam library for installed games
+  - Parses `appmanifest_*.acf` files in steamapps folder
+  - Extracts game names and appids
+  - Launches games via `steam://rungameid/APPID` URL
 
 ### Data Model
 
@@ -129,6 +136,17 @@ The entry point is `src/main.py` which:
 }
 ```
 
+**Steam game structure** (in-memory):
+```python
+{
+    "name": "game name",       # lowercase for matching
+    "shortcut": "",            # not used for Steam games
+    "id": "uuid",
+    "appid": "620",            # Steam app ID
+    "type": "steam"
+}
+```
+
 ### Search Algorithm
 Commands and clipboard items use difflib.get_close_matches with 0.6 cutoff. Shortcuts provide exact match priority (triggers "match" sound vs "type" sound).
 
@@ -138,7 +156,7 @@ SoundPlayer (`src/helpers/sound_player.py`) provides audio cues:
 - "show"/"hide": Window visibility toggle
 - "match": Exact shortcut match
 - "type": Search results update
-- "run": Command execution
+- "run": Command execution or Steam game launch
 - "copy": Snippet/clipboard item copied
 
 ### Accessibility

@@ -10,7 +10,7 @@ import language_handler
 language_handler.initialize()
 
 command_line = get_command_line_parameters()
-dataManager = DataManager(command_line.commands)
+dataManager = DataManager(command_line.commands, command_line.steam_library)
 
 SpeechService().initialize()
 

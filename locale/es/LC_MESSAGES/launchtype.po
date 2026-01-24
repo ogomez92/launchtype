@@ -30,6 +30,10 @@ msgstr "Arranca la aplicación minimizada"
 msgid "specify commands file to use, default is commands.json"
 msgstr "especifica el archivo de comandos a usar (por defecto commands.json)"
 
+#: src/managers/command_line_parameters.py:32
+msgid "specify custom Steam library path"
+msgstr "especifica la ruta personalizada de la biblioteca de Steam"
+
 #: src/managers/ui_manager.py:24
 msgid "Input Field"
 msgstr "Consola"
@@ -81,6 +85,10 @@ msgstr "Modo historial de portapapeles"
 #: src/managers/ui_manager.py:183
 msgid "commands mode"
 msgstr "modo comandos"
+
+#: src/managers/ui_manager.py:195
+msgid "Steam games mode"
+msgstr "modo juegos de Steam"
 
 #: src/managers/ui_manager.py:221
 msgid "{}, {} search results shown, use tab and down arrow to access more results"

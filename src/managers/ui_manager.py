@@ -191,6 +191,12 @@ class UIManager:
             self.mode = UIMode.COMMANDS
             self.edit.Value = ""
 
+        if self.edit.Value == ",":
+            SpeechService.speak(_("Steam games mode"))
+            self.dataManager.scan_steam_games()
+            self.mode = UIMode.STEAM
+            self.edit.Value = ""
+
         self.commands_in_ui = []
         self.list.Clear()
 
@@ -249,6 +255,11 @@ class UIManager:
                 self.dataManager.forget_clipboard()
                 SoundPlayer.play("copy")
                 copy_to_clipboard(str(selected_option["name"]))
+
+            if selected_option["type"] == "steam":
+                appid = str(selected_option["appid"])
+                webbrowser.open(f"steam://rungameid/{appid}")
+                SoundPlayer.play("run")
 
         except Exception as e:
             import traceback

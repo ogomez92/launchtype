@@ -1,6 +1,7 @@
 import json
 from os.path import exists
 from services.clipboard_history import ClipboardHistory
+from services.steam_scanner import SteamScanner
 from helpers.plist_helper import parse_apple_snippets
 from helpers.search_utility import fuzzy_search, check_exact_shortcut_match
 from enums.ui_mode import UIMode
@@ -15,8 +16,9 @@ class DataManager:
     clipboard_history = ClipboardHistory()
     snippets = []
 
-    def __init__(self, commands_file):
+    def __init__(self, commands_file, steam_library_path=None):
         self.commands_file = commands_file
+        self.steam_scanner = SteamScanner(steam_library_path)
 
         if not exists("snippets"):
             import os
@@ -65,6 +67,9 @@ class DataManager:
 
         if mode == UIMode.CLIPBOARD:
             return self.get_history_items(search_string)
+
+        if mode == UIMode.STEAM:
+            return self.get_steam_games(search_string)
 
     def get_commands_with_path(self, path):
         commands_to_return = []
@@ -187,6 +192,29 @@ class DataManager:
         # Use fuzzy subsequence search on clipboard item text
         results = fuzzy_search(
             search_string, clipboard_items, lambda item: item["name"]
+        )
+
+        if results:
+            SoundPlayer.play("type")
+        else:
+            SoundPlayer.play("type")
+
+        return results
+
+    def scan_steam_games(self):
+        """Trigger a scan of the Steam library."""
+        self.steam_scanner.scan_games()
+
+    def get_steam_games(self, search_string):
+        """Get Steam games, optionally filtered by search string."""
+        steam_games = self.steam_scanner.get_games_as_items()
+
+        if search_string == "":
+            return steam_games
+
+        # Use fuzzy subsequence search on game names
+        results = fuzzy_search(
+            search_string, steam_games, lambda game: game["name"]
         )
 
         if results:

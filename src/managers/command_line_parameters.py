@@ -26,6 +26,14 @@ def get_command_line_parameters():
         default="commands.json",
     )
 
+    parser.add_argument(
+        "-l",
+        "--steam-library",
+        help=_("specify custom Steam library path"),
+        action="store",
+        default=None,
+    )
+
     args = parser.parse_args()
 
     return args
