@@ -74,6 +74,11 @@ class CommandEditionDialog(wx.Dialog):
         abreviationEditSizer.Add(self.abreviation_edit)
         sizer.Add(abreviationEditSizer)
 
+        self.run_as_admin_checkbox = wx.CheckBox(self, label=_("Run as &administrator"))
+        if not command_to_edit == {} and command_to_edit.get("run_as_admin", False):
+            self.run_as_admin_checkbox.SetValue(True)
+        sizer.Add(self.run_as_admin_checkbox)
+
         buttonRowSizer = wx.BoxSizer(wx.HORIZONTAL)
 
         self.ok_button = wx.Button(self, wx.ID_OK, label=_("&OK"))
@@ -156,6 +161,7 @@ class CommandEditionDialog(wx.Dialog):
             self.display_name_edit.Value,
             self.args_edit.Value,
             self.abreviation_edit.Value,
+            self.run_as_admin_checkbox.GetValue(),
         )
 
         self.EndModal(wx.ID_OK)

@@ -43,13 +43,14 @@ class DataManager:
         with open(self.commands_file, "r") as inputFile:
             self.commandsData = json.loads(inputFile.read())
 
-    def add_command(self, command, name, args, abreviation):
+    def add_command(self, command, name, args, abreviation, run_as_admin=False):
         command_dictionary = {
             "path": command,
             "name": name.lower(),
             "args": args,
             "shortcut": abreviation.lower(),
             "id": str(uuid.uuid4()),
+            "run_as_admin": run_as_admin,
         }
 
         print(command_dictionary)

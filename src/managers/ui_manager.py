@@ -241,7 +241,8 @@ class UIManager:
             if selected_option["type"] == "command":
                 selected_command = str(selected_option["path"])
                 selected_args = str(selected_option["args"])
-                run_command(selected_command, selected_args)
+                run_as_admin = selected_option.get("run_as_admin", False)
+                run_command(selected_command, selected_args, run_as_admin=run_as_admin)
 
             if selected_option["type"] == "snippet":
                 selected_snippet_text = str(selected_option["name"])
