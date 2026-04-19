@@ -5,3 +5,4 @@ class UIMode(Enum):
     SNIPPETS = 1
     CLIPBOARD = 2
     STEAM = 3
+    SCREENSHOTS = 4

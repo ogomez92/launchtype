@@ -229,3 +229,27 @@ msgstr "Ejecutar como &administrador"
 #: src/ui/command_edition_dialog.py:136
 msgid "Choose a file"
 msgstr "Elige un archivo"
+
+#: src/managers/ui_manager.py
+msgid "Copy &Args"
+msgstr "Copiar &Argumentos"
+
+#: src/managers/ui_manager.py
+msgid "Arguments copied"
+msgstr "Argumentos copiados"
+
+#: src/managers/ui_manager.py
+msgid "No arguments"
+msgstr "Sin argumentos"
+
+#: src/managers/ui_manager.py
+msgid "screenshots mode"
+msgstr "modo capturas de pantalla"
+
+#: src/services/screenshot_service.py
+msgid "screenshot window"
+msgstr "captura de ventana"
+
+#: src/services/screenshot_service.py
+msgid "screenshot entire screen"
+msgstr "captura de pantalla completa"

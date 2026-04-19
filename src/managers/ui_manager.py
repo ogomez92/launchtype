@@ -3,6 +3,7 @@ from ui.command_edition_dialog import CommandEditionDialog
 from helpers.sound_player import SoundPlayer
 from ui.add_snippet_dialog import AddSnippetDialog
 from services.runner_service import run_command
+from services.screenshot_service import take_screenshot
 from services.speech_service import SpeechService
 from enums.ui_mode import UIMode
 from utility_functions import copy_to_clipboard
@@ -50,6 +51,10 @@ class UIManager:
         self.delete_button = wx.Button(self.panel, wx.ID_DELETE, _("&Delete"))
         self.app.Bind(wx.EVT_BUTTON, self.deleteButtonClicked, self.delete_button)
         buttonRowSizer.Add(self.delete_button)
+
+        self.copy_args_button = wx.Button(self.panel, 12346, _("Copy &Args"))
+        self.app.Bind(wx.EVT_BUTTON, self.copy_args_clicked, self.copy_args_button)
+        buttonRowSizer.Add(self.copy_args_button)
 
         self.snippets_button = wx.Button(self.panel, 1234, _("Open &Snippets folder"))
         self.app.Bind(wx.EVT_BUTTON, self.snippets_button_clicked, self.snippets_button)
@@ -197,6 +202,11 @@ class UIManager:
             self.mode = UIMode.STEAM
             self.edit.Value = ""
 
+        if self.edit.Value == "'":
+            SpeechService.speak(_("screenshots mode"))
+            self.mode = UIMode.SCREENSHOTS
+            self.edit.Value = ""
+
         self.commands_in_ui = []
         self.list.Clear()
 
@@ -262,6 +272,11 @@ class UIManager:
                 webbrowser.open(f"steam://rungameid/{appid}")
                 SoundPlayer.play("run")
 
+            if selected_option["type"] == "screenshot":
+                capture_window = selected_option["action"] == "window"
+                take_screenshot(capture_window=capture_window)
+                SoundPlayer.play("copy")
+
         except Exception as e:
             import traceback
 
@@ -289,6 +304,20 @@ class UIManager:
         self.update_list()
         self.toggle_visibility()
 
+    def copy_args_clicked(self, event):
+        selected_option_index = self.list.GetSelection()
+        if selected_option_index < 0:
+            return
+
+        selected_option = self.commands_in_ui[selected_option_index]
+        args = selected_option.get("args", "")
+        if args:
+            copy_to_clipboard(args)
+            SoundPlayer.play("copy")
+            SpeechService.speak(_("Arguments copied"))
+        else:
+            SpeechService.speak(_("No arguments"))
+
     def on_key_down(self, event):
         if (
             event.GetKeyCode() == wx.WXK_ESCAPE
@@ -296,6 +325,10 @@ class UIManager:
             and event.AltDown()
         ):
             self.frame.Hide()
+            return
+
+        if event.GetKeyCode() == ord('C') and event.ControlDown():
+            self.copy_args_clicked(event)
             return
 
         event.Skip()

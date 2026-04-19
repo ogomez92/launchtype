@@ -11,6 +11,8 @@ dependencies = [
     "pyperclip",
     "wxpython",
     "babel",
+    "pillow>=12.2.0",
+    "pywin32>=311",
 ]
 
 [project.optional-dependencies]

@@ -2,6 +2,7 @@ import json
 from os.path import exists
 from services.clipboard_history import ClipboardHistory
 from services.steam_scanner import SteamScanner
+from services.screenshot_service import get_screenshot_items
 from helpers.plist_helper import parse_apple_snippets
 from helpers.search_utility import fuzzy_search, check_exact_shortcut_match
 from enums.ui_mode import UIMode
@@ -71,6 +72,9 @@ class DataManager:
 
         if mode == UIMode.STEAM:
             return self.get_steam_games(search_string)
+
+        if mode == UIMode.SCREENSHOTS:
+            return get_screenshot_items()
 
     def get_commands_with_path(self, path):
         commands_to_return = []
