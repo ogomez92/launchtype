@@ -84,6 +84,9 @@ class UIManager:
         # hide frame when escape pressed
         self.app.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
 
+        #Attempt to ensure that alt+f4 does not close the application entirely
+        self.app.Bind(wx.EVT_CLOSE, self.temp_hide)
+
     def initialize_ui(self):
         self.app.MainLoop()
 
@@ -352,3 +355,8 @@ class UIManager:
         self.dataManager.clipboard_history.stop()
         self.frame.Destroy()
         self.app.ExitMainLoop()
+
+    def temp_hide(self,evt):
+        #self.frame.hide()
+        self.toggle_visibility()
+        evt.Veto()  # prevent the window from being destroyed
