@@ -231,8 +231,8 @@ msgid "Choose a file"
 msgstr "Elige un archivo"
 
 #: src/managers/ui_manager.py
-msgid "Copy &Args"
-msgstr "Copiar &Argumentos"
+msgid "Copy Args (Ctrl+C)"
+msgstr "Copiar Argumentos (Ctrl+C)"
 
 #: src/managers/ui_manager.py
 msgid "Arguments copied"
@@ -253,3 +253,43 @@ msgstr "captura de ventana"
 #: src/services/screenshot_service.py
 msgid "screenshot entire screen"
 msgstr "captura de pantalla completa"
+
+#: src/managers/command_line_parameters.py
+msgid "Disable all sounds"
+msgstr "Desactiva todos los sonidos"
+
+#: src/managers/ui_manager.py
+msgid "Se&ttings..."
+msgstr "Aj&ustes..."
+
+#: src/managers/ui_manager.py
+msgid "https://github.com/ogomez92/launchtype/blob/main/README.md"
+msgstr "https://github.com/ogomez92/launchtype/blob/main/README.es.md"
+
+#: src/ui/settings_dialog.py
+msgid "Settings"
+msgstr "Ajustes"
+
+#: src/ui/settings_dialog.py
+msgid "Enable &sounds"
+msgstr "Habilitar &sonidos"
+
+#: src/ui/settings_dialog.py
+msgid "Start &minimized"
+msgstr "Arrancar &minimizado"
+
+#: src/ui/settings_dialog.py
+msgid "Start in s&nippets mode when invoked"
+msgstr "Arrancar en modo su&stituciones al invocar"
+
+#: src/ui/settings_dialog.py
+msgid "Steam &library path:"
+msgstr "Ruta de la &biblioteca de Steam:"
+
+#: src/ui/settings_dialog.py
+msgid "Choose Steam library folder"
+msgstr "Elige la carpeta de la biblioteca de Steam"
+
+#: src/ui/settings_dialog.py
+msgid "Command line flags override these settings for the current run."
+msgstr "Los parámetros de línea de comandos sobreescriben estos ajustes durante la ejecución actual."

@@ -1,5 +1,7 @@
 # Launchtype
 
+*[Leer en español](README.es.md)*
+
 I wrote this app to quickly launch commands (applications) with or without command line arguments on Windows.
 
 I have an app on my mac called [Launchbar](https://www.obdev.at/products/launchbar/index.html) which does this very efficiently, letting me run apps or websites by the use of small commands or abreviations.
@@ -20,6 +22,7 @@ The app includes several command line parameters:
 
 - `-m, --start-minimized`: Start the application minimized
 - `-s, --snippets-on-invoke`: Start in snippets mode instead of commands mode
+- `-q, --quiet`: Disable all sounds for this run
 - `-c, --commands [file]`: Specify a custom commands file (default: commands.json)
 - `-l, --steam-library [path]`: Specify a custom Steam library path (default: C:\Program Files (x86)\Steam\steamapps)
 
@@ -29,9 +32,20 @@ Once you add a command using the Add button in the UI, in order to use it you ca
 2. Type its shortcut (if any) in the input field of the UI.
 3. Type enough letters in the command's display name for it to show up in the list and the screen reader to speak it.
 
+## Settings
+
+The Settings button in the UI opens a dialog where you can persist the following preferences to `settings.json`:
+
+- Enable sounds
+- Start minimized
+- Start in snippets mode when invoked
+- Steam library path
+
+Command line flags override these persisted settings for the current run (for example, passing `-q` disables sounds even if the setting is enabled, and passing `-m` starts minimized even if the setting is off).
+
 ## Snippets
 
-Snippets are pieces of text that, when their filename is typed to the input field of the UI, the content  of the file is put in the clipboard.
+Snippets are pieces of text that, when their filename is typed to the input field of the UI, the content of the file is put in the clipboard.
 
 In order to use snippets, you need to create .txt files in the snippets folder of the app.
 
@@ -53,15 +67,32 @@ It will only work with textual items, not file paths or stuff like that.
 
 Steam games launcher mode can be accessed by pressing , (comma) in the input field. This mode scans your Steam library for installed games and lets you launch them directly.
 
-The scanner looks for installed games in your Steam library folder (default: C:\Program Files (x86)\Steam\steamapps) by parsing the appmanifest files. You can specify a custom Steam library path using the `-l` command line option.
+The scanner looks for installed games in your Steam library folder (default: C:\Program Files (x86)\Steam\steamapps) by parsing the appmanifest files. You can specify a custom Steam library path using the `-l` command line option or in the Settings dialog.
 
 Once in Steam mode, you can search for games by name using fuzzy matching, just like with commands. Selecting a game will launch it through Steam.
 
 To go back to commands mode, press the period key (.).
 
+## Screenshots
+
+Screenshot mode can be accessed by pressing ' (apostrophe) in the input field. Two actions are available:
+
+- `w` shortcut: capture the active window.
+- `s` shortcut: capture the entire screen.
+
+Selecting one copies the resulting JPEG file to your clipboard so you can paste it into any app that accepts image files.
+
+## Run as administrator
+
+When adding or editing a command you can tick the "Run as administrator" checkbox. The command will be launched with elevated privileges (a UAC prompt will appear on launch).
+
+## Copying command arguments
+
+Select a command in the list and press `Ctrl+C` (or use the Copy Args button) to copy that command's arguments to the clipboard. Useful for commands that store URLs or long argument strings you want to grab quickly.
+
 ## Mode Switching Summary
 
-The app has four modes, each accessed by typing a special character in the input field:
+The app has several modes, each accessed by typing a special character in the input field:
 
 | Character | Mode | Description |
 |-----------|------|-------------|
@@ -69,6 +100,7 @@ The app has four modes, each accessed by typing a special character in the input
 | `-` | Snippets | Copy text snippets to clipboard |
 | `?` | Clipboard | Access clipboard history |
 | `,` | Steam | Launch installed Steam games |
+| `'` | Screenshots | Capture window or full screen to clipboard |
 | `.` | (any mode) | Return to Commands mode |
 
 ## Audio Feedback
@@ -81,6 +113,8 @@ The app provides audio cues for various actions:
 - Type sound when search results update
 - Run sound when executing a command or launching a game
 - Copy sound when copying a snippet or clipboard item
+
+Sounds can be turned off via the Settings dialog or by launching the app with `-q`.
 
 ## Accessibility
 

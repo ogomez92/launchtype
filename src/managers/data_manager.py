@@ -237,6 +237,19 @@ class DataManager:
 
         self.load_snippets_from_files()
 
+    def update_snippet(self, original_shortcut, name, contents):
+        # Remove the old file if the snippet was renamed so we don't leave a
+        # stale duplicate behind.
+        if original_shortcut and original_shortcut.lower() != name.lower():
+            old_path = "snippets/" + original_shortcut + ".txt"
+            if exists(old_path):
+                os.remove(old_path)
+
+        with open("snippets/" + name + ".txt", "w", encoding="utf-8") as outputFile:
+            outputFile.write(contents)
+
+        self.load_snippets_from_files()
+
     def forget_clipboard(self):
         self.clipboard_history.forget_last_value()
 

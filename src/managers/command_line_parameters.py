@@ -19,6 +19,13 @@ def get_command_line_parameters():
     )
 
     parser.add_argument(
+        "-q",
+        "--quiet",
+        help=_("Disable all sounds"),
+        action="store_true",
+    )
+
+    parser.add_argument(
         "-c",
         "--commands",
         help=_("specify commands file to use, default is commands.json"),

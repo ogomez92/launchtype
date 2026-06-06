@@ -1,5 +1,6 @@
 import wx
 from ui.command_edition_dialog import CommandEditionDialog
+from ui.settings_dialog import SettingsDialog
 from helpers.sound_player import SoundPlayer
 from ui.add_snippet_dialog import AddSnippetDialog
 from services.runner_service import run_command
@@ -7,7 +8,6 @@ from services.screenshot_service import take_screenshot
 from services.speech_service import SpeechService
 from enums.ui_mode import UIMode
 from utility_functions import copy_to_clipboard
-from managers.command_line_parameters import get_command_line_parameters
 import webbrowser
 
 
@@ -16,11 +16,14 @@ class UIManager:
     commands_in_ui = []
     mode = UIMode.COMMANDS
 
-    def __init__(self, data):
+    def __init__(self, data, settings_manager, cli_snippets_on_invoke=False, cli_quiet=False):
         self.app = wx.App(False)
         self.frame = wx.Frame(None, -1, "Launchtype")
         self.panel = wx.Panel(self.frame, -1)
         self.dataManager = data
+        self.settings_manager = settings_manager
+        self.cli_snippets_on_invoke = cli_snippets_on_invoke
+        self.cli_quiet = cli_quiet
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -52,7 +55,7 @@ class UIManager:
         self.app.Bind(wx.EVT_BUTTON, self.deleteButtonClicked, self.delete_button)
         buttonRowSizer.Add(self.delete_button)
 
-        self.copy_args_button = wx.Button(self.panel, 12346, _("Copy &Args"))
+        self.copy_args_button = wx.Button(self.panel, 12346, _("Copy Args (Ctrl+C)"))
         self.app.Bind(wx.EVT_BUTTON, self.copy_args_clicked, self.copy_args_button)
         buttonRowSizer.Add(self.copy_args_button)
 
@@ -75,6 +78,10 @@ class UIManager:
         self.app.Bind(wx.EVT_BUTTON, self.openDocs, self.help_button)
         buttonRowSizer.Add(self.help_button)
 
+        self.settings_button = wx.Button(self.panel, wx.ID_PREFERENCES, _("Se&ttings..."))
+        self.app.Bind(wx.EVT_BUTTON, self.settings_button_clicked, self.settings_button)
+        buttonRowSizer.Add(self.settings_button)
+
         self.exit_button = wx.Button(self.panel, wx.ID_EXIT, _("E&xit"))
         self.app.Bind(wx.EVT_BUTTON, self.exit_app, self.exit_button)
         buttonRowSizer.Add(self.exit_button)
@@ -86,6 +93,13 @@ class UIManager:
 
     def initialize_ui(self):
         self.app.MainLoop()
+
+    @property
+    def snippets_on_invoke(self):
+        return self.cli_snippets_on_invoke or self.settings_manager.get("snippets_on_invoke")
+
+    def _effective_sounds_enabled(self):
+        return self.settings_manager.get("enable_sounds") and not self.cli_quiet
 
     def show_alert(self, title, text):
         dlg = wx.MessageDialog(None, text, title, wx.OK)
@@ -119,10 +133,16 @@ class UIManager:
 
         selected_option = self.commands_in_ui[selected_option_index]
 
-        with CommandEditionDialog(
-            self.frame, self.dataManager, selected_option
-        ) as addDialog:
-            addDialog.ShowModal()
+        if selected_option.get("type") == "snippet":
+            with AddSnippetDialog(
+                self.frame, self.dataManager, selected_option
+            ) as editDialog:
+                editDialog.ShowModal()
+        else:
+            with CommandEditionDialog(
+                self.frame, self.dataManager, selected_option
+            ) as addDialog:
+                addDialog.ShowModal()
 
         self.edit.Value = ""
 
@@ -173,10 +193,9 @@ class UIManager:
             self.edit.SetFocus()
             self.edit.Value = ""
             self.mode = UIMode.COMMANDS
-            command_line_parameters = get_command_line_parameters()
-            if command_line_parameters.snippets_on_invoke:
+            if self.snippets_on_invoke:
                 self.mode = UIMode.SNIPPETS
-                
+
             self.update_list()
 
     def update_list(self, event=None):
@@ -339,13 +358,18 @@ class UIManager:
         )
         try:
             webbrowser.open_new(
-                "https://github.com/ogomez92/launchtype/blob/main/README.md"
+                _("https://github.com/ogomez92/launchtype/blob/main/README.md")
             )
         except webbrowser.Error as e:
             self.show_alert(
                 _("Documentation error"),
                 _(f"There was an error opening the documentation: {e}")
             )
+
+    def settings_button_clicked(self, event):
+        with SettingsDialog(self.frame, self.settings_manager) as dlg:
+            dlg.ShowModal()
+        SoundPlayer.enabled = self._effective_sounds_enabled()
 
     def exit_app(self, event):
         # Stop the clipboard history background thread before exiting

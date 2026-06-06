@@ -5,8 +5,13 @@ class AddSnippetDialog(wx.Dialog):
     global _
     data = None
 
-    def __init__(self, parent, data):
-        super().__init__(parent, title=_("Add Snippet"))
+    def __init__(self, parent, data, snippet=None):
+        # When a snippet is provided we are editing an existing one
+        self.snippet = snippet
+        self.original_shortcut = snippet["shortcut"] if snippet else None
+
+        title = _("Edit Snippet") if snippet else _("Add Snippet")
+        super().__init__(parent, title=title)
 
         self.dataManager = data
 
@@ -51,11 +56,23 @@ class AddSnippetDialog(wx.Dialog):
 
         ok_button.SetDefault()
 
+        # Prefill the fields when editing an existing snippet. The formatted
+        # snippet stores its filename (without extension) in "shortcut" and its
+        # text in "name".
+        if self.snippet:
+            self.name_entry.SetValue(self.snippet["shortcut"])
+            self.contents_entry.SetValue(self.snippet["name"])
+
     def ok_button_clicked(self, event):
         name = self.name_entry.GetValue()
         contents = self.contents_entry.GetValue()
         if name and contents:
-            self.dataManager.add_snippet(name, contents)
+            if self.original_shortcut is not None:
+                self.dataManager.update_snippet(
+                    self.original_shortcut, name, contents
+                )
+            else:
+                self.dataManager.add_snippet(name, contents)
             self.EndModal(wx.ID_OK)
         else:
             wx.MessageBox(
