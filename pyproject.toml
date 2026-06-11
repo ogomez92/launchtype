@@ -29,5 +29,6 @@ packages = ["src", "accessible_output2"]
 
 [dependency-groups]
 dev = [
+    "flake8>=7.3.0",
     "pyinstaller",
 ]

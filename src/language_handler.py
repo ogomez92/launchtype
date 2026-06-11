@@ -22,21 +22,21 @@ def initialize():
     # First, try getdefaultlocale() which is more reliable in PyInstaller
     try:
         current_locale, encoding = locale.getdefaultlocale()
-    except:
+    except Exception:
         pass
 
     # If that fails, try getlocale()
     if not current_locale:
         try:
             current_locale, encoding = locale.getlocale()
-        except:
+        except Exception:
             pass
 
     # If still no locale, try with LC_MESSAGES category (more reliable on some systems)
     if not current_locale:
         try:
             current_locale, encoding = locale.getlocale(locale.LC_MESSAGES)
-        except:
+        except Exception:
             pass
 
     # Final fallback to English

@@ -17,6 +17,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "Failed to sync build dependencies (exit code $LASTEXITCODE)."
 }
 
+Write-Host "==> Compiling translations (.po -> .mo)..." -ForegroundColor Cyan
+& uv run --extra build python compile_translations.py
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to compile translations (exit code $LASTEXITCODE)."
+}
+
 Write-Host "==> Building Launchtype with PyInstaller..." -ForegroundColor Cyan
 & uv run --extra build python -m PyInstaller ".\main.spec" --noconfirm
 if ($LASTEXITCODE -ne 0) {

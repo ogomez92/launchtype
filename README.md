@@ -82,6 +82,50 @@ Screenshot mode can be accessed by pressing ' (apostrophe) in the input field. T
 
 Selecting one copies the resulting JPEG file to your clipboard so you can paste it into any app that accepts image files.
 
+## Timers
+
+Timer mode can be accessed by pressing `[` (left bracket) in the input field. Timers count down for a number of minutes and then notify you.
+
+Add a timer with the Add button. The Add Timer dialog lets you set:
+
+- A **title** and **description** (announced via NVDA when the timer fires).
+- The number of **minutes** to count down.
+- A **repeating** checkbox.
+- A custom **sound file** (any .wav on your system, chosen via Browse). If no sound is set, the built-in cue is used.
+
+Timers display in the list with their current state:
+
+- **Non-repeating timers** show as `stopped` until started. Running them (Enter or Alt+R) starts the countdown; running them again while they are already counting down **resets** the timer. They fire once and then stop.
+- **Repeating timers** fire every X minutes until manually disabled. They default to **on**, and running them (Enter or Alt+R) **toggles** them on/off.
+
+To go back to commands mode, press the period key (.).
+
+## Alarms
+
+Alarm mode can be accessed by pressing `]` (right bracket) in the input field. Alarms fire once per day at a specific time of day in 24-hour format.
+
+Add an alarm with the Add button. The Add Alarm dialog lets you set:
+
+- A **title** and **description** (announced via NVDA when the alarm fires).
+- The **hour** (0-23) and **minute** (0-59).
+- A custom **sound file** (any .wav on your system, chosen via Browse). If no sound is set, the built-in cue is used.
+
+Alarms display in the list showing the time and whether they are `on` or `off`. Run an alarm (Enter or Alt+R) to toggle its activation state.
+
+To go back to commands mode, press the period key (.).
+
+## Notebrook notes
+
+Notebrook mode can be accessed by pressing `#` (hash) in the input field. It lets you fire off a quick note to your [Notebrook](https://notebrook.com) account without leaving the launcher.
+
+Type your note and press Enter (or Alt+R). The note is posted to a channel called **feeds**, which is created automatically the first time if it doesn't exist. Whitespace is trimmed, and nothing is sent if the field is empty.
+
+The first time you send a note you'll be asked for your **server URL** and **token** in a two-field dialog. These are stored locally in `settings.json` (which is git-ignored, so they are never committed) and reused afterwards. If the token is ever rejected, the stored credentials are cleared so you'll be asked again on the next attempt.
+
+After sending, the app announces whether the note was sent or, if something went wrong, the reason (network error, bad URL, unauthorized token, etc.).
+
+To go back to commands mode, press the period key (.).
+
 ## Run as administrator
 
 When adding or editing a command you can tick the "Run as administrator" checkbox. The command will be launched with elevated privileges (a UAC prompt will appear on launch).
@@ -101,6 +145,9 @@ The app has several modes, each accessed by typing a special character in the in
 | `?` | Clipboard | Access clipboard history |
 | `,` | Steam | Launch installed Steam games |
 | `'` | Screenshots | Capture window or full screen to clipboard |
+| `[` | Timers | Count down for X minutes (one-shot or repeating) |
+| `]` | Alarms | Fire at a time of day (24-hour) |
+| `#` | Notebrook | Post a quick note to your Notebrook |
 | `.` | (any mode) | Return to Commands mode |
 
 ## Audio Feedback

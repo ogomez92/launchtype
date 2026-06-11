@@ -1,10 +1,8 @@
 import wx
 import os
-from managers.data_manager import DataManager
 
 
 class CommandEditionDialog(wx.Dialog):
-    global _
     is_editing = False
     is_copying = False
 
@@ -154,7 +152,7 @@ class CommandEditionDialog(wx.Dialog):
                         for action in commands_with_same_path:
                             action["path"] = self.command_edit.Value
 
-                        DataManager().syncCommandsToStorage()
+                        self.dataManager.syncCommandsToStorage()
 
         self.dataManager.add_command(
             self.command_edit.Value,

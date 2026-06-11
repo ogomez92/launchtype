@@ -2,8 +2,6 @@ import wx
 
 
 class SettingsDialog(wx.Dialog):
-    global _
-
     def __init__(self, parent, settings_manager):
         super().__init__(parent, title=_("Settings"))
         self.settings_manager = settings_manager

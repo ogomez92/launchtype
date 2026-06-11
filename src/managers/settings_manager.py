@@ -1,6 +1,8 @@
 import json
 from os.path import exists
 
+from helpers.json_storage import atomic_write_json
+
 
 DEFAULT_STEAM_LIBRARY = r"C:\Program Files (x86)\Steam\steamapps"
 
@@ -9,6 +11,10 @@ DEFAULTS = {
     "start_minimized": False,
     "snippets_on_invoke": False,
     "steam_library": DEFAULT_STEAM_LIBRARY,
+    # Notebrook credentials. Stored locally only (settings.json is gitignored),
+    # never committed to the repository.
+    "notebrook_url": "",
+    "notebrook_token": "",
 }
 
 
@@ -31,8 +37,7 @@ class SettingsManager:
             pass
 
     def save(self):
-        with open(self.settings_file, "w", encoding="utf-8") as f:
-            f.write(json.dumps(self.settings, indent=2))
+        atomic_write_json(self.settings_file, self.settings, indent=2)
 
     def get(self, key):
         return self.settings.get(key, DEFAULTS.get(key))

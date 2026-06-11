@@ -3,6 +3,9 @@ from os.path import exists
 from services.clipboard_history import ClipboardHistory
 from services.steam_scanner import SteamScanner
 from services.screenshot_service import get_screenshot_items
+from services.timer_service import TimerService
+from services.alarm_service import AlarmService
+from helpers.json_storage import atomic_write_json
 from helpers.plist_helper import parse_apple_snippets
 from helpers.search_utility import fuzzy_search, check_exact_shortcut_match
 from enums.ui_mode import UIMode
@@ -20,6 +23,8 @@ class DataManager:
     def __init__(self, commands_file, steam_library_path=None):
         self.commands_file = commands_file
         self.steam_scanner = SteamScanner(steam_library_path)
+        self.timer_service = TimerService()
+        self.alarm_service = AlarmService()
 
         if not exists("snippets"):
             import os
@@ -35,14 +40,26 @@ class DataManager:
         self.syncCommandsToStorage()
 
     def syncCommandsToStorage(self):
-        with open(self.commands_file, "w") as outputFile:
-            json_string = json.dumps(self.commandsData)
-
-            outputFile.write(json_string)
+        atomic_write_json(self.commands_file, self.commandsData)
 
     def loadCommandsFromFile(self):
-        with open(self.commands_file, "r") as inputFile:
-            self.commandsData = json.loads(inputFile.read())
+        # A corrupt or malformed commands file must not prevent the app from
+        # starting: move it aside so the data stays recoverable, then start
+        # over with an empty command list.
+        try:
+            with open(self.commands_file, "r", encoding="utf-8") as inputFile:
+                data = json.loads(inputFile.read())
+            if not isinstance(data, dict) or not isinstance(
+                data.get("commands"), list
+            ):
+                raise ValueError("commands file has an unexpected shape")
+            self.commandsData = data
+        except (OSError, ValueError):
+            try:
+                os.replace(self.commands_file, self.commands_file + ".corrupt")
+            except OSError:
+                pass
+            self.create_commands_file()
 
     def add_command(self, command, name, args, abreviation, run_as_admin=False):
         command_dictionary = {
@@ -75,6 +92,17 @@ class DataManager:
 
         if mode == UIMode.SCREENSHOTS:
             return get_screenshot_items()
+
+        if mode == UIMode.TIMERS:
+            return self.get_timers(search_string)
+
+        if mode == UIMode.ALARMS:
+            return self.get_alarms(search_string)
+
+        if mode == UIMode.NOTEBROOK:
+            # The note content is taken straight from the edit field on run,
+            # so there is nothing to list here.
+            return []
 
     def get_commands_with_path(self, path):
         commands_to_return = []
@@ -117,6 +145,10 @@ class DataManager:
 
                 self.syncCommandsToStorage()
                 return
+
+        # The id may belong to a timer or an alarm instead of a command.
+        self.timer_service.remove(id)
+        self.alarm_service.remove(id)
 
     def load_snippets_from_files(self):
         self.snippets = []
@@ -228,6 +260,38 @@ class DataManager:
             SoundPlayer.play("type")
 
         return results
+
+    def get_timers(self, search_string):
+        timers = self.timer_service.get_items()
+
+        if search_string == "":
+            return timers
+
+        results = fuzzy_search(search_string, timers, lambda timer: timer["name"])
+        SoundPlayer.play("type")
+        return results
+
+    def add_timer(self, title, description, minutes, repeating, sound):
+        self.timer_service.add_timer(title, description, minutes, repeating, sound)
+
+    def toggle_timer(self, timer_id):
+        return self.timer_service.toggle(timer_id)
+
+    def get_alarms(self, search_string):
+        alarms = self.alarm_service.get_items()
+
+        if search_string == "":
+            return alarms
+
+        results = fuzzy_search(search_string, alarms, lambda alarm: alarm["name"])
+        SoundPlayer.play("type")
+        return results
+
+    def add_alarm(self, title, description, hour, minute, sound):
+        self.alarm_service.add_alarm(title, description, hour, minute, sound)
+
+    def toggle_alarm(self, alarm_id):
+        return self.alarm_service.toggle(alarm_id)
 
     def add_snippet(self, name, contents):
         with open("snippets/" + name + ".txt", "w", encoding="utf-8") as outputFile:

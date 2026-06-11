@@ -4,48 +4,63 @@ import time
 import uuid
 import json
 
+from helpers.json_storage import atomic_write_json
+
+HISTORY_FILE = "clipboard_history.json"
+MAX_ITEMS = 50
+
 
 class ClipboardHistory:
     def __init__(self):
         self.last_value = None
         self.history_items = []
-        self.createClipboardHistoryFileIFNotExists()
+        self._lock = threading.Lock()
         self.load_history_from_file()
 
         self._stop_event = threading.Event()
-        self._thread = threading.Thread(target=self._watch)
+        self._thread = threading.Thread(target=self._watch, daemon=True)
         self._thread.start()
 
     def stop(self):
         self._stop_event.set()
-        self._thread.join()
+        self._thread.join(timeout=2)
         self.history_items = []
 
     def _watch(self):
+        # The loop must survive any single failed tick: pyperclip raises when
+        # another process holds the clipboard lock, and the storage file can be
+        # momentarily locked by scanners/sync tools. Skip the tick and retry.
         while not self._stop_event.is_set():
             time.sleep(0.1)
 
-            value = pyperclip.paste()
+            try:
+                value = pyperclip.paste()
 
-            if value != "" and value != self.last_value:
-                self.add_item_to_history(value)
-                self.last_value = value
+                if value and value != self.last_value:
+                    self.add_item_to_history(value)
+                    self.last_value = value
+            except Exception:
+                continue
 
     def add_item_to_history(self, value):
-        if value in self.history_items:
-            self.delete_clipboard_history_item_by_text(value)
+        with self._lock:
+            self.history_items = [
+                item for item in self.history_items if item != value
+            ]
+            self.history_items.insert(0, value)
 
-        self.history_items.insert(0, value)
+            if len(self.history_items) > MAX_ITEMS:
+                self.history_items = self.history_items[:MAX_ITEMS]
 
-        if len(self.history_items) > 50:
-            self.history_items.pop()
-
-        self.sync_to_storage()
+            self._sync_to_storage_locked()
 
     def get_history_items(self):
         # create list with history_items with its name as value and index as shortcut
+        with self._lock:
+            snapshot = list(self.history_items)
+
         history_items = []
-        for index, item in enumerate(self.history_items):
+        for index, item in enumerate(snapshot):
             history_items.append(
                 {
                     "name": item,
@@ -57,30 +72,31 @@ class ClipboardHistory:
 
         return history_items
 
-    def sync_to_storage(self):
-        with open("clipboard_history.json", "w") as outputFile:
-            json_string = json.dumps(self.history_items)
-
-            outputFile.write(json_string)
+    def _sync_to_storage_locked(self):
+        # A locked file just skips this sync; the next one rewrites the full
+        # list anyway.
+        try:
+            atomic_write_json(HISTORY_FILE, self.history_items)
+        except OSError:
+            pass
 
     def load_history_from_file(self):
-        with open("clipboard_history.json", "r") as inputFile:
-            self.history_items = json.loads(inputFile.read())
-
-    def createClipboardHistoryFileIFNotExists(self):
         try:
-            with open("clipboard_history.json", "r") as inputFile:
-                pass
-        except FileNotFoundError:
-            with open("clipboard_history.json", "w") as outputFile:
-                outputFile.write("[]")
+            with open(HISTORY_FILE, "r", encoding="utf-8") as inputFile:
+                items = json.loads(inputFile.read())
+            if isinstance(items, list):
+                self.history_items = [
+                    item for item in items if isinstance(item, str)
+                ]
+        except (OSError, ValueError):
+            self.history_items = []
 
     def forget_last_value(self):
         self.last_value = None
 
     def delete_clipboard_history_item_by_text(self, text):
-        for index, item in enumerate(self.history_items):
-            if item == text:
-                self.history_items.pop(index)
-
-        self.sync_to_storage()
+        with self._lock:
+            self.history_items = [
+                item for item in self.history_items if item != text
+            ]
+            self._sync_to_storage_locked()

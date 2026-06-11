@@ -293,3 +293,195 @@ msgstr "Elige la carpeta de la biblioteca de Steam"
 #: src/ui/settings_dialog.py
 msgid "Command line flags override these settings for the current run."
 msgstr "Los parámetros de línea de comandos sobreescriben estos ajustes durante la ejecución actual."
+
+#: src/ui/add_snippet_dialog.py
+msgid "Edit Snippet"
+msgstr "Editar Sustitución"
+
+#: src/managers/command_line_parameters.py
+msgid "When app is invoked by shortcut, start with snippets mode instead of commands"
+msgstr "Cuando se invoca la aplicación por atajo, arrancar en modo sustituciones en lugar de comandos"
+
+#: src/managers/ui_manager.py
+msgid "timers mode"
+msgstr "modo temporizadores"
+
+#: src/managers/ui_manager.py
+msgid "alarms mode"
+msgstr "modo alarmas"
+
+#: src/ui/add_timer_dialog.py
+msgid "Add Timer"
+msgstr "Añadir temporizador"
+
+#: src/ui/add_alarm_dialog.py
+msgid "Add Alarm"
+msgstr "Añadir alarma"
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "&Title:"
+msgstr "&Título:"
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "&Description:"
+msgstr "&Descripción:"
+
+#: src/ui/add_timer_dialog.py
+msgid "&Minutes:"
+msgstr "&Minutos:"
+
+#: src/ui/add_timer_dialog.py
+msgid "&Repeating (fires every X minutes until disabled)"
+msgstr "&Repetir (suena cada X minutos hasta desactivarlo)"
+
+#: src/ui/add_alarm_dialog.py
+msgid "&Hour (0-23):"
+msgstr "&Hora (0-23):"
+
+#: src/ui/add_alarm_dialog.py
+msgid "&Minute (0-59):"
+msgstr "&Minuto (0-59):"
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "&Sound file (optional):"
+msgstr "Archivo de &sonido (opcional):"
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "Choose a sound file"
+msgstr "Elige un archivo de sonido"
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "Sound files (*.wav)|*.wav|All files (*.*)|*.*"
+msgstr "Archivos de sonido (*.wav)|*.wav|Todos los archivos (*.*)|*.*"
+
+#: src/ui/add_timer_dialog.py
+msgid "Please enter a title for the timer."
+msgstr "Por favor, introduce un título para el temporizador."
+
+#: src/ui/add_alarm_dialog.py
+msgid "Please enter a title for the alarm."
+msgstr "Por favor, introduce un título para la alarma."
+
+#: src/managers/ui_manager.py
+msgid "Timer {state}"
+msgstr "Temporizador {state}"
+
+#: src/managers/ui_manager.py
+msgid "Alarm {state}"
+msgstr "Alarma {state}"
+
+#: src/managers/ui_manager.py
+msgid "started"
+msgstr "iniciado"
+
+#: src/managers/ui_manager.py src/services/timer_service.py
+msgid "stopped"
+msgstr "detenido"
+
+#: src/services/timer_service.py
+msgid "running"
+msgstr "en marcha"
+
+#: src/services/timer_service.py
+msgid "running, {time} {verb}"
+msgstr "en marcha, {time} {verb}"
+
+#: src/services/timer_service.py
+msgid "until repeat"
+msgstr "hasta repetir"
+
+#: src/services/timer_service.py
+msgid "left"
+msgstr "restante"
+
+#: src/services/alarm_service.py
+msgid "on"
+msgstr "activada"
+
+#: src/services/alarm_service.py
+msgid "off"
+msgstr "desactivada"
+
+#: src/services/timer_service.py
+msgid "every {minutes} min, repeating"
+msgstr "cada {minutes} min, repitiendo"
+
+#: src/services/timer_service.py
+msgid "{minutes} min"
+msgstr "{minutes} min"
+
+#: src/services/timer_service.py
+msgid "{title} - {descriptor} ({state})"
+msgstr "{title} - {descriptor} ({state})"
+
+#: src/services/alarm_service.py
+msgid "{title} - {hour:02d}:{minute:02d} ({state})"
+msgstr "{title} - {hour:02d}:{minute:02d} ({state})"
+
+#: src/managers/ui_manager.py
+msgid "Notebrook new note mode, type your note and press enter"
+msgstr "modo nueva nota de Notebrook, escribe tu nota y pulsa intro"
+
+#: src/managers/ui_manager.py
+msgid "No note entered"
+msgstr "No se ha introducido ninguna nota"
+
+#: src/managers/ui_manager.py
+msgid "Note not sent"
+msgstr "Nota no enviada"
+
+#: src/managers/ui_manager.py
+msgid "Note sent to {}"
+msgstr "Nota enviada a {}"
+
+#: src/ui/notebrook_credentials_dialog.py
+msgid "Notebrook credentials"
+msgstr "Credenciales de Notebrook"
+
+#: src/ui/notebrook_credentials_dialog.py
+msgid ""
+"Enter your Notebrook server URL and token. These are stored locally and only "
+"used to send notes."
+msgstr ""
+"Introduce la URL del servidor y el token de Notebrook. Se guardan localmente "
+"y solo se usan para enviar notas."
+
+#: src/ui/notebrook_credentials_dialog.py
+msgid "Server &URL:"
+msgstr "&URL del servidor:"
+
+#: src/ui/notebrook_credentials_dialog.py
+msgid "&Token:"
+msgstr "&Token:"
+
+#: src/ui/notebrook_credentials_dialog.py
+msgid "Please enter both the server URL and the token."
+msgstr "Por favor, introduce la URL del servidor y el token."
+
+#: src/ui/notebrook_credentials_dialog.py
+msgid "Error"
+msgstr "Error"
+
+#: src/services/notebrook_service.py
+msgid "Unauthorized (401): the token was rejected."
+msgstr "No autorizado (401): el token fue rechazado."
+
+#: src/services/notebrook_service.py
+msgid "Not found (404): check the server URL is correct."
+msgstr "No encontrado (404): comprueba que la URL del servidor sea correcta."
+
+#: src/services/notebrook_service.py
+msgid "Server returned an unexpected status code: {}"
+msgstr "El servidor devolvió un código de estado inesperado: {}"
+
+#: src/services/notebrook_service.py
+msgid "Network error: {}"
+msgstr "Error de red: {}"
+
+#: src/services/notebrook_service.py
+msgid "Unexpected error: {}"
+msgstr "Error inesperado: {}"
+
+#: src/services/notebrook_service.py
+msgid "The server did not return the created channel."
+msgstr "El servidor no devolvió el canal creado."

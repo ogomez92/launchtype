@@ -22,6 +22,5 @@ class SpeechService:
     def speak(text, interrupt=True):
         try:
             SpeechService.output_method.speak(text, interrupt)
-        except:
+        except Exception:
             SpeechService.fallback_method.speak(text, interrupt)
-            pass

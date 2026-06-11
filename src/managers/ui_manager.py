@@ -3,6 +3,10 @@ from ui.command_edition_dialog import CommandEditionDialog
 from ui.settings_dialog import SettingsDialog
 from helpers.sound_player import SoundPlayer
 from ui.add_snippet_dialog import AddSnippetDialog
+from ui.add_timer_dialog import AddTimerDialog
+from ui.add_alarm_dialog import AddAlarmDialog
+from ui.notebrook_credentials_dialog import NotebrookCredentialsDialog
+from services import notebrook_service
 from services.runner_service import run_command
 from services.screenshot_service import take_screenshot
 from services.speech_service import SpeechService
@@ -12,9 +16,10 @@ import webbrowser
 
 
 class UIManager:
-    global _
     commands_in_ui = []
     mode = UIMode.COMMANDS
+    # Notes are always posted to this channel (created on demand).
+    NOTEBROOK_CHANNEL = "feeds"
 
     def __init__(self, data, settings_manager, cli_snippets_on_invoke=False, cli_quiet=False):
         self.app = wx.App(False)
@@ -119,8 +124,15 @@ class UIManager:
         dlg.Destroy()
 
     def add_button_clicked(self, event):
-        with CommandEditionDialog(self.frame, self.dataManager) as addDialog:
-            addDialog.ShowModal()
+        if self.mode == UIMode.TIMERS:
+            with AddTimerDialog(self.frame, self.dataManager) as addDialog:
+                addDialog.ShowModal()
+        elif self.mode == UIMode.ALARMS:
+            with AddAlarmDialog(self.frame, self.dataManager) as addDialog:
+                addDialog.ShowModal()
+        else:
+            with CommandEditionDialog(self.frame, self.dataManager) as addDialog:
+                addDialog.ShowModal()
 
         self.edit.Value = ""
 
@@ -226,6 +238,21 @@ class UIManager:
             self.mode = UIMode.SCREENSHOTS
             self.edit.Value = ""
 
+        if self.edit.Value == "[":
+            SpeechService.speak(_("timers mode"))
+            self.mode = UIMode.TIMERS
+            self.edit.Value = ""
+
+        if self.edit.Value == "]":
+            SpeechService.speak(_("alarms mode"))
+            self.mode = UIMode.ALARMS
+            self.edit.Value = ""
+
+        if self.edit.Value == "#":
+            SpeechService.speak(_("Notebrook new note mode, type your note and press enter"))
+            self.mode = UIMode.NOTEBROOK
+            self.edit.Value = ""
+
         self.commands_in_ui = []
         self.list.Clear()
 
@@ -256,16 +283,39 @@ class UIManager:
                     SpeechService.speak(_("{}, {} search results shown, use tab and down arrow to access more results").format(first_result, result_count))
 
     def run_button_clicked(self, event):
+        if self.mode == UIMode.NOTEBROOK:
+            self.send_notebrook_note()
+            return
+
         try:
             selected_option_index = self.list.GetSelection()
             if selected_option_index < 0:
                 return
             selected_option = self.commands_in_ui[selected_option_index]
             print(selected_option)
-            self.frame.Hide()
 
             if "type" not in selected_option:
                 selected_option["type"] = "command"
+
+            # Timers and alarms are toggled in place; keep the window open so the
+            # user can see the new state and keep managing them.
+            if selected_option["type"] == "timer":
+                enabled = self.dataManager.toggle_timer(selected_option["id"])
+                SoundPlayer.play("match")
+                state = _("started") if enabled else _("stopped")
+                SpeechService.speak(_("Timer {state}").format(state=state))
+                self.update_list()
+                return
+
+            if selected_option["type"] == "alarm":
+                enabled = self.dataManager.toggle_alarm(selected_option["id"])
+                SoundPlayer.play("match")
+                state = _("on") if enabled else _("off")
+                SpeechService.speak(_("Alarm {state}").format(state=state))
+                self.update_list()
+                return
+
+            self.frame.Hide()
 
             if selected_option["type"] == "command":
                 selected_command = str(selected_option["path"])
@@ -303,6 +353,58 @@ class UIManager:
             self.show_error(
                 "Oops...", _(f"Something went wrong while running your command: {e}")
             )
+
+    def _ensure_notebrook_credentials(self):
+        """Return (url, token), prompting once and saving them if not set.
+
+        Returns (None, None) if the user cancels the credentials dialog.
+        """
+        url = self.settings_manager.get("notebrook_url")
+        token = self.settings_manager.get("notebrook_token")
+
+        if url and token:
+            return url, token
+
+        with NotebrookCredentialsDialog(self.frame, url or "", token or "") as dlg:
+            if dlg.ShowModal() != wx.ID_OK:
+                return None, None
+            url, token = dlg.url, dlg.token
+
+        self.settings_manager.set("notebrook_url", url)
+        self.settings_manager.set("notebrook_token", token)
+        self.settings_manager.save()
+        return url, token
+
+    def send_notebrook_note(self):
+        note = self.edit.Value.strip()
+        # Don't run if no text was entered.
+        if not note:
+            SpeechService.speak(_("No note entered"))
+            return
+
+        url, token = self._ensure_notebrook_credentials()
+        if not url or not token:
+            return
+
+        try:
+            notebrook_service.send_note(url, token, self.NOTEBROOK_CHANNEL, note)
+        except notebrook_service.NotebrookError as e:
+            if e.unauthorized:
+                # Forget the rejected credentials so we ask again next time.
+                self.settings_manager.set("notebrook_url", "")
+                self.settings_manager.set("notebrook_token", "")
+                self.settings_manager.save()
+            SpeechService.speak(_("Note not sent"))
+            self.show_error(_("Note not sent"), str(e))
+            return
+
+        SoundPlayer.play("run")
+        SpeechService.speak(
+            _("Note sent to {}").format(self.NOTEBROOK_CHANNEL)
+        )
+        self.mode = UIMode.COMMANDS
+        self.edit.Value = ""
+        self.frame.Hide()
 
     def select_first(self):
         self.list.Select(0)
@@ -374,5 +476,7 @@ class UIManager:
     def exit_app(self, event):
         # Stop the clipboard history background thread before exiting
         self.dataManager.clipboard_history.stop()
+        self.dataManager.timer_service.stop()
+        self.dataManager.alarm_service.stop()
         self.frame.Destroy()
         self.app.ExitMainLoop()

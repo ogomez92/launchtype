@@ -1,4 +1,5 @@
-import win32gui, win32con
+import win32gui
+import win32con
 
 
 class WindowManager:

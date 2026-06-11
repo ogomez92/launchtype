@@ -2,7 +2,6 @@ import wx
 
 
 class AddSnippetDialog(wx.Dialog):
-    global _
     data = None
 
     def __init__(self, parent, data, snippet=None):

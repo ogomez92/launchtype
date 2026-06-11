@@ -50,6 +50,8 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 *.json
+*.json.tmp
+*.json.corrupt
 *.dat
 snippets
 *.plist

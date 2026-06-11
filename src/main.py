@@ -44,7 +44,7 @@ try:
     handler.register_key("control+alt+space", uiManager.toggle_visibility)
 except Exception as e:
     uiManager.show_error(
-        "error", language_handler._("There was an error registering the hotkey for the program: ")+str(e))
+        "error", language_handler._("There was an error registering the hotkey for the program: ") + str(e))
 
 SoundPlayer.play("logo")
 
