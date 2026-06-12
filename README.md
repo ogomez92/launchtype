@@ -126,6 +126,29 @@ After sending, the app announces whether the note was sent or, if something went
 
 To go back to commands mode, press the period key (.).
 
+## Realtime data
+
+Realtime data mode can be accessed by pressing `+` (plus) in the input field. It offers live values fetched from free public APIs at the moment you select them:
+
+- `btc`: bitcoin price in euros (CoinGecko)
+- `eth`: ethereum price in euros (CoinGecko)
+- `usd`: what 1000 euros are worth in US dollars (European Central Bank rates)
+- `oil`: brent crude oil price per barrel (Yahoo Finance)
+- `gold`: gold price per ounce (Yahoo Finance)
+- `ibex`: IBEX 35 stock index (Yahoo Finance)
+- `w`: current weather at your location (geolocated by IP, data from Open-Meteo)
+- `news`: top headlines from El País
+- `cat`: Catalunya headlines from La Vanguardia
+- `vila`: headlines in Catalan from VilaWeb
+- `bbc`: top world headlines from the BBC
+- `cc`: your Claude subscription usage (session and weekly limits, read via Claude Code's local login — no API key needed)
+
+Press Enter (or Alt+R) on an item: the app announces "Fetching..." and then speaks the live value through your screen reader as soon as it arrives. The window stays open so you can query several values in a row. If a lookup fails (no network, service down), the reason is announced instead.
+
+All sources are free and require no API key or account.
+
+To go back to commands mode, press the period key (.).
+
 ## Run as administrator
 
 When adding or editing a command you can tick the "Run as administrator" checkbox. The command will be launched with elevated privileges (a UAC prompt will appear on launch).
@@ -148,6 +171,7 @@ The app has several modes, each accessed by typing a special character in the in
 | `[` | Timers | Count down for X minutes (one-shot or repeating) |
 | `]` | Alarms | Fire at a time of day (24-hour) |
 | `#` | Notebrook | Post a quick note to your Notebrook |
+| `+` | Realtime data | Speak live prices, weather and news headlines |
 | `.` | (any mode) | Return to Commands mode |
 
 ## Audio Feedback

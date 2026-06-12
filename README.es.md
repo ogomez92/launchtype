@@ -82,6 +82,29 @@ El modo de capturas de pantalla se abre escribiendo ' (apóstrofo) en la caja. H
 
 Al seleccionar una, el archivo JPEG resultante se copia al portapapeles para que puedas pegarlo en cualquier aplicación que acepte imágenes.
 
+## Datos en tiempo real
+
+El modo de datos en tiempo real se abre escribiendo `+` (signo más) en la caja. Ofrece valores en directo obtenidos de APIs públicas gratuitas en el momento de seleccionarlos:
+
+- `btc`: precio del bitcoin en euros (CoinGecko)
+- `eth`: precio del ethereum en euros (CoinGecko)
+- `usd`: cuánto valen 1000 euros en dólares estadounidenses (tipos del Banco Central Europeo)
+- `oil`: precio del barril de petróleo brent (Yahoo Finance)
+- `gold`: precio de la onza de oro (Yahoo Finance)
+- `ibex`: índice bursátil IBEX 35 (Yahoo Finance)
+- `w`: el tiempo actual en tu ubicación (geolocalizada por IP, datos de Open-Meteo)
+- `news`: titulares de portada de El País
+- `cat`: titulares de Catalunya de La Vanguardia
+- `vila`: titulares en catalán de VilaWeb
+- `bbc`: titulares internacionales de la BBC
+- `cc`: tu uso de la suscripción de Claude (límites de sesión y semanales, leídos de la sesión local de Claude Code — no hace falta clave de API)
+
+Pulsa Intro (o Alt+R) sobre un elemento: la aplicación anuncia "Obteniendo..." y a continuación lee el valor en directo por el lector de pantalla en cuanto llega. La ventana permanece abierta para que puedas consultar varios valores seguidos. Si una consulta falla (sin red, servicio caído), se anuncia el motivo.
+
+Todas las fuentes son gratuitas y no requieren clave de API ni cuenta.
+
+Para volver a comandos, pulsa la tecla punto (.).
+
 ## Ejecutar como administrador
 
 Al añadir o editar un comando puedes marcar la casilla "Ejecutar como administrador". El comando se lanzará con privilegios elevados (aparecerá el cuadro de UAC al ejecutarlo).
@@ -101,6 +124,7 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `?` | Portapapeles | Acceder al historial del portapapeles |
 | `,` | Steam | Lanzar juegos de Steam instalados |
 | `'` | Capturas | Capturar ventana o pantalla completa al portapapeles |
+| `+` | Datos en tiempo real | Leer en voz alta precios, tiempo y titulares en directo |
 | `.` | (cualquier modo) | Volver al modo Comandos |
 
 ## Retroalimentación de audio

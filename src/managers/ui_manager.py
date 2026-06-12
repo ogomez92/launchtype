@@ -7,11 +7,13 @@ from ui.add_timer_dialog import AddTimerDialog
 from ui.add_alarm_dialog import AddAlarmDialog
 from ui.notebrook_credentials_dialog import NotebrookCredentialsDialog
 from services import notebrook_service
+from services import realtime_service
 from services.runner_service import run_command
 from services.screenshot_service import take_screenshot
 from services.speech_service import SpeechService
 from enums.ui_mode import UIMode
 from utility_functions import copy_to_clipboard
+import threading
 import webbrowser
 
 
@@ -253,6 +255,11 @@ class UIManager:
             self.mode = UIMode.NOTEBROOK
             self.edit.Value = ""
 
+        if self.edit.Value == "+":
+            SpeechService.speak(_("realtime data mode"))
+            self.mode = UIMode.REALTIME
+            self.edit.Value = ""
+
         self.commands_in_ui = []
         self.list.Clear()
 
@@ -315,6 +322,13 @@ class UIManager:
                 self.update_list()
                 return
 
+            # Realtime lookups fetch in the background and announce the value
+            # when it arrives; keep the window open so the user can query
+            # several values in a row.
+            if selected_option["type"] == "realtime":
+                self.fetch_realtime_value(selected_option)
+                return
+
             self.frame.Hide()
 
             if selected_option["type"] == "command":
@@ -353,6 +367,32 @@ class UIManager:
             self.show_error(
                 "Oops...", _(f"Something went wrong while running your command: {e}")
             )
+
+    def fetch_realtime_value(self, item):
+        SoundPlayer.play("run")
+        SpeechService.speak(_("Fetching {name}").format(name=item["name"]))
+
+        def worker():
+            try:
+                announcement = realtime_service.fetch_value(item["key"])
+            except Exception as error:  # noqa: BLE001 - always announce the failure
+                wx.CallAfter(
+                    self.announce_realtime_result,
+                    _("Could not fetch {name}: {reason}").format(
+                        name=item["name"], reason=error
+                    ),
+                    False,
+                )
+                return
+
+            wx.CallAfter(self.announce_realtime_result, announcement, True)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def announce_realtime_result(self, announcement, success):
+        if success:
+            SoundPlayer.play("match")
+        SpeechService.speak(announcement)
 
     def _ensure_notebrook_credentials(self):
         """Return (url, token), prompting once and saving them if not set.

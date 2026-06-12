@@ -13,6 +13,7 @@ Launchtype is a Windows application launcher inspired by macOS's Launchbar. It p
 - Steam games launcher (scans installed games)
 - Screenshots (window or full screen) copied to the clipboard
 - Countdown timers and time-of-day alarms with audible/spoken alerts
+- Realtime data mode: live crypto/FX/commodity/IBEX quotes, local weather, news headlines, and Claude subscription usage spoken on demand
 - Notebrook quick-note posting (posts to a `feeds` channel; see `notebrook_service` under Services)
 - Persistent user settings (`settings.json`)
 - Keyboard-driven interface designed for screen reader accessibility
@@ -29,15 +30,26 @@ uv sync --all-extras
 uv run python src/main.py
 ```
 
-### Building
-```bash
-# Build executable with PyInstaller
-uv run pyinstaller ./main.spec
+### Building and Releasing
+```powershell
+# One-step build + deploy + relaunch (must run under PowerShell, not Git Bash)
+pwsh ./release.ps1
+```
+`release.ps1` is the normal release path: it syncs the `build` extra, compiles translations (via `compile_translations.py`), runs PyInstaller, copies `sounds/` and `locale/` into `dist\launchtype`, kills any running Launchtype instance, deploys everything to `C:\Users\nitropc\stuff\software\launchtype`, and relaunches the app. After changing code or translations, the change is not live in the installed app until this is re-run.
 
-# Copy required assets after building
+Manual equivalent if needed:
+```bash
+uv run pyinstaller ./main.spec
 xcopy sounds dist\launchtype\sounds /E /H /C /I
 xcopy locale dist\launchtype\locale /E /H /C /I
 ```
+
+### Testing
+```bash
+# Smoke-test the fuzzy search algorithm (manual, print-based)
+uv run python test_search.py
+```
+There is no pytest suite. `test_search.py` prints PASS/FAIL lines and expected-vs-got listings for `helpers/search_utility.py`; it always exits 0, so read the output rather than the exit code.
 
 ### Code Quality
 ```bash
@@ -106,6 +118,7 @@ The entry point is `src/main.py` which:
 | `[` | TIMERS | Add/toggle countdown timers |
 | `]` | ALARMS | Add/toggle time-of-day alarms |
 | `#` | NOTEBROOK | Post the field text as a note to the `feeds` channel |
+| `+` | REALTIME | Fetch a live value (prices, weather, news) and speak it |
 | `.` | (returns to) COMMANDS | Leave the current mode |
 
 **Keyboard Handler** (`src/keyboard_handler/`)
@@ -129,6 +142,7 @@ The entry point is `src/main.py` which:
 - `timer_service.py`: Countdown timers (one-shot or repeating). Definitions persist to `timers.json`; live deadlines are in-memory; a background thread fires them.
 - `alarm_service.py`: Time-of-day alarms (24h, once per day while enabled), persisted to `alarms.json`; a background thread checks the wall clock once a minute.
 - `notebrook_service.py`: Stdlib-`urllib` client for the Notebrook HTTP API (mirrors the Rust `notebroocli`). Single auth header `authorization: <token>`; raises `NotebrookError` carrying a human-readable reason (and `unauthorized` flag on 401).
+- `realtime_service.py`: Stdlib-`urllib` fetchers for free keyless APIs — CoinGecko (BTC/ETH in EUR), Frankfurter ECB rates (EUR→USD), Yahoo Finance chart API (Brent `BZ=F`, gold `GC=F`, `^IBEX`), ipinfo.io + Open-Meteo (weather at the user's IP location, Madrid fallback), and RSS headlines (El País, La Vanguardia Catalunya, VilaWeb, BBC World). The `claude` item reads Claude Code's OAuth token from `~/.claude/.credentials.json` and queries `api.anthropic.com/api/oauth/usage` (the same data `/usage` shows) — subscription session/week limits are not accessible via an Anthropic API key. Each fetcher returns a ready-to-speak sentence; failures raise `RealtimeError`. `UIManager.fetch_realtime_value` runs the fetch in a daemon thread, announces "Fetching..." immediately, and speaks the result via `wx.CallAfter`; the window stays open.
 
 Timers and alarms fire through `helpers/alert_notifier.py` (`fire_alert`), which speaks the title/description and plays the timer's custom `.wav` (or a system beep fallback). Timer/alarm background threads are stopped in `UIManager.exit_app`.
 
@@ -210,6 +224,8 @@ The application is designed for blind users:
 - Spanish must be added to `locale/es/LC_MESSAGES/launchtype.po` as a `msgid`/`msgstr` pair, then compiled to `launchtype.mo` (run from the project root; `pybabel` directly may fail under uv on Windows, so invoke the module):
   ```bash
   uv run python -m babel.messages.frontend compile -d locale -D launchtype
+  # equivalent helper, used by release.ps1:
+  uv run python compile_translations.py
   ```
 - Do this as part of the feature, not as a follow-up. A feature is not complete until both languages are present and the `.mo` is recompiled.
 

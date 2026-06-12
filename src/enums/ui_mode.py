@@ -10,3 +10,4 @@ class UIMode(Enum):
     TIMERS = 5
     ALARMS = 6
     NOTEBROOK = 7
+    REALTIME = 8

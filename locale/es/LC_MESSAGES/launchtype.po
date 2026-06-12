@@ -485,3 +485,189 @@ msgstr "Error inesperado: {}"
 #: src/services/notebrook_service.py
 msgid "The server did not return the created channel."
 msgstr "El servidor no devolvió el canal creado."
+
+#: src/managers/ui_manager.py
+msgid "realtime data mode"
+msgstr "modo datos en tiempo real"
+
+#: src/managers/ui_manager.py
+msgid "Fetching {name}"
+msgstr "Obteniendo {name}"
+
+#: src/managers/ui_manager.py
+msgid "Could not fetch {name}: {reason}"
+msgstr "No se pudo obtener {name}: {reason}"
+
+#: src/services/realtime_service.py
+msgid "bitcoin price in euros"
+msgstr "precio del bitcoin en euros"
+
+#: src/services/realtime_service.py
+msgid "ethereum price in euros"
+msgstr "precio del ethereum en euros"
+
+#: src/services/realtime_service.py
+msgid "1000 euros in us dollars"
+msgstr "1000 euros en dólares estadounidenses"
+
+#: src/services/realtime_service.py
+msgid "brent crude oil price"
+msgstr "precio del petróleo brent"
+
+#: src/services/realtime_service.py
+msgid "gold price"
+msgstr "precio del oro"
+
+#: src/services/realtime_service.py
+msgid "ibex 35 stock index"
+msgstr "índice bursátil ibex 35"
+
+#: src/services/realtime_service.py
+msgid "weather at my location"
+msgstr "el tiempo en mi ubicación"
+
+#: src/services/realtime_service.py
+msgid "el país news headlines"
+msgstr "titulares de el país"
+
+#: src/services/realtime_service.py
+msgid "bbc world news headlines"
+msgstr "titulares internacionales de la bbc"
+
+#: src/services/realtime_service.py
+msgid "catalunya news headlines"
+msgstr "titulares de catalunya"
+
+#: src/services/realtime_service.py
+msgid "vilaweb news in catalan"
+msgstr "noticias de vilaweb en catalán"
+
+#: src/services/realtime_service.py
+msgid "claude usage limits"
+msgstr "límites de uso de claude"
+
+#: src/services/realtime_service.py
+msgid "Claude Code credentials not found, log in to Claude Code first."
+msgstr "No se encontraron las credenciales de Claude Code, inicia sesión en Claude Code primero."
+
+#: src/services/realtime_service.py
+msgid "Claude Code session expired, open Claude Code to log in again."
+msgstr "La sesión de Claude Code ha caducado, abre Claude Code para iniciar sesión de nuevo."
+
+#: src/services/realtime_service.py
+msgid "session at {percent} percent, resets at {reset}"
+msgstr "sesión al {percent} por ciento, se reinicia a las {reset}"
+
+#: src/services/realtime_service.py
+msgid "session at {percent} percent"
+msgstr "sesión al {percent} por ciento"
+
+#: src/services/realtime_service.py
+msgid "week at {percent} percent, resets on {reset}"
+msgstr "semana al {percent} por ciento, se reinicia el {reset}"
+
+#: src/services/realtime_service.py
+msgid "week at {percent} percent"
+msgstr "semana al {percent} por ciento"
+
+#: src/services/realtime_service.py
+msgid "opus week at {percent} percent"
+msgstr "semana de opus al {percent} por ciento"
+
+#: src/services/realtime_service.py
+msgid "Claude usage: {parts}"
+msgstr "Uso de Claude: {parts}"
+
+#: src/services/realtime_service.py
+msgid "One bitcoin is {price} euros right now"
+msgstr "Un bitcoin son {price} euros ahora mismo"
+
+#: src/services/realtime_service.py
+msgid "One ethereum is {price} euros right now"
+msgstr "Un ethereum son {price} euros ahora mismo"
+
+#: src/services/realtime_service.py
+msgid "1000 euros are {amount} us dollars, at a rate of {rate} dollars per euro"
+msgstr "1000 euros son {amount} dólares estadounidenses, a un cambio de {rate} dólares por euro"
+
+#: src/services/realtime_service.py
+msgid "A barrel of brent crude oil is {price} us dollars"
+msgstr "El barril de petróleo brent está a {price} dólares estadounidenses"
+
+#: src/services/realtime_service.py
+msgid "An ounce of gold is {price} us dollars"
+msgstr "La onza de oro está a {price} dólares estadounidenses"
+
+#: src/services/realtime_service.py
+msgid "The ibex 35 is at {points} points"
+msgstr "El ibex 35 está en {points} puntos"
+
+#: src/services/realtime_service.py
+msgid ""
+"Weather in {city}: {description}, {temperature} degrees, feels like {feels}, "
+"humidity {humidity} percent, wind {wind} kilometers per hour. Today between "
+"{minimum} and {maximum} degrees."
+msgstr ""
+"El tiempo en {city}: {description}, {temperature} grados, sensación térmica "
+"de {feels}, humedad del {humidity} por ciento, viento de {wind} kilómetros "
+"por hora. Hoy entre {minimum} y {maximum} grados."
+
+#: src/services/realtime_service.py
+msgid "Latest headlines from {source}: {headlines}"
+msgstr "Últimos titulares de {source}: {headlines}"
+
+#: src/services/realtime_service.py
+msgid "clear sky"
+msgstr "cielo despejado"
+
+#: src/services/realtime_service.py
+msgid "partly cloudy"
+msgstr "parcialmente nublado"
+
+#: src/services/realtime_service.py
+msgid "overcast"
+msgstr "cielo cubierto"
+
+#: src/services/realtime_service.py
+msgid "fog"
+msgstr "niebla"
+
+#: src/services/realtime_service.py
+msgid "drizzle"
+msgstr "llovizna"
+
+#: src/services/realtime_service.py
+msgid "rain"
+msgstr "lluvia"
+
+#: src/services/realtime_service.py
+msgid "snow"
+msgstr "nieve"
+
+#: src/services/realtime_service.py
+msgid "rain showers"
+msgstr "chubascos"
+
+#: src/services/realtime_service.py
+msgid "snow showers"
+msgstr "chubascos de nieve"
+
+#: src/services/realtime_service.py
+msgid "thunderstorm"
+msgstr "tormenta"
+
+#: src/services/realtime_service.py
+msgid "variable conditions"
+msgstr "condiciones variables"
+
+#: src/services/realtime_service.py
+msgid "The server returned data that could not be understood."
+msgstr "El servidor devolvió datos que no se pudieron entender."
+
+#: src/services/realtime_service.py
+msgid "The news feed contained no headlines."
+msgstr "La fuente de noticias no contenía titulares."
+
+#: src/services/realtime_service.py
+msgid "Unknown realtime item."
+msgstr "Elemento de tiempo real desconocido."

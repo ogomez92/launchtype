@@ -3,6 +3,7 @@ from os.path import exists
 from services.clipboard_history import ClipboardHistory
 from services.steam_scanner import SteamScanner
 from services.screenshot_service import get_screenshot_items
+from services import realtime_service
 from services.timer_service import TimerService
 from services.alarm_service import AlarmService
 from helpers.json_storage import atomic_write_json
@@ -103,6 +104,9 @@ class DataManager:
             # The note content is taken straight from the edit field on run,
             # so there is nothing to list here.
             return []
+
+        if mode == UIMode.REALTIME:
+            return self.get_realtime_items(search_string)
 
     def get_commands_with_path(self, path):
         commands_to_return = []
@@ -284,6 +288,22 @@ class DataManager:
             return alarms
 
         results = fuzzy_search(search_string, alarms, lambda alarm: alarm["name"])
+        SoundPlayer.play("type")
+        return results
+
+    def get_realtime_items(self, search_string):
+        items = realtime_service.get_realtime_items()
+
+        if search_string == "":
+            return items
+
+        # Check if the string equals any shortcut (exact match has priority)
+        exact_match = check_exact_shortcut_match(search_string, items, "shortcut")
+        if exact_match:
+            SoundPlayer.play("match")
+            return [exact_match]
+
+        results = fuzzy_search(search_string, items, lambda item: item["name"])
         SoundPlayer.play("type")
         return results
 
