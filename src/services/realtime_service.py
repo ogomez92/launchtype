@@ -17,14 +17,24 @@ touch the UI.
 
 import json
 import os
+import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ElementTree
 from datetime import datetime
 
+from helpers.json_storage import atomic_write_json
+
 # Network timeout in seconds for every request.
 TIMEOUT = 15
+
+# Last reading of every numeric item, so a new lookup can be compared against
+# the previous one. Persisted to the working directory so the comparison spans
+# app restarts; serialised access keeps concurrent background fetches safe.
+HISTORY_FILE = "realtime_history.json"
+_HISTORY_LOCK = threading.Lock()
 
 # Yahoo Finance rejects requests without a browser-looking user agent.
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) launchtype"
@@ -121,6 +131,86 @@ def _format_number(value, decimals=2):
     return f"{rounded:.{decimals}f}".rstrip("0").rstrip(".")
 
 
+def _load_history():
+    try:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as history_file:
+            data = json.load(history_file)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _format_elapsed(seconds):
+    """Render an elapsed-seconds count as a speakable "... ago" phrase."""
+    seconds = max(0, int(seconds))
+    if seconds < 60:
+        return _("a few seconds ago")
+    minutes = seconds // 60
+    if minutes < 60:
+        if minutes == 1:
+            return _("1 minute ago")
+        return _("{count} minutes ago").format(count=minutes)
+    hours = minutes // 60
+    if hours < 24:
+        if hours == 1:
+            return _("1 hour ago")
+        return _("{count} hours ago").format(count=hours)
+    days = hours // 24
+    if days == 1:
+        return _("1 day ago")
+    return _("{count} days ago").format(count=days)
+
+
+def _compare_and_store(key, current, unit):
+    """Compare ``current`` against the last stored reading for ``key`` and
+    return a speakable change phrase, then persist the new reading.
+
+    Returns an empty string when there is no previous reading to compare to.
+    """
+    current = float(current)
+    now = time.time()
+    with _HISTORY_LOCK:
+        history = _load_history()
+        previous = history.get(key)
+        history[key] = {"value": current, "timestamp": now}
+        atomic_write_json(HISTORY_FILE, history)
+
+    if not isinstance(previous, dict):
+        return ""
+    try:
+        previous_value = float(previous["value"])
+        previous_time = float(previous["timestamp"])
+    except (KeyError, TypeError, ValueError):
+        return ""
+
+    elapsed = _format_elapsed(now - previous_time)
+    difference = current - previous_value
+    if round(difference, 2) == 0:
+        return _("unchanged since {elapsed}").format(elapsed=elapsed)
+
+    amount = _format_number(abs(difference))
+    if previous_value:
+        percent = _format_number(abs(difference) / abs(previous_value) * 100)
+    else:
+        percent = _format_number(0)
+
+    if difference > 0:
+        return _(
+            "up {amount} {unit} ({percent} percent) since {elapsed}"
+        ).format(amount=amount, unit=unit, percent=percent, elapsed=elapsed)
+    return _(
+        "down {amount} {unit} ({percent} percent) since {elapsed}"
+    ).format(amount=amount, unit=unit, percent=percent, elapsed=elapsed)
+
+
+def _with_comparison(sentence, key, current, unit):
+    """Append the change-vs-last-reading phrase to ``sentence`` when available."""
+    comparison = _compare_and_store(key, current, unit)
+    if comparison:
+        return sentence + ", " + comparison
+    return sentence
+
+
 def _coingecko_price_in_euros(coin_id):
     body = _get_json(
         "https://api.coingecko.com/api/v3/simple/price?ids={}&vs_currencies=eur".format(
@@ -151,16 +241,18 @@ def _yahoo_market_price(symbol):
 
 def _fetch_bitcoin():
     price = _coingecko_price_in_euros("bitcoin")
-    return _("One bitcoin is {price} euros right now").format(
+    sentence = _("One bitcoin is {price} euros right now").format(
         price=_format_number(price)
     )
+    return _with_comparison(sentence, "bitcoin", price, _("euros"))
 
 
 def _fetch_ethereum():
     price = _coingecko_price_in_euros("ethereum")
-    return _("One ethereum is {price} euros right now").format(
+    sentence = _("One ethereum is {price} euros right now").format(
         price=_format_number(price)
     )
+    return _with_comparison(sentence, "ethereum", price, _("euros"))
 
 
 def _fetch_eur_usd():
@@ -171,30 +263,35 @@ def _fetch_eur_usd():
         raise RealtimeError(
             _("The server returned data that could not be understood.")
         )
-    return _(
+    amount = rate * 1000
+    sentence = _(
         "1000 euros are {amount} us dollars, at a rate of {rate} dollars per euro"
-    ).format(amount=_format_number(rate * 1000), rate=_format_number(rate, 4))
+    ).format(amount=_format_number(amount), rate=_format_number(rate, 4))
+    return _with_comparison(sentence, "eur_usd", amount, _("us dollars"))
 
 
 def _fetch_brent():
     price = _yahoo_market_price("BZ=F")
-    return _("A barrel of brent crude oil is {price} us dollars").format(
+    sentence = _("A barrel of brent crude oil is {price} us dollars").format(
         price=_format_number(price)
     )
+    return _with_comparison(sentence, "brent", price, _("us dollars"))
 
 
 def _fetch_gold():
     price = _yahoo_market_price("GC=F")
-    return _("An ounce of gold is {price} us dollars").format(
+    sentence = _("An ounce of gold is {price} us dollars").format(
         price=_format_number(price)
     )
+    return _with_comparison(sentence, "gold", price, _("us dollars"))
 
 
 def _fetch_ibex():
     points = _yahoo_market_price("^IBEX")
-    return _("The ibex 35 is at {points} points").format(
+    sentence = _("The ibex 35 is at {points} points").format(
         points=_format_number(points)
     )
+    return _with_comparison(sentence, "ibex", points, _("points"))
 
 
 def _locate():

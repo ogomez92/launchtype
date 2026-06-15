@@ -671,3 +671,55 @@ msgstr "La fuente de noticias no contenía titulares."
 #: src/services/realtime_service.py
 msgid "Unknown realtime item."
 msgstr "Elemento de tiempo real desconocido."
+
+#: src/services/realtime_service.py
+msgid "euros"
+msgstr "euros"
+
+#: src/services/realtime_service.py
+msgid "us dollars"
+msgstr "dólares estadounidenses"
+
+#: src/services/realtime_service.py
+msgid "points"
+msgstr "puntos"
+
+#: src/services/realtime_service.py
+msgid "a few seconds ago"
+msgstr "hace unos segundos"
+
+#: src/services/realtime_service.py
+msgid "1 minute ago"
+msgstr "hace 1 minuto"
+
+#: src/services/realtime_service.py
+msgid "{count} minutes ago"
+msgstr "hace {count} minutos"
+
+#: src/services/realtime_service.py
+msgid "1 hour ago"
+msgstr "hace 1 hora"
+
+#: src/services/realtime_service.py
+msgid "{count} hours ago"
+msgstr "hace {count} horas"
+
+#: src/services/realtime_service.py
+msgid "1 day ago"
+msgstr "hace 1 día"
+
+#: src/services/realtime_service.py
+msgid "{count} days ago"
+msgstr "hace {count} días"
+
+#: src/services/realtime_service.py
+msgid "unchanged since {elapsed}"
+msgstr "sin cambios desde {elapsed}"
+
+#: src/services/realtime_service.py
+msgid "up {amount} {unit} ({percent} percent) since {elapsed}"
+msgstr "ha subido {amount} {unit} ({percent} por ciento) desde {elapsed}"
+
+#: src/services/realtime_service.py
+msgid "down {amount} {unit} ({percent} percent) since {elapsed}"
+msgstr "ha bajado {amount} {unit} ({percent} por ciento) desde {elapsed}"
