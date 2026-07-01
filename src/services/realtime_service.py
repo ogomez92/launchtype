@@ -15,8 +15,11 @@ background thread (see ``UIManager.fetch_realtime_value``) so they must not
 touch the UI.
 """
 
+import base64
 import json
 import os
+import re
+import subprocess
 import threading
 import time
 import urllib.error
@@ -74,6 +77,7 @@ def get_realtime_items():
         ("vilaweb", _("vilaweb news in catalan"), "vila"),
         ("bbc", _("bbc world news headlines"), "bbc"),
         ("claude", _("claude usage limits"), "cc"),
+        ("temperatures", _("computer temperatures, fans and gpu"), "t"),
     ]
     return [
         {
@@ -504,6 +508,341 @@ def _fetch_claude_usage():
     return _("Claude usage: {parts}").format(parts=", ".join(parts))
 
 
+# --- Hardware temperatures, fans and GPU (Windows) -------------------------
+#
+# There is no single reliable way to read temperatures and fan speeds on
+# Windows, so we gather from several best-effort sources and report whatever
+# succeeds:
+#
+# - NVIDIA GPUs: ``nvidia-smi`` (name, temperature, fan %, load) -- the
+#   preferred GPU source, present whenever an NVIDIA driver is installed.
+# - Any GPU: ``Win32_VideoController`` gives at least the adapter name.
+# - CPU / system temperature: the ACPI thermal zone via WMI
+#   (``MSAcpi_ThermalZoneTemperature``), reported in tenths of a kelvin.
+# - Fan RPM and precise CPU/GPU temperatures: LibreHardwareMonitor or
+#   OpenHardwareMonitor, if the user runs either with its built-in Remote Web
+#   Server enabled. Both serve every sensor as a JSON tree at
+#   ``http://localhost:8085/data.json``; we read it locally and silently skip
+#   it when nothing is listening.
+#
+# Every source is optional; if a machine exposes none of them we raise a
+# friendly error instead of an empty sentence.
+
+# Query WMI once for everything obtainable without an NVIDIA driver. Thermal
+# zones are in tenths of a kelvin.
+_SENSORS_POWERSHELL = (
+    "[Console]::OutputEncoding=[Text.Encoding]::UTF8;"
+    "$out=[ordered]@{thermal=@();fans=@();gpus=@()};"
+    "try{$out.thermal=@(Get-CimInstance -Namespace 'root/wmi'"
+    " -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop|"
+    "ForEach-Object{[double]$_.CurrentTemperature})}catch{};"
+    "try{$out.fans=@(Get-CimInstance -ClassName Win32_Fan -ErrorAction Stop|"
+    "ForEach-Object{[double]$_.DesiredSpeed}|Where-Object{$_ -gt 0})}catch{};"
+    "try{$out.gpus=@(Get-CimInstance -ClassName Win32_VideoController"
+    " -ErrorAction Stop|ForEach-Object{$_.Name})}catch{};"
+    "$out|ConvertTo-Json -Compress -Depth 4"
+)
+
+# LibreHardwareMonitor / OpenHardwareMonitor serve their sensor tree here when
+# their "Remote Web Server" is running (default port 8085).
+HWMONITOR_URL = "http://127.0.0.1:8085/data.json"
+
+# Leading signed number, allowing thousands/decimal separators of either locale.
+_NUMBER_RE = re.compile(r"[-+]?\d[\d.,]*")
+
+
+def _run_command(args):
+    """Run a console command hidden and return its stdout, or None on failure."""
+    try:
+        completed = subprocess.run(
+            args,
+            capture_output=True,
+            stdin=subprocess.DEVNULL,
+            timeout=TIMEOUT,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    return completed.stdout.decode("utf-8", errors="replace").strip()
+
+
+def _as_list(value):
+    """PowerShell serialises single-element arrays as the bare element; normalise."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def _parse_optional_number(text):
+    """Parse a number from nvidia-smi output, treating ``[N/A]`` as missing."""
+    text = (text or "").strip()
+    if not text or text.lower().startswith("[n/a") or text.lower() == "n/a":
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _read_nvidia_gpu():
+    """Read the first NVIDIA GPU via nvidia-smi, or None when unavailable."""
+    output = _run_command(
+        [
+            "nvidia-smi",
+            "--query-gpu=name,temperature.gpu,fan.speed,utilization.gpu",
+            "--format=csv,noheader,nounits",
+        ]
+    )
+    if not output:
+        return None
+    line = output.splitlines()[0].strip()
+    if not line:
+        return None
+    fields = [field.strip() for field in line.split(",")]
+    while len(fields) < 4:
+        fields.append("")
+    return {
+        "name": fields[0] or _("graphics card"),
+        "temperature": _parse_optional_number(fields[1]),
+        "fan": _parse_optional_number(fields[2]),
+        "load": _parse_optional_number(fields[3]),
+    }
+
+
+def _read_windows_sensors():
+    """Query WMI for thermal zones, fans, GPU names and monitor sensors."""
+    encoded = base64.b64encode(_SENSORS_POWERSHELL.encode("utf-16-le")).decode("ascii")
+    output = _run_command(
+        [
+            "powershell",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-EncodedCommand",
+            encoded,
+        ]
+    )
+    if not output:
+        return {}
+    try:
+        data = json.loads(output)
+    except ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _parse_leading_number(text):
+    """Extract the leading number from a value string like ``45,0 °C``.
+
+    Handles both ``.`` and ``,`` decimal separators, since a hardware monitor
+    formats its values using the machine's locale.
+    """
+    if isinstance(text, (int, float)):
+        return float(text)
+    if not isinstance(text, str):
+        return None
+    match = _NUMBER_RE.search(text)
+    if not match:
+        return None
+    token = match.group(0)
+    if "," in token and "." in token:
+        token = token.replace(".", "").replace(",", ".")
+    elif "," in token:
+        token = token.replace(",", ".")
+    try:
+        return float(token)
+    except ValueError:
+        return None
+
+
+def _collect_hwmonitor_sensors(node, sensors):
+    """Walk a LibreHardwareMonitor ``data.json`` tree collecting temp/fan leaves.
+
+    Sensor type is inferred from the value's unit (``°C`` / ``RPM``) so it works
+    across LibreHardwareMonitor and OpenHardwareMonitor regardless of version.
+    """
+    if not isinstance(node, dict):
+        return
+    value_text = node.get("Value")
+    number = _parse_leading_number(value_text)
+    if number is not None and isinstance(value_text, str):
+        lowered = value_text.lower()
+        sensor_type = None
+        if "rpm" in lowered:
+            sensor_type = "Fan"
+        elif "°c" in lowered:
+            sensor_type = "Temperature"
+        if sensor_type:
+            sensors.append(
+                {
+                    "name": node.get("Text") or "",
+                    "type": sensor_type,
+                    "value": number,
+                    "id": node.get("SensorId") or node.get("Text") or "",
+                }
+            )
+    for child in node.get("Children") or []:
+        _collect_hwmonitor_sensors(child, sensors)
+
+
+def _read_hwmonitor_http():
+    """Read temperature/fan sensors from a running LibreHardwareMonitor or
+    OpenHardwareMonitor web server, or return an empty list when none is up."""
+    try:
+        request = urllib.request.Request(
+            HWMONITOR_URL, headers={"User-Agent": USER_AGENT}
+        )
+        with urllib.request.urlopen(request, timeout=4) as response:
+            payload = json.loads(response.read().decode("utf-8", errors="replace"))
+    except (urllib.error.URLError, ValueError, OSError):
+        return []
+    sensors = []
+    _collect_hwmonitor_sensors(payload, sensors)
+    return sensors
+
+
+def _celsius_from_decikelvin(value):
+    """Convert an ACPI thermal-zone reading (tenths of a kelvin) to Celsius."""
+    try:
+        celsius = float(value) / 10.0 - 273.15
+    except (TypeError, ValueError):
+        return None
+    if celsius < -50 or celsius > 200:
+        return None
+    return celsius
+
+
+def _sensor_temp(sensors, keyword):
+    """Return the hottest temperature sensor whose name/id mentions ``keyword``."""
+    values = []
+    for sensor in sensors:
+        if sensor.get("type") != "Temperature":
+            continue
+        identifier = (sensor.get("id") or "").lower()
+        name = (sensor.get("name") or "").lower()
+        if keyword not in identifier and keyword not in name:
+            continue
+        value = sensor.get("value")
+        if isinstance(value, (int, float)) and 0 < value < 200:
+            values.append(float(value))
+    return max(values) if values else None
+
+
+def _build_gpu_clause(name, temperature, fan_percent, load_percent):
+    """Compose the GPU part of the sentence from whatever pieces are known."""
+    if name and temperature is not None:
+        head = _("GPU {name} at {temp} degrees").format(
+            name=name, temp=_format_number(temperature, 0)
+        )
+    elif name:
+        head = _("GPU {name}").format(name=name)
+    elif temperature is not None:
+        head = _("GPU {temp} degrees").format(temp=_format_number(temperature, 0))
+    else:
+        return None
+    extras = []
+    if fan_percent is not None:
+        extras.append(_("fan {value} percent").format(value=_format_number(fan_percent, 0)))
+    if load_percent is not None:
+        extras.append(_("load {value} percent").format(value=_format_number(load_percent, 0)))
+    if extras:
+        return head + ", " + ", ".join(extras)
+    return head
+
+
+def _fan_rpm_clauses(sensors, skip_gpu=False):
+    """Build ``name value rpm`` clauses from hardware-monitor fan sensors.
+
+    When ``skip_gpu`` is set, GPU fans are left out because the GPU clause
+    already reported its fan (as a percentage from nvidia-smi).
+    """
+    clauses = []
+    for sensor in sensors:
+        if sensor.get("type") != "Fan":
+            continue
+        value = sensor.get("value")
+        if not isinstance(value, (int, float)) or value <= 0:
+            continue
+        identifier = (sensor.get("id") or "").lower()
+        name = (sensor.get("name") or _("fan")).strip()
+        if skip_gpu and ("gpu" in identifier or "gpu" in name.lower()):
+            continue
+        clauses.append(
+            _("{name} {value} rpm").format(name=name, value=_format_number(value, 0))
+        )
+    return clauses
+
+
+def _fetch_temperatures():
+    """Report CPU/system and GPU temperatures, fan speeds and GPU load."""
+    nvidia = _read_nvidia_gpu()
+    blob = _read_windows_sensors()
+    sensors = _read_hwmonitor_http()
+
+    parts = []
+
+    # CPU / system temperature: a named CPU sensor is best; fall back to the
+    # hottest ACPI thermal zone.
+    cpu_temperature = _sensor_temp(sensors, "cpu")
+    if cpu_temperature is not None:
+        parts.append(
+            _("CPU {temp} degrees").format(temp=_format_number(cpu_temperature, 0))
+        )
+    else:
+        zones = [
+            celsius
+            for celsius in (
+                _celsius_from_decikelvin(value) for value in _as_list(blob.get("thermal"))
+            )
+            if celsius is not None
+        ]
+        if zones:
+            parts.append(
+                _("System {temp} degrees").format(temp=_format_number(max(zones), 0))
+            )
+
+    # GPU: NVIDIA via nvidia-smi, otherwise the adapter name plus any sensor
+    # temperature we can find.
+    if nvidia:
+        gpu_clause = _build_gpu_clause(
+            nvidia["name"], nvidia["temperature"], nvidia["fan"], nvidia["load"]
+        )
+    else:
+        gpu_names = _as_list(blob.get("gpus"))
+        gpu_clause = _build_gpu_clause(
+            gpu_names[0] if gpu_names else None,
+            _sensor_temp(sensors, "gpu"),
+            None,
+            None,
+        )
+    if gpu_clause:
+        parts.append(gpu_clause)
+
+    # Fan speeds in RPM: prefer hardware-monitor sensors, else Win32_Fan.
+    fan_clauses = _fan_rpm_clauses(sensors, skip_gpu=bool(nvidia))
+    if not fan_clauses:
+        for rpm in _as_list(blob.get("fans")):
+            if isinstance(rpm, (int, float)) and rpm > 0:
+                fan_clauses.append(
+                    _("{name} {value} rpm").format(
+                        name=_("fan"), value=_format_number(rpm, 0)
+                    )
+                )
+    parts.extend(fan_clauses[:3])
+
+    if not parts:
+        raise RealtimeError(
+            _("No temperature, fan or GPU data is available on this computer.")
+        )
+
+    return _("Temperatures: {details}").format(details=". ".join(parts))
+
+
 _FETCHERS = {
     "bitcoin": _fetch_bitcoin,
     "ethereum": _fetch_ethereum,
@@ -517,4 +856,5 @@ _FETCHERS = {
     "vilaweb": _fetch_vilaweb,
     "bbc": _fetch_bbc,
     "claude": _fetch_claude_usage,
+    "temperatures": _fetch_temperatures,
 }

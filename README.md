@@ -142,12 +142,46 @@ Realtime data mode can be accessed by pressing `+` (plus) in the input field. It
 - `vila`: headlines in Catalan from VilaWeb
 - `bbc`: top world headlines from the BBC
 - `cc`: your Claude subscription usage (session and weekly limits, read via Claude Code's local login — no API key needed)
+- `t`: your computer's temperatures, fan speeds and GPU (see [Computer temperatures](#computer-temperatures) below)
 
 Press Enter (or Alt+R) on an item: the app announces "Fetching..." and then speaks the live value through your screen reader as soon as it arrives. The window stays open so you can query several values in a row. If a lookup fails (no network, service down), the reason is announced instead.
 
-All sources are free and require no API key or account.
+All the online sources are free and require no API key or account.
 
 To go back to commands mode, press the period key (.).
+
+### Computer temperatures
+
+The `t` item reads your hardware sensors locally (nothing is sent over the network) and speaks a single sentence with your CPU/system temperature, GPU temperature, fan speeds and GPU load — for example: *"Temperatures: CPU 42 degrees. GPU NVIDIA GeForce RTX 5070 at 48 degrees, fan 30 percent, load 5 percent. CPU fan 1200 rpm."*
+
+It gathers whatever your machine exposes, from several sources, and reports only what succeeds:
+
+- **NVIDIA GPU** — read via `nvidia-smi`, which ships with the NVIDIA driver. Gives GPU name, temperature, fan percentage and load. This works out of the box on any machine with an NVIDIA card; no extra software needed.
+- **Any GPU** — if no NVIDIA driver is present, the adapter name is read from Windows so you still get "GPU &lt;name&gt;".
+- **CPU temperature and fan RPM** — Windows does **not** expose these to normal programs. To read them you need to install and run **LibreHardwareMonitor** with its web server turned on (see below). When it is running, Launchtype automatically picks up its readings; when it is not, the temperature sentence simply omits those parts.
+
+#### Installing LibreHardwareMonitor (optional, for CPU temperature and fan speeds)
+
+LibreHardwareMonitor is a free, open-source hardware monitor. Launchtype does not bundle or require it — install it only if you want CPU temperature and fan RPM in the `t` item.
+
+1. **Install it.** The easiest way is [winget](https://learn.microsoft.com/windows/package-manager/) from a terminal:
+
+   ```powershell
+   winget install --id LibreHardwareMonitor.LibreHardwareMonitor -e
+   ```
+
+   Or download the ZIP manually from the [LibreHardwareMonitor releases page](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases) and extract it anywhere.
+
+2. **Run it as administrator.** Right-click `LibreHardwareMonitor.exe` → *Run as administrator*. Administrator rights are required for it to load its kernel driver and read CPU temperatures and fan speeds.
+
+3. **Turn on its web server.** In the *Options* menu, open *Remote Web Server* and click *Run* (the default port is 8085). LibreHardwareMonitor then serves every sensor as JSON at `http://localhost:8085/data.json`, which is what Launchtype reads locally — nothing leaves your machine. The setting is remembered, so the server comes back up automatically next time it starts.
+
+4. **Keep it running in the background.** The readings are only available while LibreHardwareMonitor is running. In its *Options* menu you can also enable, so it is always ready after you log in:
+   - *Run On Windows Startup*
+   - *Start Minimized*
+   - *Minimize To Tray* (and *Minimize On Close*)
+
+OpenHardwareMonitor (the older project it was forked from) also works — turn on its *Remote Web Server* (same default port 8085) and Launchtype will read it too.
 
 ## Run as administrator
 
@@ -171,7 +205,7 @@ The app has several modes, each accessed by typing a special character in the in
 | `[` | Timers | Count down for X minutes (one-shot or repeating) |
 | `]` | Alarms | Fire at a time of day (24-hour) |
 | `#` | Notebrook | Post a quick note to your Notebrook |
-| `+` | Realtime data | Speak live prices, weather and news headlines |
+| `+` | Realtime data | Speak live prices, weather, news headlines and computer temperatures |
 | `.` | (any mode) | Return to Commands mode |
 
 ## Audio Feedback

@@ -72,8 +72,6 @@ class DataManager:
             "run_as_admin": run_as_admin,
         }
 
-        print(command_dictionary)
-
         self.commandsData["commands"].append(command_dictionary)
 
         self.syncCommandsToStorage()
@@ -110,7 +108,6 @@ class DataManager:
 
     def get_commands_with_path(self, path):
         commands_to_return = []
-        print(self)
 
         for command in self.commandsData["commands"]:
             if command["path"] == path:

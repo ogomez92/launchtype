@@ -121,6 +121,14 @@ class CommandEditionDialog(wx.Dialog):
                 dlg.ShowModal()
             return
 
+        # Defer the rest so this OK click event fully unwinds before we open
+        # the "Edit Assistant" confirmation. OK is the dialog's default button;
+        # opening a nested modal directly from its click handler re-enters the
+        # event loop while the click is still in flight, which on Windows makes
+        # the dialog require the OK button to be pressed twice.
+        wx.CallAfter(self._save_command)
+
+    def _save_command(self):
         if not self.command_to_edit == {} and self.is_editing and not self.is_copying:
             self.dataManager.pop_by_uuid(self.command_to_edit["id"])
 
@@ -184,5 +192,4 @@ class CommandEditionDialog(wx.Dialog):
         dlg = wx.MessageDialog(self, text, title, wx.YES_NO | wx.ICON_QUESTION)
         result = dlg.ShowModal()
         dlg.Destroy()
-        print(result)
         return result == wx.ID_YES

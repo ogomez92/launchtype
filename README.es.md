@@ -98,12 +98,46 @@ El modo de datos en tiempo real se abre escribiendo `+` (signo más) en la caja.
 - `vila`: titulares en catalán de VilaWeb
 - `bbc`: titulares internacionales de la BBC
 - `cc`: tu uso de la suscripción de Claude (límites de sesión y semanales, leídos de la sesión local de Claude Code — no hace falta clave de API)
+- `t`: las temperaturas, velocidades de ventilador y GPU de tu ordenador (ver [Temperaturas del ordenador](#temperaturas-del-ordenador) más abajo)
 
 Pulsa Intro (o Alt+R) sobre un elemento: la aplicación anuncia "Obteniendo..." y a continuación lee el valor en directo por el lector de pantalla en cuanto llega. La ventana permanece abierta para que puedas consultar varios valores seguidos. Si una consulta falla (sin red, servicio caído), se anuncia el motivo.
 
-Todas las fuentes son gratuitas y no requieren clave de API ni cuenta.
+Todas las fuentes en línea son gratuitas y no requieren clave de API ni cuenta.
 
 Para volver a comandos, pulsa la tecla punto (.).
+
+### Temperaturas del ordenador
+
+El elemento `t` lee los sensores de hardware de forma local (no se envía nada por la red) y lee en voz alta una sola frase con la temperatura de la CPU/sistema, la temperatura de la GPU, las velocidades de los ventiladores y la carga de la GPU — por ejemplo: *"Temperaturas: CPU a 42 grados. GPU NVIDIA GeForce RTX 5070 a 48 grados, ventilador al 30 por ciento, carga al 5 por ciento. Ventilador de CPU a 1200 rpm."*
+
+Reúne lo que tu máquina exponga, de varias fuentes, e informa solo de lo que tenga éxito:
+
+- **GPU NVIDIA** — se lee con `nvidia-smi`, que se instala con el controlador de NVIDIA. Da el nombre de la GPU, la temperatura, el porcentaje del ventilador y la carga. Funciona sin más en cualquier equipo con una tarjeta NVIDIA; no hace falta software adicional.
+- **Cualquier GPU** — si no hay controlador de NVIDIA, el nombre del adaptador se lee de Windows para que al menos obtengas "GPU &lt;nombre&gt;".
+- **Temperatura de la CPU y rpm de los ventiladores** — Windows **no** expone estos datos a los programas normales. Para leerlos necesitas instalar y ejecutar **LibreHardwareMonitor** con su servidor web activado (ver más abajo). Cuando está en marcha, Launchtype recoge sus lecturas automáticamente; cuando no lo está, la frase de temperaturas simplemente omite esas partes.
+
+#### Instalar LibreHardwareMonitor (opcional, para temperatura de CPU y ventiladores)
+
+LibreHardwareMonitor es un monitor de hardware gratuito y de código abierto. Launchtype no lo incluye ni lo requiere — instálalo solo si quieres temperatura de CPU y rpm de ventiladores en el elemento `t`.
+
+1. **Instálalo.** Lo más fácil es [winget](https://learn.microsoft.com/windows/package-manager/) desde una terminal:
+
+   ```powershell
+   winget install --id LibreHardwareMonitor.LibreHardwareMonitor -e
+   ```
+
+   O descarga el ZIP manualmente desde la [página de versiones de LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases) y extráelo donde quieras.
+
+2. **Ejecútalo como administrador.** Haz clic derecho en `LibreHardwareMonitor.exe` → *Ejecutar como administrador*. Se necesitan permisos de administrador para que cargue su controlador de kernel y lea las temperaturas de la CPU y las velocidades de los ventiladores.
+
+3. **Activa su servidor web.** En el menú *Options*, abre *Remote Web Server* y pulsa *Run* (el puerto por defecto es 8085). LibreHardwareMonitor sirve entonces todos los sensores como JSON en `http://localhost:8085/data.json`, que es lo que Launchtype lee de forma local — nada sale de tu equipo. El ajuste se recuerda, así que el servidor vuelve a arrancar automáticamente la próxima vez.
+
+4. **Déjalo abierto en segundo plano.** Las lecturas solo están disponibles mientras LibreHardwareMonitor esté en ejecución. En su menú *Options* también puedes activar, para que esté siempre listo tras iniciar sesión:
+   - *Run On Windows Startup* (arrancar con Windows)
+   - *Start Minimized* (arrancar minimizado)
+   - *Minimize To Tray* (minimizar a la bandeja) y *Minimize On Close* (minimizar al cerrar)
+
+OpenHardwareMonitor (el proyecto anterior del que deriva) también funciona — activa su *Remote Web Server* (mismo puerto por defecto 8085) y Launchtype lo leerá igualmente.
 
 ## Ejecutar como administrador
 

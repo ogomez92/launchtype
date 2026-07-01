@@ -723,3 +723,55 @@ msgstr "ha subido {amount} {unit} ({percent} por ciento) desde {elapsed}"
 #: src/services/realtime_service.py
 msgid "down {amount} {unit} ({percent} percent) since {elapsed}"
 msgstr "ha bajado {amount} {unit} ({percent} por ciento) desde {elapsed}"
+
+#: src/services/realtime_service.py
+msgid "computer temperatures, fans and gpu"
+msgstr "temperaturas, ventiladores y gpu del ordenador"
+
+#: src/services/realtime_service.py
+msgid "graphics card"
+msgstr "tarjeta gráfica"
+
+#: src/services/realtime_service.py
+msgid "Temperatures: {details}"
+msgstr "Temperaturas: {details}"
+
+#: src/services/realtime_service.py
+msgid "CPU {temp} degrees"
+msgstr "CPU a {temp} grados"
+
+#: src/services/realtime_service.py
+msgid "System {temp} degrees"
+msgstr "Sistema a {temp} grados"
+
+#: src/services/realtime_service.py
+msgid "GPU {name} at {temp} degrees"
+msgstr "GPU {name} a {temp} grados"
+
+#: src/services/realtime_service.py
+msgid "GPU {name}"
+msgstr "GPU {name}"
+
+#: src/services/realtime_service.py
+msgid "GPU {temp} degrees"
+msgstr "GPU a {temp} grados"
+
+#: src/services/realtime_service.py
+msgid "fan {value} percent"
+msgstr "ventilador al {value} por ciento"
+
+#: src/services/realtime_service.py
+msgid "load {value} percent"
+msgstr "carga al {value} por ciento"
+
+#: src/services/realtime_service.py
+msgid "{name} {value} rpm"
+msgstr "{name} a {value} rpm"
+
+#: src/services/realtime_service.py
+msgid "fan"
+msgstr "ventilador"
+
+#: src/services/realtime_service.py
+msgid "No temperature, fan or GPU data is available on this computer."
+msgstr "No hay datos de temperatura, ventiladores ni GPU disponibles en este ordenador."
