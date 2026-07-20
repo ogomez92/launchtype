@@ -10,6 +10,7 @@ pub mod clock;
 pub mod i18n;
 pub mod mode;
 pub mod model;
+pub mod realtime;
 pub mod search;
 pub mod settings;
 pub mod speech;
