@@ -57,6 +57,25 @@ pub fn load_snippets(working_dir: &Path) -> Vec<Snippet> {
     snippets
 }
 
+/// Write (or overwrite) `snippets/<name>.txt` (DataManager.add_snippet).
+pub fn write_snippet(name: &str, contents: &str) -> std::io::Result<()> {
+    let dir = std::path::Path::new("snippets");
+    std::fs::create_dir_all(dir)?;
+    std::fs::write(dir.join(format!("{name}.txt")), contents)
+}
+
+/// Rename-aware snippet update: removes the old file when the snippet was
+/// renamed so no stale duplicate is left behind, then writes the new one.
+pub fn update_snippet(original_shortcut: &str, name: &str, contents: &str) -> std::io::Result<()> {
+    if !original_shortcut.is_empty() && !original_shortcut.eq_ignore_ascii_case(name) {
+        let old = std::path::Path::new("snippets").join(format!("{original_shortcut}.txt"));
+        if old.exists() {
+            let _ = std::fs::remove_file(old);
+        }
+    }
+    write_snippet(name, contents)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

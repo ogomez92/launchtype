@@ -3,6 +3,7 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod controller;
+mod dialogs;
 mod hotkey;
 mod shell;
 mod speech;
@@ -130,12 +131,14 @@ fn main() {
     controller.reload_snippets();
 
     let cli_snippets = cli.snippets_on_invoke;
+    let cli_quiet = cli.quiet;
     let sounds_for_ui = sounds.clone();
 
     let main_result = wxdragon::main(move |_| {
         speech::init_speech();
 
-        let shell = shell::build_shell(controller, settings, sounds_for_ui.clone(), cli_snippets);
+        let shell =
+            shell::build_shell(controller, settings, sounds_for_ui.clone(), cli_snippets, cli_quiet);
 
         // Background services: clipboard history + timer/alarm firing.
         {
@@ -160,7 +163,14 @@ fn main() {
 
         let frame = shell.borrow().frame;
         let shell_for_hotkey = shell.clone();
-        match hotkey::register(&frame, move || shell::toggle_visibility(&shell_for_hotkey)) {
+        // The guard makes the hotkey a no-op while a modal dialog holds the
+        // shell borrow (matching "hotkey does nothing useful during modals").
+        let on_hotkey = move || {
+            if shell_for_hotkey.try_borrow_mut().is_ok() {
+                shell::toggle_visibility(&shell_for_hotkey);
+            }
+        };
+        match hotkey::register(&frame, on_hotkey) {
             Ok(hotkey) => {
                 // Keep the manager + polling timer alive for the app lifetime.
                 std::mem::forget(hotkey);

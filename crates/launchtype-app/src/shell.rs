@@ -35,6 +35,7 @@ pub struct Shell {
     pub settings: SettingsStore,
     pub sounds: Arc<SoundPlayer>,
     cli_snippets_on_invoke: bool,
+    pub cli_quiet: bool,
     pub poller: Option<ClipboardPoller>,
     pub scheduler: Option<Scheduler>,
 }
@@ -52,6 +53,7 @@ pub fn build_shell(
     settings: SettingsStore,
     sounds: Arc<SoundPlayer>,
     cli_snippets_on_invoke: bool,
+    cli_quiet: bool,
 ) -> SharedShell {
     let frame = Frame::builder().with_title("Launchtype").build();
     let panel = Panel::builder(&frame).build();
@@ -121,6 +123,7 @@ pub fn build_shell(
         settings,
         sounds,
         cli_snippets_on_invoke,
+        cli_quiet,
         poller: None,
         scheduler: None,
     }));
@@ -137,7 +140,7 @@ pub fn build_shell(
 }
 
 fn bind_events(shell: &SharedShell, buttons: [Button; 11]) {
-    let [_add, _edit, _copy, delete_button, copy_args_button, snippets_button, _new_snippet, run_button, help_button, _settings, exit_button] =
+    let [add_button, edit_button, copy_button, delete_button, copy_args_button, snippets_button, new_snippet_button, run_button, help_button, settings_button, exit_button] =
         buttons;
     let (frame, edit, list, panel, sort_choice) = {
         let s = shell.borrow();
@@ -164,6 +167,118 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 11]) {
     {
         let shell = shell.clone();
         run_button.on_click(move |_| run_clicked(&shell));
+    }
+    {
+        let shell = shell.clone();
+        add_button.on_click(move |_| {
+            {
+                let mut s = shell.borrow_mut();
+                let frame = s.frame;
+                match s.mode {
+                    UiMode::Timers => {
+                        crate::dialogs::add_timer_dialog(&frame, &mut s.controller);
+                    }
+                    UiMode::Alarms => {
+                        crate::dialogs::add_alarm_dialog(&frame, &mut s.controller);
+                    }
+                    _ => {
+                        crate::dialogs::command_edition_dialog(&frame, &mut s.controller, None);
+                    }
+                }
+                s.edit.change_value("");
+            }
+            update_list(&shell);
+        });
+    }
+    {
+        let shell = shell.clone();
+        edit_button.on_click(move |_| {
+            {
+                let mut s = shell.borrow_mut();
+                let Some(index) = s.list.get_selection() else { return };
+                let Some(item) = s.items.get(index as usize).cloned() else { return };
+                let frame = s.frame;
+                match &item.kind {
+                    ItemKind::Snippet => {
+                        if crate::dialogs::snippet_dialog(
+                            &frame,
+                            Some((item.shortcut.clone(), item.name.clone())),
+                        ) {
+                            s.controller.reload_snippets();
+                        }
+                    }
+                    _ => {
+                        let seed = s
+                            .controller
+                            .commands
+                            .file
+                            .commands
+                            .iter()
+                            .find(|c| c.id == item.id)
+                            .cloned();
+                        if let Some(seed) = seed {
+                            crate::dialogs::command_edition_dialog(&frame, &mut s.controller, Some(seed));
+                        }
+                    }
+                }
+                s.edit.change_value("");
+            }
+            update_list(&shell);
+        });
+    }
+    {
+        let shell = shell.clone();
+        copy_button.on_click(move |_| {
+            {
+                let mut s = shell.borrow_mut();
+                let Some(index) = s.list.get_selection() else { return };
+                let Some(item) = s.items.get(index as usize).cloned() else { return };
+                let frame = s.frame;
+                let seed = s
+                    .controller
+                    .commands
+                    .file
+                    .commands
+                    .iter()
+                    .find(|c| c.id == item.id)
+                    .cloned();
+                if let Some(mut seed) = seed {
+                    // A copy starts without the display name and the shortcut.
+                    seed.name = String::new();
+                    seed.shortcut = Some(String::new());
+                    crate::dialogs::command_edition_dialog(&frame, &mut s.controller, Some(seed));
+                }
+                s.edit.change_value("");
+            }
+            update_list(&shell);
+        });
+    }
+    {
+        let shell = shell.clone();
+        new_snippet_button.on_click(move |_| {
+            {
+                let mut s = shell.borrow_mut();
+                let frame = s.frame;
+                if crate::dialogs::snippet_dialog(&frame, None) {
+                    s.controller.reload_snippets();
+                }
+                s.edit.change_value("");
+            }
+            update_list(&shell);
+            toggle_visibility(&shell);
+        });
+    }
+    {
+        let shell = shell.clone();
+        settings_button.on_click(move |_| {
+            let mut s = shell.borrow_mut();
+            let frame = s.frame;
+            let saved = crate::dialogs::settings_dialog(&frame, &mut s.settings);
+            if saved {
+                s.sounds
+                    .set_enabled(s.settings.settings.enable_sounds && !s.cli_quiet);
+            }
+        });
     }
     {
         let shell = shell.clone();
@@ -457,12 +572,13 @@ fn run_hidden_action(shell: &SharedShell, item: &Item, kind: ItemKind) -> Result
 }
 
 fn send_notebrook_note(shell: &SharedShell) {
-    let (note, url, token) = {
+    let (note, mut url, mut token, frame) = {
         let s = shell.borrow();
         (
             s.edit.get_value().trim().to_string(),
             s.settings.settings.notebrook_url.clone(),
             s.settings.settings.notebrook_token.clone(),
+            s.frame,
         )
     };
     if note.is_empty() {
@@ -470,9 +586,18 @@ fn send_notebrook_note(shell: &SharedShell) {
         return;
     }
     if url.is_empty() || token.is_empty() {
-        // M7 adds the credentials dialog; until then guide to settings.
-        speak_now(&tr("Note not sent"), true);
-        return;
+        // Prompt once and persist; cancelling aborts the send.
+        let Some((new_url, new_token)) =
+            crate::dialogs::notebrook_credentials_dialog(&frame, &url, &token)
+        else {
+            return;
+        };
+        url = new_url;
+        token = new_token;
+        let mut s = shell.borrow_mut();
+        s.settings.settings.notebrook_url = url.clone();
+        s.settings.settings.notebrook_token = token.clone();
+        let _ = s.settings.save();
     }
     match notebrook::send_note(&url, &token, NOTEBROOK_CHANNEL, &note) {
         Ok(()) => {
