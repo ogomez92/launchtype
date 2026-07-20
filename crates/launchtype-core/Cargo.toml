@@ -5,6 +5,8 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+base64 = "0.22"
+gettext = "0.4"
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
