@@ -1,0 +1,11 @@
+# build
+/target
+/dist
+
+# runtime user data (portable files living next to the exe during dev runs)
+/*.json
+/snippets/
+/screenshots/
+
+# fixtures are real data and ARE committed
+!/fixtures/**

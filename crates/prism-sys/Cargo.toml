@@ -1,0 +1,9 @@
+[package]
+name = "prism-sys"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+links = "prism"
+build = "build.rs"
+
+[dependencies]

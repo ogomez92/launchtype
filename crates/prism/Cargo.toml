@@ -1,0 +1,9 @@
+[package]
+name = "prism"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+prism-sys = { path = "../prism-sys" }
+thiserror.workspace = true

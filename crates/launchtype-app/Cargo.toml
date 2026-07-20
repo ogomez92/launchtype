@@ -1,0 +1,17 @@
+[package]
+name = "launchtype"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "launchtype"
+path = "src/main.rs"
+
+[dependencies]
+launchtype-core = { path = "../launchtype-core" }
+launchtype-services = { path = "../launchtype-services" }
+prism = { path = "../prism" }
+serde_json.workspace = true
+chrono.workspace = true
+log.workspace = true
