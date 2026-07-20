@@ -1,0 +1,985 @@
+# Translations template for PROJECT.
+# Copyright (C) 2023 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2023.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2023-10-10 07:39+0200\n"
+"PO-Revision-Date: 2023-10-10 07:41+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.11.0\n"
+"X-Generator: Poedit 3.4\n"
+
+#: src/main.py:33
+msgid "There was an error registering the hotkey for the program: "
+msgstr "Ha habido un error al registrar el atajo de teclado."
+
+#: src/managers/command_line_parameters.py:4
+msgid "Start application minimized"
+msgstr "Arranca la aplicación minimizada"
+
+#: src/managers/command_line_parameters.py:6
+msgid "specify commands file to use, default is commands.json"
+msgstr "especifica el archivo de comandos a usar (por defecto commands.json)"
+
+#: src/managers/command_line_parameters.py:32
+msgid "specify custom Steam library path"
+msgstr "especifica la ruta personalizada de la biblioteca de Steam"
+
+#: src/managers/ui_manager.py:24
+msgid "Input Field"
+msgstr "Consola"
+
+#: src/managers/ui_manager.py:36
+msgid "&Add..."
+msgstr "&Añadir..."
+
+#: src/managers/ui_manager.py:41
+msgid "&Edit..."
+msgstr "&Editar..."
+
+#: src/managers/ui_manager.py:46
+msgid "&COPY..."
+msgstr "&Copiar..."
+
+#: src/managers/ui_manager.py:51
+msgid "&Delete"
+msgstr "E&liminar"
+
+#: src/managers/ui_manager.py:57
+msgid "Open &Snippets folder"
+msgstr "Abrir Carpeta de &Sustituciones"
+
+#: src/managers/ui_manager.py:63
+msgid "&New snipet"
+msgstr "&Nueva Sustitución"
+
+#: src/managers/ui_manager.py:69
+msgid "&Run"
+msgstr "Ejecuta&r"
+
+#: src/managers/ui_manager.py:74
+msgid "&Help"
+msgstr "A&yuda"
+
+#: src/managers/ui_manager.py:73
+msgid "E&xit"
+msgstr "Sal&ir"
+
+#: src/managers/ui_manager.py:172
+msgid "snippet mode"
+msgstr "modo sustituciones"
+
+#: src/managers/ui_manager.py:178
+msgid "Clipboard history mode"
+msgstr "Modo historial de portapapeles"
+
+#: src/managers/ui_manager.py:183
+msgid "commands mode"
+msgstr "modo comandos"
+
+#: src/managers/ui_manager.py:195
+msgid "Steam games mode"
+msgstr "modo juegos de Steam"
+
+#: src/managers/ui_manager.py:221
+msgid "{}, {} search results shown, use tab and down arrow to access more results"
+msgstr "{}, {} resultados de búsqueda mostrados, usa tab y flecha abajo para acceder a más resultados"
+
+#: src/managers/ui_manager.py:264
+msgid "information"
+msgstr "información"
+
+#: src/managers/ui_manager.py:264
+msgid "The documentation will now open in your web browser."
+msgstr "Ahora abriremos la documentación en tu navegador."
+
+#: src/managers/ui_manager.py:269
+msgid "Documentation error"
+msgstr "Error al abrir la documentación"
+
+#: src/managers/ui_manager.py:270
+msgid "There was an error opening the documentation: "
+msgstr "Ha habido un error al abrir la documentación. "
+
+#: src/ui/add_snippet_dialog.py:7
+msgid "Add Snippet"
+msgstr "Añadir Sustitución"
+
+#: src/ui/add_snippet_dialog.py:12
+msgid "Name:"
+msgstr "Nombre:"
+
+#: src/ui/add_snippet_dialog.py:19
+msgid "Contents:"
+msgstr "Contenidos:"
+
+#: src/ui/add_snippet_dialog.py:27
+#, fuzzy
+#| msgid "&OK"
+msgid "OK"
+msgstr "&OK"
+
+#: src/ui/add_snippet_dialog.py:30
+#, fuzzy
+#| msgid "&Cancel"
+msgid "Cancel"
+msgstr "&Cancelar"
+
+#: src/ui/add_snippet_dialog.py:55
+msgid "Please enter a name and contents for the snippet."
+msgstr "Por favor, introduce un nombre y contenidos para la sustición."
+
+#: src/ui/command_edition_dialog.py:13
+msgid "Add Command"
+msgstr "Añadir comando"
+
+#: src/ui/command_edition_dialog.py:15
+msgid "Edit Command"
+msgstr "Editar comando"
+
+#: src/ui/command_edition_dialog.py:20
+msgid "Add command from copy"
+msgstr "Añadir desde copia"
+
+#: src/ui/command_edition_dialog.py:30
+msgid "Enter the information about the command you wish to add:"
+msgstr "Introduce la información sobre el comando que quieres añadir:"
+
+#: src/ui/command_edition_dialog.py:34
+msgid "&Path to file:"
+msgstr "&Ruta al Archivo:"
+
+#: src/ui/command_edition_dialog.py:41
+msgid "&Browse..."
+msgstr "&Examinar...."
+
+#: src/ui/command_edition_dialog.py:49
+msgid "&Arguments (optional, comma separated):"
+msgstr "&Argumentos de línea de comandos (separados por comas) (opcional)"
+
+#: src/ui/command_edition_dialog.py:58
+msgid "Display &Name:"
+msgstr "&Nombre a mostrar:"
+
+#: src/ui/command_edition_dialog.py:68
+msgid "&Shortcut (optional):"
+msgstr "Acce&so Abreviado:"
+
+#: src/ui/command_edition_dialog.py:78
+msgid "&OK"
+msgstr "&OK"
+
+#: src/ui/command_edition_dialog.py:81
+msgid "&Cancel"
+msgstr "&Cancelar"
+
+#: src/ui/command_edition_dialog.py:89
+msgid "This path is incorrect."
+msgstr "Esta ruta no es válida."
+
+#: src/ui/command_edition_dialog.py:94
+msgid "The command must have a display name."
+msgstr "El comando debe tener un nombre para mostrar."
+
+#: src/ui/command_edition_dialog.py:94
+msgid "No display name provided"
+msgstr "No has proporcionado un nombre"
+
+#: src/ui/command_edition_dialog.py:99
+msgid "The shortcut is already in use."
+msgstr "Este acceso abreviado ya se está usando."
+
+#: src/ui/command_edition_dialog.py:99
+msgid "Shortcut taken"
+msgstr "Acceso abreviado no disponible"
+
+#: src/ui/command_edition_dialog.py:116
+msgid "and "
+msgstr "y "
+
+#: src/ui/command_edition_dialog.py:116
+msgid " more. "
+msgstr " más. "
+
+#: src/ui/command_edition_dialog.py:118
+msgid "Edit Assistant"
+msgstr "Asistente de Edición"
+
+#: src/ui/command_edition_dialog.py:118
+msgid "This path is already in use by the following actions: "
+msgstr "Esta ruta ya se está usando en las siguientes acciones: "
+
+#: src/ui/command_edition_dialog.py:118
+msgid "Do you want to change the path for all of them?"
+msgstr "¿Quieres cambiarlas todas?"
+
+#: src/ui/command_edition_dialog.py:78
+msgid "Run as &administrator"
+msgstr "Ejecutar como &administrador"
+
+#: src/ui/command_edition_dialog.py:136
+msgid "Choose a file"
+msgstr "Elige un archivo"
+
+#: src/managers/ui_manager.py
+msgid "C&opy Args (Alt+O)"
+msgstr "C&opiar Argumentos (Alt+O)"
+
+#: src/managers/ui_manager.py
+msgid "Arguments copied"
+msgstr "Argumentos copiados"
+
+#: src/managers/ui_manager.py
+msgid "No arguments"
+msgstr "Sin argumentos"
+
+#: src/managers/ui_manager.py
+msgid "screenshots mode"
+msgstr "modo capturas de pantalla"
+
+#: src/services/screenshot_service.py
+msgid "screenshot window"
+msgstr "captura de ventana"
+
+#: src/services/screenshot_service.py
+msgid "screenshot entire screen"
+msgstr "captura de pantalla completa"
+
+#: src/managers/command_line_parameters.py
+msgid "Disable all sounds"
+msgstr "Desactiva todos los sonidos"
+
+#: src/managers/ui_manager.py
+msgid "Se&ttings..."
+msgstr "Aj&ustes..."
+
+#: src/managers/ui_manager.py
+msgid "https://github.com/ogomez92/launchtype/blob/main/README.md"
+msgstr "https://github.com/ogomez92/launchtype/blob/main/README.es.md"
+
+#: src/ui/settings_dialog.py
+msgid "Settings"
+msgstr "Ajustes"
+
+#: src/ui/settings_dialog.py
+msgid "Enable &sounds"
+msgstr "Habilitar &sonidos"
+
+#: src/ui/settings_dialog.py
+msgid "Start &minimized"
+msgstr "Arrancar &minimizado"
+
+#: src/ui/settings_dialog.py
+msgid "Start in s&nippets mode when invoked"
+msgstr "Arrancar en modo su&stituciones al invocar"
+
+#: src/ui/settings_dialog.py
+msgid "Steam &library path:"
+msgstr "Ruta de la &biblioteca de Steam:"
+
+#: src/ui/settings_dialog.py
+msgid "Choose Steam library folder"
+msgstr "Elige la carpeta de la biblioteca de Steam"
+
+#: src/ui/settings_dialog.py
+msgid "Command line flags override these settings for the current run."
+msgstr "Los parámetros de línea de comandos sobreescriben estos ajustes durante la ejecución actual."
+
+#: src/ui/add_snippet_dialog.py
+msgid "Edit Snippet"
+msgstr "Editar Sustitución"
+
+#: src/managers/command_line_parameters.py
+msgid "When app is invoked by shortcut, start with snippets mode instead of commands"
+msgstr "Cuando se invoca la aplicación por atajo, arrancar en modo sustituciones en lugar de comandos"
+
+#: src/managers/ui_manager.py
+msgid "timers mode"
+msgstr "modo temporizadores"
+
+#: src/managers/ui_manager.py
+msgid "alarms mode"
+msgstr "modo alarmas"
+
+#: src/ui/add_timer_dialog.py
+msgid "Add Timer"
+msgstr "Añadir temporizador"
+
+#: src/ui/add_alarm_dialog.py
+msgid "Add Alarm"
+msgstr "Añadir alarma"
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "&Title:"
+msgstr "&Título:"
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "&Description:"
+msgstr "&Descripción:"
+
+#: src/ui/add_timer_dialog.py
+msgid "&Minutes:"
+msgstr "&Minutos:"
+
+#: src/ui/add_timer_dialog.py
+msgid "&Repeating (fires every X minutes until disabled)"
+msgstr "&Repetir (suena cada X minutos hasta desactivarlo)"
+
+#: src/ui/add_alarm_dialog.py
+msgid "&Hour (0-23):"
+msgstr "&Hora (0-23):"
+
+#: src/ui/add_alarm_dialog.py
+msgid "&Minute (0-59):"
+msgstr "&Minuto (0-59):"
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "&Sound file (optional):"
+msgstr "Archivo de &sonido (opcional):"
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "Choose a sound file"
+msgstr "Elige un archivo de sonido"
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "Sound files (*.wav)|*.wav|All files (*.*)|*.*"
+msgstr "Archivos de sonido (*.wav)|*.wav|Todos los archivos (*.*)|*.*"
+
+#: src/ui/add_timer_dialog.py
+msgid "Please enter a title for the timer."
+msgstr "Por favor, introduce un título para el temporizador."
+
+#: src/ui/add_alarm_dialog.py
+msgid "Please enter a title for the alarm."
+msgstr "Por favor, introduce un título para la alarma."
+
+#: src/managers/ui_manager.py
+msgid "Timer {state}"
+msgstr "Temporizador {state}"
+
+#: src/managers/ui_manager.py
+msgid "Alarm {state}"
+msgstr "Alarma {state}"
+
+#: src/managers/ui_manager.py
+msgid "started"
+msgstr "iniciado"
+
+#: src/managers/ui_manager.py src/services/timer_service.py
+msgid "stopped"
+msgstr "detenido"
+
+#: src/services/timer_service.py
+msgid "running"
+msgstr "en marcha"
+
+#: src/services/timer_service.py
+msgid "running, {time} {verb}"
+msgstr "en marcha, {time} {verb}"
+
+#: src/services/timer_service.py
+msgid "until repeat"
+msgstr "hasta repetir"
+
+#: src/services/timer_service.py
+msgid "left"
+msgstr "restante"
+
+#: src/services/alarm_service.py
+msgid "on"
+msgstr "activada"
+
+#: src/services/alarm_service.py
+msgid "off"
+msgstr "desactivada"
+
+#: src/services/timer_service.py
+msgid "every {minutes} min, repeating"
+msgstr "cada {minutes} min, repitiendo"
+
+#: src/services/timer_service.py
+msgid "{minutes} min"
+msgstr "{minutes} min"
+
+#: src/services/timer_service.py
+msgid "{title} - {descriptor} ({state})"
+msgstr "{title} - {descriptor} ({state})"
+
+#: src/services/alarm_service.py
+msgid "{title} - {hour:02d}:{minute:02d} ({state})"
+msgstr "{title} - {hour:02d}:{minute:02d} ({state})"
+
+#: src/managers/ui_manager.py
+msgid "Notebrook new note mode, type your note and press enter"
+msgstr "modo nueva nota de Notebrook, escribe tu nota y pulsa intro"
+
+#: src/managers/ui_manager.py
+msgid "No note entered"
+msgstr "No se ha introducido ninguna nota"
+
+#: src/managers/ui_manager.py
+msgid "Note not sent"
+msgstr "Nota no enviada"
+
+#: src/managers/ui_manager.py
+msgid "Note sent to {}"
+msgstr "Nota enviada a {}"
+
+#: src/ui/notebrook_credentials_dialog.py
+msgid "Notebrook credentials"
+msgstr "Credenciales de Notebrook"
+
+#: src/ui/notebrook_credentials_dialog.py
+msgid ""
+"Enter your Notebrook server URL and token. These are stored locally and only "
+"used to send notes."
+msgstr ""
+"Introduce la URL del servidor y el token de Notebrook. Se guardan localmente "
+"y solo se usan para enviar notas."
+
+#: src/ui/notebrook_credentials_dialog.py
+msgid "Server &URL:"
+msgstr "&URL del servidor:"
+
+#: src/ui/notebrook_credentials_dialog.py
+msgid "&Token:"
+msgstr "&Token:"
+
+#: src/ui/notebrook_credentials_dialog.py
+msgid "Please enter both the server URL and the token."
+msgstr "Por favor, introduce la URL del servidor y el token."
+
+#: src/ui/notebrook_credentials_dialog.py
+msgid "Error"
+msgstr "Error"
+
+#: src/services/notebrook_service.py
+msgid "Unauthorized (401): the token was rejected."
+msgstr "No autorizado (401): el token fue rechazado."
+
+#: src/services/notebrook_service.py
+msgid "Not found (404): check the server URL is correct."
+msgstr "No encontrado (404): comprueba que la URL del servidor sea correcta."
+
+#: src/services/notebrook_service.py
+msgid "Server returned an unexpected status code: {}"
+msgstr "El servidor devolvió un código de estado inesperado: {}"
+
+#: src/services/notebrook_service.py
+msgid "Network error: {}"
+msgstr "Error de red: {}"
+
+#: src/services/notebrook_service.py
+msgid "Unexpected error: {}"
+msgstr "Error inesperado: {}"
+
+#: src/services/notebrook_service.py
+msgid "The server did not return the created channel."
+msgstr "El servidor no devolvió el canal creado."
+
+#: src/managers/ui_manager.py
+msgid "realtime data mode"
+msgstr "modo datos en tiempo real"
+
+#: src/managers/ui_manager.py
+msgid "Fetching {name}"
+msgstr "Obteniendo {name}"
+
+#: src/managers/ui_manager.py
+msgid "Could not fetch {name}: {reason}"
+msgstr "No se pudo obtener {name}: {reason}"
+
+#: src/services/realtime_service.py
+msgid "bitcoin price in euros"
+msgstr "precio del bitcoin en euros"
+
+#: src/services/realtime_service.py
+msgid "ethereum price in euros"
+msgstr "precio del ethereum en euros"
+
+#: src/services/realtime_service.py
+msgid "1000 euros in us dollars"
+msgstr "1000 euros en dólares estadounidenses"
+
+#: src/services/realtime_service.py
+msgid "brent crude oil price"
+msgstr "precio del petróleo brent"
+
+#: src/services/realtime_service.py
+msgid "gold price"
+msgstr "precio del oro"
+
+#: src/services/realtime_service.py
+msgid "ibex 35 stock index"
+msgstr "índice bursátil ibex 35"
+
+#: src/services/realtime_service.py
+msgid "weather at my location"
+msgstr "el tiempo en mi ubicación"
+
+#: src/services/realtime_service.py
+msgid "el país news headlines"
+msgstr "titulares de el país"
+
+#: src/services/realtime_service.py
+msgid "bbc world news headlines"
+msgstr "titulares internacionales de la bbc"
+
+#: src/services/realtime_service.py
+msgid "catalunya news headlines"
+msgstr "titulares de catalunya"
+
+#: src/services/realtime_service.py
+msgid "vilaweb news in catalan"
+msgstr "noticias de vilaweb en catalán"
+
+#: src/services/realtime_service.py
+msgid "claude usage limits"
+msgstr "límites de uso de claude"
+
+#: src/services/realtime_service.py
+msgid "Claude Code credentials not found, log in to Claude Code first."
+msgstr "No se encontraron las credenciales de Claude Code, inicia sesión en Claude Code primero."
+
+#: src/services/realtime_service.py
+msgid "Claude Code session expired, open Claude Code to log in again."
+msgstr "La sesión de Claude Code ha caducado, abre Claude Code para iniciar sesión de nuevo."
+
+#: src/services/realtime_service.py
+msgid "session at {percent} percent, resets at {reset}"
+msgstr "sesión al {percent} por ciento, se reinicia a las {reset}"
+
+#: src/services/realtime_service.py
+msgid "session at {percent} percent"
+msgstr "sesión al {percent} por ciento"
+
+#: src/services/realtime_service.py
+msgid "week at {percent} percent, resets on {reset}"
+msgstr "semana al {percent} por ciento, se reinicia el {reset}"
+
+#: src/services/realtime_service.py
+msgid "week at {percent} percent"
+msgstr "semana al {percent} por ciento"
+
+#: src/services/realtime_service.py
+msgid "opus week at {percent} percent"
+msgstr "semana de opus al {percent} por ciento"
+
+#: src/services/realtime_service.py
+msgid "Claude usage: {parts}"
+msgstr "Uso de Claude: {parts}"
+
+#: src/services/realtime_service.py
+msgid "openai codex usage limits"
+msgstr "límites de uso de openai codex"
+
+#: src/services/realtime_service.py
+msgid "Codex credentials not found, log in to the Codex CLI first."
+msgstr "No se encontraron las credenciales de Codex, inicia sesión en la CLI de Codex primero."
+
+#: src/services/realtime_service.py
+msgid "Codex session expired, run Codex to log in again."
+msgstr "La sesión de Codex ha caducado, ejecuta Codex para iniciar sesión de nuevo."
+
+#: src/services/realtime_service.py
+msgid "month at {percent} percent, resets on {reset}"
+msgstr "mes al {percent} por ciento, se reinicia el {reset}"
+
+#: src/services/realtime_service.py
+msgid "month at {percent} percent"
+msgstr "mes al {percent} por ciento"
+
+#: src/services/realtime_service.py
+msgid "{plan} plan"
+msgstr "plan {plan}"
+
+#: src/services/realtime_service.py
+msgid "OpenAI usage: {parts}"
+msgstr "Uso de OpenAI: {parts}"
+
+#: src/services/realtime_service.py
+msgid "One bitcoin is {price} euros right now"
+msgstr "Un bitcoin son {price} euros ahora mismo"
+
+#: src/services/realtime_service.py
+msgid "One ethereum is {price} euros right now"
+msgstr "Un ethereum son {price} euros ahora mismo"
+
+#: src/services/realtime_service.py
+msgid "1000 euros are {amount} us dollars, at a rate of {rate} dollars per euro"
+msgstr "1000 euros son {amount} dólares estadounidenses, a un cambio de {rate} dólares por euro"
+
+#: src/services/realtime_service.py
+msgid "A barrel of brent crude oil is {price} us dollars"
+msgstr "El barril de petróleo brent está a {price} dólares estadounidenses"
+
+#: src/services/realtime_service.py
+msgid "An ounce of gold is {price} us dollars"
+msgstr "La onza de oro está a {price} dólares estadounidenses"
+
+#: src/services/realtime_service.py
+msgid "The ibex 35 is at {points} points"
+msgstr "El ibex 35 está en {points} puntos"
+
+#: src/services/realtime_service.py
+msgid ""
+"Weather in {city}: {description}, {temperature} degrees, feels like {feels}, "
+"humidity {humidity} percent, wind {wind} kilometers per hour. Today between "
+"{minimum} and {maximum} degrees."
+msgstr ""
+"El tiempo en {city}: {description}, {temperature} grados, sensación térmica "
+"de {feels}, humedad del {humidity} por ciento, viento de {wind} kilómetros "
+"por hora. Hoy entre {minimum} y {maximum} grados."
+
+#: src/services/realtime_service.py
+msgid "Latest headlines from {source}: {headlines}"
+msgstr "Últimos titulares de {source}: {headlines}"
+
+#: src/services/realtime_service.py
+msgid "clear sky"
+msgstr "cielo despejado"
+
+#: src/services/realtime_service.py
+msgid "partly cloudy"
+msgstr "parcialmente nublado"
+
+#: src/services/realtime_service.py
+msgid "overcast"
+msgstr "cielo cubierto"
+
+#: src/services/realtime_service.py
+msgid "fog"
+msgstr "niebla"
+
+#: src/services/realtime_service.py
+msgid "drizzle"
+msgstr "llovizna"
+
+#: src/services/realtime_service.py
+msgid "rain"
+msgstr "lluvia"
+
+#: src/services/realtime_service.py
+msgid "snow"
+msgstr "nieve"
+
+#: src/services/realtime_service.py
+msgid "rain showers"
+msgstr "chubascos"
+
+#: src/services/realtime_service.py
+msgid "snow showers"
+msgstr "chubascos de nieve"
+
+#: src/services/realtime_service.py
+msgid "thunderstorm"
+msgstr "tormenta"
+
+#: src/services/realtime_service.py
+msgid "variable conditions"
+msgstr "condiciones variables"
+
+#: src/services/realtime_service.py
+msgid "The server returned data that could not be understood."
+msgstr "El servidor devolvió datos que no se pudieron entender."
+
+#: src/services/realtime_service.py
+msgid "The news feed contained no headlines."
+msgstr "La fuente de noticias no contenía titulares."
+
+#: src/services/realtime_service.py
+msgid "Unknown realtime item."
+msgstr "Elemento de tiempo real desconocido."
+
+#: src/services/realtime_service.py
+msgid "euros"
+msgstr "euros"
+
+#: src/services/realtime_service.py
+msgid "us dollars"
+msgstr "dólares estadounidenses"
+
+#: src/services/realtime_service.py
+msgid "points"
+msgstr "puntos"
+
+#: src/services/realtime_service.py
+msgid "a few seconds ago"
+msgstr "hace unos segundos"
+
+#: src/services/realtime_service.py
+msgid "1 minute ago"
+msgstr "hace 1 minuto"
+
+#: src/services/realtime_service.py
+msgid "{count} minutes ago"
+msgstr "hace {count} minutos"
+
+#: src/services/realtime_service.py
+msgid "1 hour ago"
+msgstr "hace 1 hora"
+
+#: src/services/realtime_service.py
+msgid "{count} hours ago"
+msgstr "hace {count} horas"
+
+#: src/services/realtime_service.py
+msgid "1 day ago"
+msgstr "hace 1 día"
+
+#: src/services/realtime_service.py
+msgid "{count} days ago"
+msgstr "hace {count} días"
+
+#: src/services/realtime_service.py
+msgid "unchanged since {elapsed}"
+msgstr "sin cambios desde {elapsed}"
+
+#: src/services/realtime_service.py
+msgid "up {amount} {unit} ({percent} percent) since {elapsed}"
+msgstr "ha subido {amount} {unit} ({percent} por ciento) desde {elapsed}"
+
+#: src/services/realtime_service.py
+msgid "down {amount} {unit} ({percent} percent) since {elapsed}"
+msgstr "ha bajado {amount} {unit} ({percent} por ciento) desde {elapsed}"
+
+#: src/services/realtime_service.py
+msgid "computer temperatures, fans and gpu"
+msgstr "temperaturas, ventiladores y gpu del ordenador"
+
+#: src/services/realtime_service.py
+msgid "graphics card"
+msgstr "tarjeta gráfica"
+
+#: src/services/realtime_service.py
+msgid "Temperatures: {details}"
+msgstr "Temperaturas: {details}"
+
+#: src/services/realtime_service.py
+msgid "CPU {temp} degrees"
+msgstr "CPU a {temp} grados"
+
+#: src/services/realtime_service.py
+msgid "System {temp} degrees"
+msgstr "Sistema a {temp} grados"
+
+#: src/services/realtime_service.py
+msgid "GPU {name} at {temp} degrees"
+msgstr "GPU {name} a {temp} grados"
+
+#: src/services/realtime_service.py
+msgid "GPU {name}"
+msgstr "GPU {name}"
+
+#: src/services/realtime_service.py
+msgid "GPU {temp} degrees"
+msgstr "GPU a {temp} grados"
+
+#: src/services/realtime_service.py
+msgid "fan {value} percent"
+msgstr "ventilador al {value} por ciento"
+
+#: src/services/realtime_service.py
+msgid "load {value} percent"
+msgstr "carga al {value} por ciento"
+
+#: src/services/realtime_service.py
+msgid "{name} {value} rpm"
+msgstr "{name} a {value} rpm"
+
+#: src/services/realtime_service.py
+msgid "fan"
+msgstr "ventilador"
+
+#: src/services/realtime_service.py
+msgid "No temperature, fan or GPU data is available on this computer."
+msgstr "No hay datos de temperatura, ventiladores ni GPU disponibles en este ordenador."
+
+#: launchtype
+msgid "Total commands run: {count}"
+msgstr "Total de comandos ejecutados: {count}"
+
+#: launchtype
+msgid "Most used {rank}: {name}, {count} runs"
+msgstr "Más usado {rank}: {name}, {count} ejecuciones"
+
+#: launchtype
+msgid "No commands have been run yet."
+msgstr "Aún no se ha ejecutado ningún comando."
+
+#: launchtype
+msgid "Least used {rank}: {name}, {count} runs"
+msgstr "Menos usado {rank}: {name}, {count} ejecuciones"
+
+#: launchtype
+msgid "screenshot window to clipboard"
+msgstr "captura de ventana al portapapeles"
+
+#: launchtype
+msgid "screenshot entire screen to clipboard"
+msgstr "captura de toda la pantalla al portapapeles"
+
+#: launchtype
+msgid "describe active window"
+msgstr "describir la ventana activa"
+
+#: launchtype
+msgid "describe entire screen"
+msgstr "describir toda la pantalla"
+
+#: launchtype
+msgid "explore regions of active window"
+msgstr "explorar regiones de la ventana activa"
+
+#: launchtype
+msgid "explore regions of entire screen"
+msgstr "explorar regiones de toda la pantalla"
+
+#: launchtype
+msgid "You describe images for a blind user. Follow the user's request."
+msgstr "Describes imágenes para una persona ciega. Sigue la petición del usuario."
+
+#: launchtype
+msgid "Claude: {reason}"
+msgstr "Claude: {reason}"
+
+#: launchtype
+msgid "OpenAI: {reason}"
+msgstr "OpenAI: {reason}"
+
+#: launchtype
+msgid "No regions could be identified in the image."
+msgstr "No se pudo identificar ninguna región en la imagen."
+
+#: launchtype
+msgid "statistics mode"
+msgstr "modo de estadísticas"
+
+#: launchtype
+msgid "Sort commands by:"
+msgstr "Ordenar comandos por:"
+
+#: launchtype
+msgid "Last modified"
+msgstr "Última modificación"
+
+#: launchtype
+msgid "Number of uses"
+msgstr "Número de usos"
+
+#: launchtype
+msgid "You are describing a screenshot for a blind person who cannot see the screen. Describe clearly and naturally what is shown: the application or window, the main text and controls, the layout, and anything important. Be thorough but concise, and write it to be read aloud. Answer in English."
+msgstr "Estás describiendo una captura de pantalla para una persona ciega que no puede ver la pantalla. Describe con claridad y de forma natural lo que se muestra: la aplicación o ventana, el texto y los controles principales, la disposición y cualquier cosa importante. Sé detallado pero conciso, y escríbelo para leerse en voz alta. Responde en español."
+
+#: launchtype
+msgid "You are helping a blind person explore a screenshot. Identify the most useful distinct regions of this image, such as dialogs, toolbars, text areas, images, button groups or notifications. Reply with ONLY a JSON array and no other text, where each item is {\"label\": a short description, \"box\": [x1, y1, x2, y2] in pixels of this image}. Use at most 8 regions, ordered by importance. Write the labels in English."
+msgstr "Estás ayudando a una persona ciega a explorar una captura de pantalla. Identifica las regiones distintas más útiles de esta imagen, como diálogos, barras de herramientas, áreas de texto, imágenes, grupos de botones o notificaciones. Responde ÚNICAMENTE con un array JSON y ningún otro texto, donde cada elemento sea {\"label\": una descripción corta, \"box\": [x1, y1, x2, y2] en píxeles de esta imagen}. Usa como máximo 8 regiones, ordenadas por importancia. Escribe las etiquetas en español."
+
+#: launchtype
+msgid "Analyzing screenshot, please wait"
+msgstr "Analizando la captura, espera un momento"
+
+#: launchtype
+msgid "Finding regions, please wait"
+msgstr "Buscando regiones, espera un momento"
+
+#: launchtype
+msgid "{count} regions found. Choose one to crop and describe it."
+msgstr "{count} regiones encontradas. Elige una para recortarla y describirla."
+
+#: launchtype
+msgid "No screenshot is available"
+msgstr "No hay ninguna captura disponible"
+
+#: launchtype
+msgid "That region could not be cropped"
+msgstr "No se pudo recortar esa región"
+
+#: launchtype
+msgid "Region copied. Describing it, please wait"
+msgstr "Región copiada. Describiéndola, espera un momento"
+
+#: launchtype
+msgid "Could not analyze the screenshot: {reason}"
+msgstr "No se pudo analizar la captura: {reason}"
+
+#: launchtype
+msgid "Claude Opus (best quality)"
+msgstr "Claude Opus (mejor calidad)"
+
+#: launchtype
+msgid "Claude Sonnet (balanced)"
+msgstr "Claude Sonnet (equilibrado)"
+
+#: launchtype
+msgid "Claude Haiku (fastest, lightest)"
+msgstr "Claude Haiku (más rápido y ligero)"
+
+#: launchtype
+msgid "AI model for screenshot descriptions:"
+msgstr "Modelo de IA para las descripciones de capturas:"
+
+#: launchtype
+msgid "Results"
+msgstr "Resultados"
+
+#: launchtype
+msgid "grab specific region of active window"
+msgstr "recortar una región concreta de la ventana activa"
+
+#: launchtype
+msgid "grab specific region of entire screen"
+msgstr "recortar una región concreta de toda la pantalla"
+
+#: launchtype
+msgid "The screenshot could not be cropped: the AI response could not be understood."
+msgstr "No se pudo recortar la captura: no se entendió la respuesta de la IA."
+
+#: launchtype
+msgid "The screenshot could not be cropped: no valid area was returned."
+msgstr "No se pudo recortar la captura: no se devolvió un área válida."
+
+#: launchtype
+msgid "the element was not found"
+msgstr "no se encontró el elemento"
+
+#: launchtype
+msgid "Find this element in the image: {query}"
+msgstr "Encuentra este elemento en la imagen: {query}"
+
+#: launchtype
+msgid "You are helping a blind person crop a screenshot. Reply with ONLY a JSON object and no other text. If you find the requested element, reply {\"found\": true, \"box\": [x1, y1, x2, y2] in pixels of this image}. If you cannot find it, reply {\"found\": false, \"reason\": a short explanation of why, usually that the element is not visible}. Write the reason in English."
+msgstr "Estás ayudando a una persona ciega a recortar una captura de pantalla. Responde ÚNICAMENTE con un objeto JSON y ningún otro texto. Si encuentras el elemento solicitado, responde {\"found\": true, \"box\": [x1, y1, x2, y2] en píxeles de esta imagen}. Si no lo encuentras, responde {\"found\": false, \"reason\": una breve explicación del motivo, normalmente que el elemento no está visible}. Escribe el motivo en español."
+
+#: launchtype
+msgid "Type what to grab in the input field first"
+msgstr "Escribe primero en el campo de texto lo que quieres recortar"
+
+#: launchtype
+msgid "Looking for {query}, please wait"
+msgstr "Buscando {query}, espera un momento"
+
+#: launchtype
+msgid "Cropped {query} and copied it to the clipboard"
+msgstr "Recortado {query} y copiado al portapapeles"
+
+#: launchtype
+msgid "The screenshot could not be cropped because {reason}"
+msgstr "No se pudo recortar la captura porque {reason}"
+
+#: launchtype
+msgid "the returned area was empty"
+msgstr "el área devuelta estaba vacía"
+
+#: launchtype
+msgid "Cropped {query} and copied it. Describing it, please wait"
+msgstr "Recortado {query} y copiado. Describiéndola, espera un momento"

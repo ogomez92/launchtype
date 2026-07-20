@@ -24,13 +24,17 @@ impl SoundPlayer {
     }
 
     /// Play a named effect ("show", "hide", "run", "match", "type", "copy",
-    /// "logo") asynchronously. No-op when disabled or the file is missing.
+    /// "logo") asynchronously. No-op when disabled or the file is missing
+    /// (the shipped sounds/ has no type.wav, and PlaySound would substitute
+    /// the system default ding on every keystroke otherwise).
     pub fn play(&self, name: &str) {
         if !self.enabled() {
             return;
         }
         let path = self.sounds_dir.join(format!("{name}.wav"));
-        let _ = play_file(&path);
+        if path.is_file() {
+            let _ = play_file(&path);
+        }
     }
 
     /// Play an arbitrary sound file (timer/alarm custom sounds). Returns

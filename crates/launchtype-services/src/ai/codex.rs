@@ -25,7 +25,7 @@ const CODEX_CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 const DEFAULT_CODEX_MODEL: &str = "gpt-5.1-codex";
 const JWT_MARGIN_SECONDS: f64 = 60.0;
 
-pub(super) fn load_codex_auth() -> Result<(PathBuf, CodexAuth), AiError> {
+pub(crate) fn load_codex_auth() -> Result<(PathBuf, CodexAuth), AiError> {
     let not_found = || AiError(tr("Codex credentials not found, log in to the Codex CLI first."));
     let path = dirs::home_dir().ok_or_else(not_found)?.join(".codex").join("auth.json");
     let text = std::fs::read_to_string(&path).map_err(|_| not_found())?;
@@ -42,7 +42,7 @@ fn now_epoch_seconds() -> f64 {
 
 /// Refresh the access token and persist the rotated tokens. A failed
 /// write-back is tolerated (the fetch proceeds with the in-memory token).
-pub(super) fn refresh_codex_tokens(path: &PathBuf, auth: &mut CodexAuth) -> Result<(), AiError> {
+pub(crate) fn refresh_codex_tokens(path: &PathBuf, auth: &mut CodexAuth) -> Result<(), AiError> {
     let expired = || AiError(tr("Codex session expired, run Codex to log in again."));
     let body = codex_refresh_request_body(CODEX_CLIENT_ID, &auth.tokens.refresh_token);
     let agent = ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(15)).build();

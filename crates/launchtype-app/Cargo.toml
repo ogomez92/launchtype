@@ -15,3 +15,10 @@ prism = { path = "../prism" }
 serde_json.workspace = true
 chrono.workspace = true
 log.workspace = true
+wxdragon = "0.9"
+global-hotkey = "0.7"
+open = "5"
+uuid.workspace = true
+gettext = "0.4"
+sys-locale = "0.3"
+env_logger = "0.11"

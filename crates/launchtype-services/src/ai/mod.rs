@@ -9,6 +9,10 @@ mod parse;
 
 pub use claude::describe_with_claude;
 pub use codex::describe_with_openai;
+pub(crate) use codex::{
+    load_codex_auth as load_codex_auth_for_usage,
+    refresh_codex_tokens as refresh_codex_tokens_for_usage,
+};
 pub use parse::{codex_model_from_config, extract_object, extract_regions, Region};
 
 use launchtype_core::i18n::{format_args, tr, Arg};
