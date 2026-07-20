@@ -14,6 +14,9 @@ thiserror.workspace = true
 log.workspace = true
 plist = "1"
 clipboard-rs = "0.3"
+ureq = "2"
+base64 = "0.22"
+dirs = "6"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = [
