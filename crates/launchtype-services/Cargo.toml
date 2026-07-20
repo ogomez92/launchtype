@@ -12,3 +12,17 @@ chrono.workspace = true
 uuid.workspace = true
 thiserror.workspace = true
 log.workspace = true
+plist = "1"
+clipboard-rs = "0.3"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Media_Audio",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+tempfile = "3"
