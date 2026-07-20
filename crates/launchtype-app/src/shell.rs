@@ -533,8 +533,9 @@ pub fn run_clicked(shell: &SharedShell) {
             shell.borrow().frame.show(false);
             let result = run_hidden_action(shell, &item, other);
             if let Err(message) = result {
-                let msg = tr("Something went wrong while running your command: {e}")
-                    .replace("{e}", &message);
+                // Python interpolated this inside _() as an f-string, so the
+                // msgid never existed in the catalog: always English there too.
+                let msg = format!("Something went wrong while running your command: {message}");
                 show_error(&shell.borrow().frame, "Oops...", &msg);
             }
         }

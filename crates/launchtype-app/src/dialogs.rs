@@ -452,7 +452,8 @@ pub fn add_alarm_dialog(parent: &Frame, controller: &mut ModeController) -> bool
 /// Add/edit snippet dialog. `existing` = (shortcut, contents) when editing.
 /// Returns true when saved (caller reloads snippets).
 pub fn snippet_dialog(parent: &Frame, existing: Option<(String, String)>) -> bool {
-    let dialog = Dialog::builder(parent, &tr("New snippet")).build();
+    let title = if existing.is_some() { tr("Edit Snippet") } else { tr("Add Snippet") };
+    let dialog = Dialog::builder(parent, &title).build();
     let sizer = BoxSizer::builder(Orientation::Vertical).build();
     let name_entry = labeled_row(&dialog, &sizer, &tr("Name:"));
     let contents_label = StaticText::builder(&dialog).with_label(&tr("Contents:")).build();
