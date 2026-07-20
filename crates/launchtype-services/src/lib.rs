@@ -10,6 +10,7 @@ pub mod poller;
 pub mod realtime;
 pub mod runner;
 pub mod scheduler;
+pub mod screenshot;
 pub mod snippets;
 pub mod sounds;
 pub mod steam;

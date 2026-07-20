@@ -38,6 +38,10 @@ pub struct Shell {
     pub cli_quiet: bool,
     pub poller: Option<ClipboardPoller>,
     pub scheduler: Option<Scheduler>,
+    /// Transient "explore regions" state: the full-resolution capture and
+    /// the size it was sent to the AI at (region boxes are in that space).
+    pub screenshot_image: Option<launchtype_services::screenshot::RgbaImage>,
+    pub screenshot_sent_size: Option<(u32, u32)>,
 }
 
 pub type SharedShell = Rc<RefCell<Shell>>;
@@ -126,6 +130,8 @@ pub fn build_shell(
         cli_quiet,
         poller: None,
         scheduler: None,
+        screenshot_image: None,
+        screenshot_sent_size: None,
     }));
 
     bind_events(
@@ -520,8 +526,9 @@ pub fn run_clicked(shell: &SharedShell) {
         }
         // Stats lines are informational; re-speak on enter, keep the window.
         ItemKind::Stat => speak_now(&item.name, true),
-        // Regions crop+describe (M8); until then match Python's no-image path.
-        ItemKind::Region { .. } => speak_now(&tr("No screenshot is available"), true),
+        // A region: crop it out of the last screenshot, copy the crop, and
+        // describe it. Keep the window open so more regions can be chosen.
+        ItemKind::Region { r#box } => crate::ai_flows::crop_and_describe_region(shell, r#box),
         other => {
             shell.borrow().frame.show(false);
             let result = run_hidden_action(shell, &item, other);
@@ -562,9 +569,7 @@ fn run_hidden_action(shell: &SharedShell, item: &Item, kind: ItemKind) -> Result
             shell.borrow().sounds.play("run");
         }
         ItemKind::Screenshot { action } => {
-            // M8 ports the capture pipeline; keep the item wired but honest.
-            let _ = action;
-            speak_now(&tr("Something went wrong while running your command: {e}").replace("{e}", "screenshots not ported yet"), true);
+            crate::ai_flows::handle_screenshot_action(shell, action)?;
         }
         _ => {}
     }

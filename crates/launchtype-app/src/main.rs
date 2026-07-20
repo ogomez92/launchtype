@@ -2,6 +2,7 @@
 //! data stores, speech, UI, global hotkey, main loop.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod ai_flows;
 mod controller;
 mod dialogs;
 mod hotkey;
@@ -139,6 +140,7 @@ fn main() {
 
         let shell =
             shell::build_shell(controller, settings, sounds_for_ui.clone(), cli_snippets, cli_quiet);
+        ai_flows::set_active_shell(&shell);
 
         // Background services: clipboard history + timer/alarm firing.
         {
