@@ -67,28 +67,34 @@ pub fn build_shell(
     let edit_sizer = BoxSizer::builder(Orientation::Horizontal).build();
     let edit_label = StaticText::builder(&panel).with_label(&tr("Input Field")).build();
     let edit = TextCtrl::builder(&panel).build();
+    // wxUSE_ACCESSIBILITY makes the generic accessible report the control's type
+    // name ("text") instead of this label, so name it explicitly (as the results
+    // ListBox below already does).
+    edit.set_name(&tr("Input Field"));
     edit_sizer.add(&edit_label, 0, SizerFlag::All, 0);
     edit_sizer.add(&edit, 0, SizerFlag::All, 0);
     sizer.add_sizer(&edit_sizer, 0, SizerFlag::All, 0);
 
-    // Commands-mode sort order. Only shown in commands mode (see update_list).
+    // Give the results list its own label so screen readers don't fall back
+    // to the nearest preceding control (e.g. the input field's label).
+    let results_label = StaticText::builder(&panel).with_label(&tr("Results")).build();
+    sizer.add(&results_label, 0, SizerFlag::All, 0);
+    let list = ListBox::builder(&panel).build();
+    list.set_name(&tr("Results"));
+    sizer.add(&list, 0, SizerFlag::All, 0);
+
+    // Commands-mode sort order, placed after the list. Only shown in commands
+    // mode (see update_list).
     let sort_sizer = BoxSizer::builder(Orientation::Horizontal).build();
     let sort_label = StaticText::builder(&panel).with_label(&tr("Sort commands by:")).build();
     let sort_choice = Choice::builder(&panel).build();
+    sort_choice.set_name(&tr("Sort commands by:"));
     sort_choice.append(&tr("Last modified"));
     sort_choice.append(&tr("Number of uses"));
     sort_choice.set_selection(if settings.settings.command_sort_by_uses { 1 } else { 0 });
     sort_sizer.add(&sort_label, 0, SizerFlag::All, 0);
     sort_sizer.add(&sort_choice, 0, SizerFlag::All, 0);
     sizer.add_sizer(&sort_sizer, 0, SizerFlag::All, 0);
-
-    // Give the results list its own label so screen readers don't fall back
-    // to the nearest preceding control (e.g. the sort combobox's label).
-    let results_label = StaticText::builder(&panel).with_label(&tr("Results")).build();
-    sizer.add(&results_label, 0, SizerFlag::All, 0);
-    let list = ListBox::builder(&panel).build();
-    list.set_name(&tr("Results"));
-    sizer.add(&list, 0, SizerFlag::All, 0);
 
     let button_sizer = BoxSizer::builder(Orientation::Horizontal).build();
     let add_button = Button::builder(&panel).with_label(&tr("&Add...")).build();
@@ -342,11 +348,39 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 11]) {
         exit_button.on_click(move |_| exit_app(&shell));
     }
 
-    // Escape (or Alt+F4) hides the window instead of closing the app.
+    // Escape hides the window instead of closing the app.
     bind_hide_on_escape(shell, &frame);
     bind_hide_on_escape(shell, &panel);
     bind_hide_on_escape(shell, &edit);
     bind_hide_on_escape(shell, &list);
+
+    // Hiding on KEY_DOWN leaves the follow-up CHAR event to reach the native
+    // single-line edit, which dings on an Escape it can't process. Swallow it.
+    edit.on_char(|event| {
+        if let WindowEventData::Keyboard(key_event) = &event {
+            if key_event.get_key_code() == Some(27) {
+                return;
+            }
+        }
+        event.skip(true);
+    });
+
+    // Alt+F4 and the title-bar close box send a vetoable close event; hide the
+    // window instead of quitting. A genuine exit (exit_app) forces the close
+    // with `close(true)`, which is not vetoable, so it falls through.
+    {
+        let shell = shell.clone();
+        frame.on_close(move |event| {
+            if let WindowEventData::General(close_event) = &event {
+                if close_event.can_veto() {
+                    close_event.veto();
+                    shell.borrow().frame.show(false);
+                    return;
+                }
+            }
+            event.skip(true);
+        });
+    }
 }
 
 fn bind_hide_on_escape<W: WindowEvents>(shell: &SharedShell, target: &W) {

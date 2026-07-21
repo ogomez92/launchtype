@@ -20,6 +20,46 @@ const ID_YES: i32 = wxdragon::id::ID_YES as i32;
 /// Model ids offered in the AI-model dropdown, in display order.
 const AI_MODEL_IDS: [&str; 3] = ["claude-opus-4-8", "claude-sonnet-5", "claude-haiku-4-5"];
 
+/// Exposes `label` as the accessible name of a control that would otherwise
+/// announce only its type.
+///
+/// wxWidgets is compiled with `wxUSE_ACCESSIBILITY`, so its generic
+/// `wxWindowAccessible::GetName` shadows native controls. Only `wxButton` reads
+/// its `GetLabel()`; every other control falls through to `wxWindow::GetName()`,
+/// the internal control name — `"check"`, `"text"`, `"choice"`, `"spinctrl"` —
+/// and that non-empty bogus name also suppresses the screen reader's fallback to
+/// the adjacent `StaticText`. Setting the window name to the (mnemonic-stripped)
+/// label is what makes assistive tech announce the control. Buttons don't need
+/// this; static-text labels stay as-is.
+fn ax_name<W: WxWidget>(ctrl: &W, label: &str) {
+    ctrl.set_name(&strip_mnemonics(label));
+}
+
+/// Builds a checkbox with its accessible name wired up. See [`ax_name`].
+fn checkbox(parent: &dyn WxWidget, label: &str) -> CheckBox {
+    let cb = CheckBox::builder(parent).with_label(label).build();
+    ax_name(&cb, label);
+    cb
+}
+
+/// Strips wx mnemonic markers so the accessible name reads naturally: a lone `&`
+/// marks the shortcut key and is dropped, while `&&` is a literal ampersand.
+fn strip_mnemonics(label: &str) -> String {
+    let mut out = String::with_capacity(label.len());
+    let mut chars = label.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '&' {
+            if chars.peek() == Some(&'&') {
+                out.push('&');
+                chars.next();
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 fn error_box(parent: &Dialog, text: &str, title: &str) {
     MessageDialog::builder(parent, text, title)
         .with_style(MessageDialogStyle::OK | MessageDialogStyle::IconError)
@@ -39,6 +79,7 @@ fn labeled_row(dialog: &Dialog, sizer: &BoxSizer, label: &str) -> TextCtrl {
     let row = BoxSizer::builder(Orientation::Horizontal).build();
     let text_label = StaticText::builder(dialog).with_label(label).build();
     let entry = TextCtrl::builder(dialog).build();
+    ax_name(&entry, label);
     row.add(&text_label, 0, SizerFlag::All, 0);
     row.add(&entry, 0, SizerFlag::All, 0);
     sizer.add_sizer(&row, 0, SizerFlag::All, 0);
@@ -47,8 +88,13 @@ fn labeled_row(dialog: &Dialog, sizer: &BoxSizer, label: &str) -> TextCtrl {
 
 fn ok_cancel_row(dialog: &Dialog, sizer: &BoxSizer) -> (Button, Button) {
     let row = BoxSizer::builder(Orientation::Horizontal).build();
-    let ok = Button::builder(dialog).with_label(&tr("&OK")).build();
-    let cancel = Button::builder(dialog).with_label(&tr("&Cancel")).build();
+    // Standard ids let wxDialog map Enter -> OK and Escape -> Cancel. Without
+    // ID_CANCEL on a button, pressing Escape does nothing.
+    let ok = Button::builder(dialog).with_id(ID_OK).with_label(&tr("&OK")).build();
+    let cancel = Button::builder(dialog)
+        .with_id(wxdragon::id::ID_CANCEL)
+        .with_label(&tr("&Cancel"))
+        .build();
     ok.set_default();
     row.add(&ok, 0, SizerFlag::All, 0);
     row.add(&cancel, 0, SizerFlag::All, 0);
@@ -84,6 +130,7 @@ pub fn command_edition_dialog(
     let path_row = BoxSizer::builder(Orientation::Horizontal).build();
     let path_label = StaticText::builder(&dialog).with_label(&tr("&Path to file:")).build();
     let path_entry = TextCtrl::builder(&dialog).build();
+    ax_name(&path_entry, &tr("&Path to file:"));
     let browse = Button::builder(&dialog).with_label(&tr("&Browse...")).build();
     path_row.add(&path_label, 0, SizerFlag::All, 0);
     path_row.add(&path_entry, 0, SizerFlag::All, 0);
@@ -93,7 +140,7 @@ pub fn command_edition_dialog(
     let args_entry = labeled_row(&dialog, &sizer, &tr("&Arguments (optional, comma separated):"));
     let name_entry = labeled_row(&dialog, &sizer, &tr("Display &Name:"));
     let shortcut_entry = labeled_row(&dialog, &sizer, &tr("&Shortcut (optional):"));
-    let admin_checkbox = CheckBox::builder(&dialog).with_label(&tr("Run as &administrator")).build();
+    let admin_checkbox = checkbox(&dialog, &tr("Run as &administrator"));
     sizer.add(&admin_checkbox, 0, SizerFlag::All, 0);
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
     dialog.set_sizer(sizer, true);
@@ -230,15 +277,13 @@ pub fn settings_dialog(
     let dialog = Dialog::builder(parent, &tr("Settings")).build();
     let sizer = BoxSizer::builder(Orientation::Vertical).build();
 
-    let sounds_cb = CheckBox::builder(&dialog).with_label(&tr("Enable &sounds")).build();
+    let sounds_cb = checkbox(&dialog, &tr("Enable &sounds"));
     sounds_cb.set_value(settings.settings.enable_sounds);
     sizer.add(&sounds_cb, 0, SizerFlag::All, 5);
-    let minimized_cb = CheckBox::builder(&dialog).with_label(&tr("Start &minimized")).build();
+    let minimized_cb = checkbox(&dialog, &tr("Start &minimized"));
     minimized_cb.set_value(settings.settings.start_minimized);
     sizer.add(&minimized_cb, 0, SizerFlag::All, 5);
-    let snippets_cb = CheckBox::builder(&dialog)
-        .with_label(&tr("Start in s&nippets mode when invoked"))
-        .build();
+    let snippets_cb = checkbox(&dialog, &tr("Start in s&nippets mode when invoked"));
     snippets_cb.set_value(settings.settings.snippets_on_invoke);
     sizer.add(&snippets_cb, 0, SizerFlag::All, 5);
 
@@ -246,6 +291,7 @@ pub fn settings_dialog(
     sizer.add(&steam_label, 0, SizerFlag::All, 5);
     let steam_row = BoxSizer::builder(Orientation::Horizontal).build();
     let steam_entry = TextCtrl::builder(&dialog).build();
+    ax_name(&steam_entry, &tr("Steam &library path:"));
     steam_entry.set_value(&settings.settings.steam_library);
     let browse = Button::builder(&dialog).with_label(&tr("&Browse...")).build();
     steam_row.add(&steam_entry, 1, SizerFlag::Expand, 5);
@@ -257,6 +303,7 @@ pub fn settings_dialog(
         .build();
     sizer.add(&ai_label, 0, SizerFlag::All, 5);
     let ai_choice = Choice::builder(&dialog).build();
+    ax_name(&ai_choice, &tr("AI model for screenshot descriptions:"));
     ai_choice.append(&tr("Claude Opus (best quality)"));
     ai_choice.append(&tr("Claude Sonnet (balanced)"));
     ai_choice.append(&tr("Claude Haiku (fastest, lightest)"));
@@ -318,6 +365,7 @@ fn sound_file_row(dialog: &Dialog, sizer: &BoxSizer) -> TextCtrl {
     let row = BoxSizer::builder(Orientation::Horizontal).build();
     let label = StaticText::builder(dialog).with_label(&tr("&Sound file (optional):")).build();
     let entry = TextCtrl::builder(dialog).build();
+    ax_name(&entry, &tr("&Sound file (optional):"));
     let browse = Button::builder(dialog).with_label(&tr("&Browse...")).build();
     row.add(&label, 0, SizerFlag::All, 0);
     row.add(&entry, 0, SizerFlag::All, 0);
@@ -351,13 +399,12 @@ pub fn add_timer_dialog(parent: &Frame, controller: &mut ModeController) -> bool
     let minutes_row = BoxSizer::builder(Orientation::Horizontal).build();
     let minutes_label = StaticText::builder(&dialog).with_label(&tr("&Minutes:")).build();
     let minutes_spin = SpinCtrl::builder(&dialog).with_min_value(1).with_max_value(1440).with_initial_value(5).build();
+    ax_name(&minutes_spin, &tr("&Minutes:"));
     minutes_row.add(&minutes_label, 0, SizerFlag::All, 0);
     minutes_row.add(&minutes_spin, 0, SizerFlag::All, 0);
     sizer.add_sizer(&minutes_row, 0, SizerFlag::All, 0);
 
-    let repeating_cb = CheckBox::builder(&dialog)
-        .with_label(&tr("&Repeating (fires every X minutes until disabled)"))
-        .build();
+    let repeating_cb = checkbox(&dialog, &tr("&Repeating (fires every X minutes until disabled)"));
     sizer.add(&repeating_cb, 0, SizerFlag::All, 0);
     let sound_entry = sound_file_row(&dialog, &sizer);
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
@@ -405,6 +452,7 @@ pub fn add_alarm_dialog(parent: &Frame, controller: &mut ModeController) -> bool
     let hour_row = BoxSizer::builder(Orientation::Horizontal).build();
     let hour_label = StaticText::builder(&dialog).with_label(&tr("&Hour (0-23):")).build();
     let hour_spin = SpinCtrl::builder(&dialog).with_min_value(0).with_max_value(23).with_initial_value(8).build();
+    ax_name(&hour_spin, &tr("&Hour (0-23):"));
     hour_row.add(&hour_label, 0, SizerFlag::All, 0);
     hour_row.add(&hour_spin, 0, SizerFlag::All, 0);
     sizer.add_sizer(&hour_row, 0, SizerFlag::All, 0);
@@ -412,6 +460,7 @@ pub fn add_alarm_dialog(parent: &Frame, controller: &mut ModeController) -> bool
     let minute_row = BoxSizer::builder(Orientation::Horizontal).build();
     let minute_label = StaticText::builder(&dialog).with_label(&tr("&Minute (0-59):")).build();
     let minute_spin = SpinCtrl::builder(&dialog).with_min_value(0).with_max_value(59).with_initial_value(0).build();
+    ax_name(&minute_spin, &tr("&Minute (0-59):"));
     minute_row.add(&minute_label, 0, SizerFlag::All, 0);
     minute_row.add(&minute_spin, 0, SizerFlag::All, 0);
     sizer.add_sizer(&minute_row, 0, SizerFlag::All, 0);
@@ -461,6 +510,7 @@ pub fn snippet_dialog(parent: &Frame, existing: Option<(String, String)>) -> boo
     let contents_entry = TextCtrl::builder(&dialog)
         .with_style(wxdragon::widgets::textctrl::TextCtrlStyle::MultiLine)
         .build();
+    ax_name(&contents_entry, &tr("Contents:"));
     sizer.add(&contents_entry, 1, SizerFlag::Expand, 0);
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
     dialog.set_sizer(sizer, true);

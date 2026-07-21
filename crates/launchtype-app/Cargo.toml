@@ -22,3 +22,6 @@ uuid.workspace = true
 gettext = "0.4"
 sys-locale = "0.3"
 env_logger = "0.11"
+
+[target.'cfg(windows)'.build-dependencies]
+embed-manifest = "1.4"
