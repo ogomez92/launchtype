@@ -40,6 +40,8 @@ pub enum ItemKind {
     Realtime { key: String },
     Stat,
     Region { r#box: [f64; 4] },
+    /// One line of SSH command output (or of the echoed command line).
+    SshOutput,
 }
 
 pub struct ModeController {
@@ -56,6 +58,8 @@ pub struct ModeController {
     /// Transient "explore regions" state: AI-space size + labeled boxes of
     /// the last capture (the full-res image itself lives in the shell).
     pub regions: Vec<(String, [f64; 4])>,
+    /// SSH mode transcript: every echoed command and output line so far.
+    pub ssh_output: Vec<String>,
 }
 
 impl ModeController {
@@ -80,6 +84,7 @@ impl ModeController {
             sounds,
             clock: Arc::new(SystemClock),
             regions: Vec::new(),
+            ssh_output: Vec::new(),
         }
     }
 
@@ -104,6 +109,9 @@ impl ModeController {
             UiMode::Notebrook => Vec::new(),
             UiMode::Realtime => self.realtime_items(search),
             UiMode::Stats => self.stats_items(),
+            // The input field holds the command being typed, so it must not
+            // filter the transcript away (same reasoning as screenshots mode).
+            UiMode::Ssh => self.ssh_items(),
             UiMode::Regions => self.region_items(search),
         }
     }
@@ -305,6 +313,18 @@ impl ModeController {
                 shortcut: String::new(),
                 id: String::new(),
                 kind: ItemKind::Stat,
+            })
+            .collect()
+    }
+
+    fn ssh_items(&self) -> Vec<Item> {
+        self.ssh_output
+            .iter()
+            .map(|line| Item {
+                name: line.clone(),
+                shortcut: String::new(),
+                id: String::new(),
+                kind: ItemKind::SshOutput,
             })
             .collect()
     }

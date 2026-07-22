@@ -987,3 +987,139 @@ msgstr "el área devuelta estaba vacía"
 #: launchtype
 msgid "Cropped {query} and copied it. Describing it, please wait"
 msgstr "Recortado {query} y copiado. Describiéndola, espera un momento"
+
+#: crates/launchtype-app/src
+msgid "&Language:"
+msgstr "I&dioma:"
+
+#: crates/launchtype-app/src
+msgid "Same as the system"
+msgstr "El mismo del sistema"
+
+#: crates/launchtype-app/src
+msgid "English"
+msgstr "Inglés"
+
+#: crates/launchtype-app/src
+msgid "Spanish"
+msgstr "Español"
+
+#: crates/launchtype-app/src
+msgid "Language changed"
+msgstr "Idioma cambiado"
+
+#: crates/launchtype-app/src
+msgid "The new language will be used the next time Launchtype starts."
+msgstr "El nuevo idioma se usará la próxima vez que se inicie Launchtype."
+
+#: crates/launchtype-app/src
+msgid "Co&mmands file:"
+msgstr "Archivo de co&mandos:"
+
+#: crates/launchtype-app/src
+msgid "B&rowse..."
+msgstr "E&xaminar..."
+
+#: crates/launchtype-app/src
+msgid "All files (*.*)|*.*"
+msgstr "Todos los archivos (*.*)|*.*"
+
+#: crates/launchtype-app/src
+msgid "Choose an SSH private key file"
+msgstr "Elige un archivo de clave privada SSH"
+
+#: crates/launchtype-app/src
+msgid "SSH mode: key authentication is used when a key file is set."
+msgstr "Modo SSH: se usa la autenticación por clave cuando hay un archivo de clave."
+
+#: crates/launchtype-app/src
+msgid "SSH &server:"
+msgstr "Ser&vidor SSH:"
+
+#: crates/launchtype-app/src
+msgid "SSH p&ort:"
+msgstr "Puert&o SSH:"
+
+#: crates/launchtype-app/src
+msgid "SSH &user name:"
+msgstr "Nombre de &usuario SSH:"
+
+#: crates/launchtype-app/src
+msgid "SSH private &key file (optional):"
+msgstr "Archivo de c&lave privada SSH (opcional):"
+
+#: crates/launchtype-app/src
+msgid "SSH pass&word (or key passphrase):"
+msgstr "Contraseña SSH (o &frase de la clave):"
+
+#: crates/launchtype-app/src
+msgid "SSH mode, type a command and press enter"
+msgstr "Modo SSH, escribe un comando y pulsa intro"
+
+#: crates/launchtype-app/src
+msgid "Now using {file}"
+msgstr "Ahora se usa {file}"
+
+#: crates/launchtype-app/src
+msgid "SSH is not configured"
+msgstr "SSH no está configurado"
+
+#: crates/launchtype-app/src
+msgid "Open Settings and fill in the SSH server, user, and either a key file or a password."
+msgstr "Abre Configuración y rellena el servidor SSH, el usuario y un archivo de clave o una contraseña."
+
+#: crates/launchtype-app/src
+msgid "Connecting to {host}"
+msgstr "Conectando con {host}"
+
+#: crates/launchtype-app/src
+msgid "Connected to {host}"
+msgstr "Conectado con {host}"
+
+#: crates/launchtype-app/src
+msgid "Could not connect"
+msgstr "No se ha podido conectar"
+
+#: crates/launchtype-app/src
+msgid "SSH error"
+msgstr "Error de SSH"
+
+#: crates/launchtype-app/src
+msgid "No command entered"
+msgstr "No se ha escrito ningún comando"
+
+#: crates/launchtype-app/src
+msgid "The previous command is still running"
+msgstr "El comando anterior todavía se está ejecutando"
+
+#: crates/launchtype-app/src
+msgid "Running {command}"
+msgstr "Ejecutando {command}"
+
+#: crates/launchtype-app/src
+msgid "{count} lines of output"
+msgstr "{count} líneas de salida"
+
+#: crates/launchtype-app/src
+msgid "The command produced no output"
+msgstr "El comando no ha devuelto nada"
+
+#: crates/launchtype-app/src
+msgid "The command failed"
+msgstr "El comando ha fallado"
+
+#: crates/launchtype-app/src
+msgid "The command wrote to standard error"
+msgstr "El comando ha escrito en la salida de errores"
+
+#: crates/launchtype-app/src
+msgid "The login scripts wrote to standard error"
+msgstr "Los scripts de inicio de sesión han escrito en la salida de errores"
+
+#: crates/launchtype-app/src
+msgid "Error output"
+msgstr "Salida de errores"
+
+#: crates/launchtype-app/src
+msgid "Line copied"
+msgstr "Línea copiada"

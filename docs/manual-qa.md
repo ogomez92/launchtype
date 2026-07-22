@@ -36,17 +36,41 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Screenshots: capture copies a pasteable FILE to the clipboard
       (paste into Explorer/Finder); describe/regions/grab flows speak results
 - [ ] UAC: run_as_admin command shows the elevation prompt
+- [ ] SSH: $ with nothing configured shows the "not configured" error and
+      drops back to commands mode
+- [ ] SSH: $ connects once (speaks "Connecting"/"Connected"); a command
+      returns one list row per output line and the cursor lands on the first
+- [ ] SSH: a command writing to stderr shows an alert with an OK button
+- [ ] SSH: typing does not re-read the transcript; Enter with an empty input
+      field copies the selected line
+- [ ] SSH: key auth with an OpenSSH key, with an encrypted key (password
+      field used as passphrase), and password-only auth
+- [ ] SSH: leaving and re-entering $ reuses the connection (no handshake)
+- [ ] SSH: `cd /tmp` then `pwd` prints /tmp (state persists across commands)
+- [ ] SSH: an alias defined in the remote ~/.zshrc or ~/.bashrc runs; a
+      login script that writes to stderr shows one alert right after
+      "Connected"
+- [ ] SSH: `exit` as a command shows the error alert, and the next command
+      reconnects
 
 ## Dialogs
 - [ ] Add/Edit/Copy command dialogs; OK on default button needs ONE click
 - [ ] Delete removes commands, timers, and alarms
 - [ ] Copy Args copies and speaks "Arguments copied" / "No arguments"
 - [ ] Settings dialog changes apply immediately (sounds toggle)
+- [ ] Settings: commands file combobox lists only commands-shaped JSONs;
+      switching reloads the list without a restart; a typed new name works
+- [ ] Settings: changing the SSH server drops the live connection
+- [ ] Settings: SSH password field is masked
 
 ## CLI flags
 - [ ] -q silences effect sounds (alerts still audible)
 - [ ] -m starts hidden; -s opens in snippets mode
 - [ ] -c uses an alternate commands file; -l an alternate Steam library
+- [ ] -c wins over the Settings commands file, and Settings does not
+      switch it out from under the flag
 
 ## Localization
 - [ ] Spanish system locale: UI labels, announcements, and AI answers in Spanish
+- [ ] Language setting: forcing English on a Spanish system (and the reverse)
+      takes effect after a restart, and says so when saved

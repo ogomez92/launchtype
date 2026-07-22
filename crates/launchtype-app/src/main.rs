@@ -8,6 +8,7 @@ mod dialogs;
 mod hotkey;
 mod shell;
 mod speech;
+mod ssh_flows;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -75,9 +76,15 @@ fn asset_dir(name: &str) -> PathBuf {
     PathBuf::from(name)
 }
 
-fn init_i18n() {
-    let lang = sys_locale::get_locale().unwrap_or_default();
-    let code: String = lang.chars().take_while(|c| c.is_ascii_alphabetic()).collect();
+/// Install the catalog for `language` (a settings value: `"system"`, or a
+/// language code). English never needs one — the msgid is the English text.
+fn init_i18n(language: &str) {
+    let code = if language == launchtype_core::settings::LANGUAGE_SYSTEM {
+        let lang = sys_locale::get_locale().unwrap_or_default();
+        lang.chars().take_while(|c| c.is_ascii_alphabetic()).collect::<String>()
+    } else {
+        language.to_string()
+    };
     if code.is_empty() || code == "en" {
         return;
     }
@@ -99,16 +106,20 @@ fn main() {
     // keeps every relative path (snippets/, screenshots/) Python-compatible.
     let _ = std::env::set_current_dir(data_dir());
 
-    init_i18n();
-
     let settings = SettingsStore::load("settings.json");
+    init_i18n(&settings.settings.language);
+
     let effective_start_minimized = cli.start_minimized || settings.settings.start_minimized;
     let effective_sounds = settings.settings.enable_sounds && !cli.quiet;
     let steam_library = cli
         .steam_library
         .clone()
         .unwrap_or_else(|| settings.settings.steam_library.clone());
-    let commands_file = cli.commands_file.clone().unwrap_or_else(|| "commands.json".into());
+    let commands_file_from_cli = cli.commands_file.is_some();
+    let commands_file = cli
+        .commands_file
+        .clone()
+        .unwrap_or_else(|| settings.settings.commands_file.clone());
 
     let sounds = Arc::new(SoundPlayer::new(asset_dir("sounds"), effective_sounds));
 
@@ -138,9 +149,15 @@ fn main() {
     let main_result = wxdragon::main(move |_| {
         speech::init_speech();
 
-        let shell =
-            shell::build_shell(controller, settings, sounds_for_ui.clone(), cli_snippets, cli_quiet);
-        ai_flows::set_active_shell(&shell);
+        let shell = shell::build_shell(
+            controller,
+            settings,
+            sounds_for_ui.clone(),
+            cli_snippets,
+            cli_quiet,
+            commands_file_from_cli,
+        );
+        shell::set_active_shell(&shell);
 
         // Background services: clipboard history + timer/alarm firing.
         {

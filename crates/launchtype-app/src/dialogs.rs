@@ -20,6 +20,10 @@ const ID_YES: i32 = wxdragon::id::ID_YES as i32;
 /// Model ids offered in the AI-model dropdown, in display order.
 const AI_MODEL_IDS: [&str; 3] = ["claude-opus-4-8", "claude-sonnet-5", "claude-haiku-4-5"];
 
+/// Language codes offered in the language dropdown, in display order.
+/// `"system"` follows the OS locale; the rest name a shipped catalog.
+const LANGUAGE_CODES: [&str; 3] = [launchtype_core::settings::LANGUAGE_SYSTEM, "en", "es"];
+
 /// Exposes `label` as the accessible name of a control that would otherwise
 /// announce only its type.
 ///
@@ -79,6 +83,20 @@ fn labeled_row(dialog: &Dialog, sizer: &BoxSizer, label: &str) -> TextCtrl {
     let row = BoxSizer::builder(Orientation::Horizontal).build();
     let text_label = StaticText::builder(dialog).with_label(label).build();
     let entry = TextCtrl::builder(dialog).build();
+    ax_name(&entry, label);
+    row.add(&text_label, 0, SizerFlag::All, 0);
+    row.add(&entry, 0, SizerFlag::All, 0);
+    sizer.add_sizer(&row, 0, SizerFlag::All, 0);
+    entry
+}
+
+/// Like [`labeled_row`], but the typed text is masked.
+fn labeled_password_row(dialog: &Dialog, sizer: &BoxSizer, label: &str) -> TextCtrl {
+    let row = BoxSizer::builder(Orientation::Horizontal).build();
+    let text_label = StaticText::builder(dialog).with_label(label).build();
+    let entry = TextCtrl::builder(dialog)
+        .with_style(wxdragon::widgets::textctrl::TextCtrlStyle::Password)
+        .build();
     ax_name(&entry, label);
     row.add(&text_label, 0, SizerFlag::All, 0);
     row.add(&entry, 0, SizerFlag::All, 0);
@@ -314,6 +332,73 @@ pub fn settings_dialog(
     ai_choice.set_selection(selected as u32);
     sizer.add(&ai_choice, 0, SizerFlag::Expand, 5);
 
+    let language_label = StaticText::builder(&dialog).with_label(&tr("&Language:")).build();
+    sizer.add(&language_label, 0, SizerFlag::All, 5);
+    let language_choice = Choice::builder(&dialog).build();
+    ax_name(&language_choice, &tr("&Language:"));
+    language_choice.append(&tr("Same as the system"));
+    language_choice.append(&tr("English"));
+    language_choice.append(&tr("Spanish"));
+    let language_index = LANGUAGE_CODES
+        .iter()
+        .position(|code| *code == settings.settings.language)
+        .unwrap_or(0);
+    language_choice.set_selection(language_index as u32);
+    sizer.add(&language_choice, 0, SizerFlag::Expand, 5);
+
+    // Every commands-shaped JSON sitting next to the app, plus whatever is
+    // configured, so a missing file is still shown rather than silently lost.
+    let commands_label = StaticText::builder(&dialog).with_label(&tr("Co&mmands file:")).build();
+    sizer.add(&commands_label, 0, SizerFlag::All, 5);
+    let commands_combo = ComboBox::builder(&dialog).build();
+    ax_name(&commands_combo, &tr("Co&mmands file:"));
+    let mut found = launchtype_core::model::commands_files_in(std::path::Path::new("."));
+    if !found.iter().any(|name| *name == settings.settings.commands_file) {
+        found.insert(0, settings.settings.commands_file.clone());
+    }
+    for name in &found {
+        commands_combo.append(name);
+    }
+    commands_combo.set_value(&settings.settings.commands_file);
+    sizer.add(&commands_combo, 0, SizerFlag::Expand, 5);
+
+    let ssh_label = StaticText::builder(&dialog)
+        .with_label(&tr("SSH mode: key authentication is used when a key file is set."))
+        .build();
+    sizer.add(&ssh_label, 0, SizerFlag::All, 5);
+    let ssh_host_entry = labeled_row(&dialog, &sizer, &tr("SSH &server:"));
+    ssh_host_entry.set_value(&settings.settings.ssh_host);
+    let ssh_port_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let ssh_port_label = StaticText::builder(&dialog).with_label(&tr("SSH p&ort:")).build();
+    let ssh_port_spin = SpinCtrl::builder(&dialog)
+        .with_min_value(1)
+        .with_max_value(65535)
+        .with_initial_value(settings.settings.ssh_port as i32)
+        .build();
+    ax_name(&ssh_port_spin, &tr("SSH p&ort:"));
+    ssh_port_row.add(&ssh_port_label, 0, SizerFlag::All, 0);
+    ssh_port_row.add(&ssh_port_spin, 0, SizerFlag::All, 0);
+    sizer.add_sizer(&ssh_port_row, 0, SizerFlag::All, 5);
+    let ssh_user_entry = labeled_row(&dialog, &sizer, &tr("SSH &user name:"));
+    ssh_user_entry.set_value(&settings.settings.ssh_user);
+
+    let ssh_key_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let ssh_key_label = StaticText::builder(&dialog)
+        .with_label(&tr("SSH private &key file (optional):"))
+        .build();
+    let ssh_key_entry = TextCtrl::builder(&dialog).build();
+    ax_name(&ssh_key_entry, &tr("SSH private &key file (optional):"));
+    ssh_key_entry.set_value(&settings.settings.ssh_key_path);
+    let ssh_key_browse = Button::builder(&dialog).with_label(&tr("B&rowse...")).build();
+    ssh_key_row.add(&ssh_key_label, 0, SizerFlag::All, 0);
+    ssh_key_row.add(&ssh_key_entry, 1, SizerFlag::Expand, 0);
+    ssh_key_row.add(&ssh_key_browse, 0, SizerFlag::All, 0);
+    sizer.add_sizer(&ssh_key_row, 0, SizerFlag::Expand, 5);
+
+    let ssh_password_entry =
+        labeled_password_row(&dialog, &sizer, &tr("SSH pass&word (or key passphrase):"));
+    ssh_password_entry.set_value(&settings.settings.ssh_password);
+
     let hint = StaticText::builder(&dialog)
         .with_label(&tr("Command line flags override these settings for the current run."))
         .build();
@@ -340,6 +425,21 @@ pub fn settings_dialog(
     }
     {
         let dialog = dialog;
+        ssh_key_browse.on_click(move |_| {
+            let file_dialog = FileDialog::builder(&dialog)
+                .with_message(&tr("Choose an SSH private key file"))
+                .with_wildcard(&tr("All files (*.*)|*.*"))
+                .with_style(FileDialogStyle::Open | FileDialogStyle::FileMustExist)
+                .build();
+            if file_dialog.show_modal() == ID_OK {
+                if let Some(path) = file_dialog.get_path() {
+                    ssh_key_entry.set_value(&path);
+                }
+            }
+        });
+    }
+    {
+        let dialog = dialog;
         ok.on_click(move |_| dialog.end_modal(ID_OK));
     }
     {
@@ -351,13 +451,40 @@ pub fn settings_dialog(
         return false;
     }
 
+    let language_before = settings.settings.language.clone();
     settings.settings.enable_sounds = sounds_cb.get_value();
     settings.settings.start_minimized = minimized_cb.get_value();
     settings.settings.snippets_on_invoke = snippets_cb.get_value();
     settings.settings.steam_library = steam_entry.get_value();
     let ai_index = ai_choice.get_selection().unwrap_or(0) as usize;
     settings.settings.ai_model = AI_MODEL_IDS[ai_index.min(AI_MODEL_IDS.len() - 1)].to_string();
+    let language_index = language_choice.get_selection().unwrap_or(0) as usize;
+    settings.settings.language =
+        LANGUAGE_CODES[language_index.min(LANGUAGE_CODES.len() - 1)].to_string();
+    // An empty box means "keep the current file" rather than "no commands".
+    let commands_file = commands_combo.get_value().trim().to_string();
+    if !commands_file.is_empty() {
+        settings.settings.commands_file = commands_file;
+    }
+    settings.settings.ssh_host = ssh_host_entry.get_value().trim().to_string();
+    settings.settings.ssh_port = ssh_port_spin.value().clamp(1, 65535) as u16;
+    settings.settings.ssh_user = ssh_user_entry.get_value().trim().to_string();
+    settings.settings.ssh_key_path = ssh_key_entry.get_value().trim().to_string();
+    settings.settings.ssh_password = ssh_password_entry.get_value();
     let _ = settings.save();
+
+    // The window and its labels were built in the old language, so a live
+    // catalog swap would only half apply.
+    if settings.settings.language != language_before {
+        MessageDialog::builder(
+            parent,
+            &tr("The new language will be used the next time Launchtype starts."),
+            &tr("Language changed"),
+        )
+        .with_style(MessageDialogStyle::OK | MessageDialogStyle::IconInformation)
+        .build()
+        .show_modal();
+    }
     true
 }
 

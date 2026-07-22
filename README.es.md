@@ -101,6 +101,9 @@ El botón Ajustes de la interfaz abre un diálogo donde puedes guardar estas pre
 - Arrancar en modo sustituciones al invocar
 - Ruta de la biblioteca de Steam
 - Modelo de IA para las descripciones de capturas (Claude Opus, Sonnet o Haiku)
+- Idioma de la interfaz (el mismo del sistema, inglés o español); se aplica al reiniciar la aplicación
+- Archivo de comandos: una lista desplegable con todos los `.json` con forma de comandos que hay junto a la aplicación, para mantener conjuntos separados (trabajo, casa, un juego) y cambiar entre ellos sin reiniciar. También puedes escribir un nombre nuevo para empezar uno desde cero.
+- Servidor, puerto, usuario, archivo de clave privada y contraseña de SSH, que usa el modo SSH
 
 Los parámetros de línea de comandos tienen prioridad sobre estos ajustes durante la ejecución actual (por ejemplo, pasando `-q` se desactivan los sonidos aunque el ajuste esté habilitado, y pasando `-m` se arranca minimizado aunque el ajuste esté desactivado).
 
@@ -260,6 +263,16 @@ LibreHardwareMonitor es un monitor de hardware gratuito y de código abierto. La
 
 OpenHardwareMonitor (el proyecto anterior del que deriva) también funciona — activa su *Remote Web Server* (mismo puerto por defecto 8085) y Launchtype lo leerá igualmente.
 
+## Modo SSH
+
+Escribe `$` en el campo de entrada para abrir una consola remota en el servidor configurado en Ajustes. Launchtype se conecta una vez y mantiene la conexión abierta, así que solo el primer comando paga el coste del saludo inicial.
+
+La autenticación prefiere el archivo de clave privada cuando hay uno configurado, en cualquier formato que acepte OpenSSH, incluidos `-----BEGIN OPENSSH PRIVATE KEY-----` y las claves RSA en PEM antiguas. Si la clave está protegida con una frase de contraseña, se prueba el campo de contraseña como esa frase. Sin archivo de clave, la contraseña se usa para autenticación por contraseña.
+
+Escribe un comando y pulsa intro. La salida estándar vuelve como un elemento de lista por línea, que puedes recorrer con las flechas; pulsar intro sobre una línea con el campo de entrada vacío copia esa línea al portapapeles. Todo lo que el comando haya escrito en la salida de errores se muestra en un aviso con un botón Aceptar.
+
+Todos los comandos se ejecutan en una única consola de inicio de sesión persistente, así que `cd`, las variables exportadas y todo lo que configuren tus scripts de inicio se conserva entre comandos. Al conectar, Launchtype también carga `~/.zshrc` o `~/.bashrc` (con la expansión de alias activada), de modo que los alias y las rutas añadidas al PATH de tu configuración interactiva también funcionan; todo lo que esos scripts escriban en la salida de errores se muestra una vez en un aviso. Una excepción: un `.bashrc` que empiece con una comprobación de interactividad (`case $- in *i*) ;; *) return;; esac`, habitual en Debian y Ubuntu) se sigue saltando a sí mismo; coloca los alias que quieras usar en Launchtype antes de esa comprobación. Sigue sin haber un terminal: los programas que piden datos por teclado o dibujan pantallas completas (vim, top) no funcionarán.
+
 ## Estadísticas de uso
 
 El modo de estadísticas se abre escribiendo `!` (signo de exclamación) en la caja. Es una lista de solo lectura que muestra cuántos comandos has ejecutado en total, tus 10 comandos más usados y los 10 menos usados.
@@ -290,6 +303,7 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `#` | Notebrook | Publicar una nota rápida en tu Notebrook |
 | `+` | Datos en tiempo real | Leer en voz alta precios, tiempo, titulares y temperaturas del ordenador |
 | `!` | Estadísticas | Comandos más y menos usados |
+| `$` | SSH | Ejecuta comandos en un servidor remoto y lee la salida |
 | `.` | (cualquier modo) | Volver al modo Comandos |
 
 ## Retroalimentación de audio

@@ -13,6 +13,7 @@ pub mod scheduler;
 pub mod screenshot;
 pub mod snippets;
 pub mod sounds;
+pub mod ssh;
 pub mod steam;
 pub mod stores;
 

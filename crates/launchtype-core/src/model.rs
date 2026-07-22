@@ -67,6 +67,28 @@ impl CommandsFile {
     }
 }
 
+/// File names in `dir` that parse as a commands document, sorted
+/// alphabetically. Used by Settings to offer the switchable commands files
+/// sitting next to the app; `settings.json`, `timers.json` and friends are
+/// excluded simply by not having a `"commands"` array.
+pub fn commands_files_in(dir: &std::path::Path) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
+    let mut names: Vec<String> = entries
+        .flatten()
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "json"))
+        .filter(|entry| {
+            std::fs::read_to_string(entry.path())
+                .ok()
+                .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+                .and_then(|value| value.get("commands").map(|c| c.is_array()))
+                .unwrap_or(false)
+        })
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    names
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -101,5 +123,18 @@ mod tests {
         // total_runs unconditionally).
         file.record_run("nope");
         assert_eq!(file.total_runs, Some(19));
+    }
+
+    #[test]
+    fn commands_files_are_detected_by_shape_not_by_name() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("work.json"), SAMPLE).unwrap();
+        std::fs::write(dir.path().join("commands.json"), r#"{"commands": []}"#).unwrap();
+        std::fs::write(dir.path().join("settings.json"), r#"{"enable_sounds": true}"#).unwrap();
+        std::fs::write(dir.path().join("timers.json"), "[]").unwrap();
+        std::fs::write(dir.path().join("broken.json"), "{not json").unwrap();
+        std::fs::write(dir.path().join("notes.txt"), SAMPLE).unwrap();
+
+        assert_eq!(commands_files_in(dir.path()), vec!["commands.json", "work.json"]);
     }
 }

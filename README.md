@@ -101,6 +101,9 @@ The Settings button in the UI opens a dialog where you can persist the following
 - Start in snippets mode when invoked
 - Steam library path
 - AI model used for screenshot descriptions (Claude Opus, Sonnet or Haiku)
+- Interface language (same as the system, English or Spanish) — applied the next time the app starts
+- Commands file — a dropdown of every commands-shaped `.json` sitting next to the app, so you can keep separate sets (work, home, a game) and switch between them without restarting. You can also type a new name to start a fresh one.
+- SSH server, port, user name, private key file and password, used by SSH mode
 
 Command line flags override these persisted settings for the current run (for example, passing `-q` disables sounds even if the setting is enabled, and passing `-m` starts minimized even if the setting is off).
 
@@ -260,6 +263,16 @@ LibreHardwareMonitor is a free, open-source hardware monitor. Launchtype does no
 
 OpenHardwareMonitor (the older project it was forked from) also works — turn on its *Remote Web Server* (same default port 8085) and Launchtype will read it too.
 
+## SSH mode
+
+Type `$` in the input field to open a remote shell on the server configured in Settings. Launchtype connects once and keeps the connection alive, so only the first command pays for the handshake.
+
+Authentication prefers the private key file when one is set — any format OpenSSH accepts, including `-----BEGIN OPENSSH PRIVATE KEY-----` and older RSA PEM keys. If the key is passphrase-protected, the password field is tried as its passphrase. With no key file, the password is used for password authentication.
+
+Type a command and press Enter. Standard output comes back as one list item per line, which you can arrow through; pressing Enter on a line with an empty input field copies that line to the clipboard. Anything the command wrote to standard error is shown in an alert with an OK button.
+
+All commands run in a single persistent login shell, so `cd`, exported variables and anything your login scripts set up carry over between commands. On connect Launchtype also sources `~/.zshrc` or `~/.bashrc` (with alias expansion enabled), so aliases and PATH additions from your interactive setup work too; anything those scripts write to standard error is shown once as an alert. One exception: a `.bashrc` that begins with an interactivity guard (`case $- in *i*) ;; *) return;; esac`, common on Debian and Ubuntu) still skips itself — put the aliases you want in Launchtype above that guard. There is still no terminal attached — programs that prompt for input or draw full screens (vim, top) will not work.
+
 ## Usage stats
 
 Stats mode can be accessed by pressing `!` (exclamation mark) in the input field. It is a read-only list showing how many commands you have run in total, your 10 most used commands and your 10 least used ones.
@@ -290,6 +303,7 @@ The app has several modes, each accessed by typing a special character in the in
 | `#` | Notebrook | Post a quick note to your Notebrook |
 | `+` | Realtime data | Speak live prices, weather, news headlines and computer temperatures |
 | `!` | Stats | Most and least used commands |
+| `$` | SSH | Run commands on a remote server and read the output |
 | `.` | (any mode) | Return to Commands mode |
 
 ## Audio Feedback

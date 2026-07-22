@@ -19,6 +19,8 @@ base64 = "0.22"
 dirs = "6"
 xcap = "0.8"
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
+russh = { version = "0.62", default-features = false, features = ["ring", "rsa", "flate2"] }
+tokio = { version = "1", default-features = false, features = ["rt", "net", "time", "io-util", "sync"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = [

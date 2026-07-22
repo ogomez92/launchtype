@@ -13,6 +13,7 @@ use launchtype_services::poller::ClipboardPoller;
 use launchtype_services::runner::run_command;
 use launchtype_services::scheduler::Scheduler;
 use launchtype_services::sounds::SoundPlayer;
+use launchtype_services::ssh::SshSession;
 use launchtype_services::{clipboard, notebrook, steam};
 use wxdragon::prelude::*;
 
@@ -36,6 +37,13 @@ pub struct Shell {
     pub sounds: Arc<SoundPlayer>,
     cli_snippets_on_invoke: bool,
     pub cli_quiet: bool,
+    /// `-c/--commands` was given, so the Settings commands-file picker must
+    /// not fight the command line for the rest of this run.
+    pub commands_file_from_cli: bool,
+    /// Live SSH connection for `$` mode, kept between commands.
+    pub ssh: Option<SshSession>,
+    /// A command is in flight; the next Enter is ignored rather than queued.
+    pub ssh_busy: bool,
     pub poller: Option<ClipboardPoller>,
     pub scheduler: Option<Scheduler>,
     /// Transient "explore regions" state: the full-resolution capture and
@@ -45,6 +53,25 @@ pub struct Shell {
 }
 
 pub type SharedShell = Rc<RefCell<Shell>>;
+
+thread_local! {
+    static ACTIVE_SHELL: RefCell<Option<SharedShell>> = const { RefCell::new(None) };
+}
+
+/// Register the shell for cross-thread completions (main thread only).
+/// Background workers marshal back with `wxdragon::call_after` and reach the
+/// shell through [`with_shell`], because `Rc` handles cannot cross threads.
+pub fn set_active_shell(shell: &SharedShell) {
+    ACTIVE_SHELL.with(|slot| *slot.borrow_mut() = Some(shell.clone()));
+}
+
+pub fn with_shell(f: impl FnOnce(&SharedShell)) {
+    ACTIVE_SHELL.with(|slot| {
+        if let Some(shell) = slot.borrow().clone() {
+            f(&shell);
+        }
+    });
+}
 
 impl Shell {
     fn snippets_on_invoke(&self) -> bool {
@@ -58,6 +85,7 @@ pub fn build_shell(
     sounds: Arc<SoundPlayer>,
     cli_snippets_on_invoke: bool,
     cli_quiet: bool,
+    commands_file_from_cli: bool,
 ) -> SharedShell {
     let frame = Frame::builder().with_title("Launchtype").build();
     let panel = Panel::builder(&frame).build();
@@ -134,6 +162,9 @@ pub fn build_shell(
         sounds,
         cli_snippets_on_invoke,
         cli_quiet,
+        commands_file_from_cli,
+        ssh: None,
+        ssh_busy: false,
         poller: None,
         scheduler: None,
         screenshot_image: None,
@@ -283,13 +314,36 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 11]) {
     {
         let shell = shell.clone();
         settings_button.on_click(move |_| {
-            let mut s = shell.borrow_mut();
-            let frame = s.frame;
-            let saved = crate::dialogs::settings_dialog(&frame, &mut s.settings);
-            if saved {
-                s.sounds
-                    .set_enabled(s.settings.settings.enable_sounds && !s.cli_quiet);
+            {
+                let mut s = shell.borrow_mut();
+                let frame = s.frame;
+                let before = s.settings.settings.clone();
+                if !crate::dialogs::settings_dialog(&frame, &mut s.settings) {
+                    return;
+                }
+                let after = s.settings.settings.clone();
+                s.sounds.set_enabled(after.enable_sounds && !s.cli_quiet);
+                // A different commands file takes effect immediately, unless
+                // -c pinned one for this run.
+                if after.commands_file != before.commands_file && !s.commands_file_from_cli {
+                    s.controller.commands =
+                        launchtype_services::stores::CommandsStore::load(&after.commands_file);
+                    speak_now(
+                        &format_args(
+                            &tr("Now using {file}"),
+                            &[("file", Arg::Str(&after.commands_file))],
+                        ),
+                        true,
+                    );
+                }
+                // Re-point SSH mode at the new server on its next use.
+                if crate::ssh_flows::config_changed(&before, &after) {
+                    s.ssh = None;
+                    s.ssh_busy = false;
+                    s.controller.ssh_output.clear();
+                }
             }
+            update_list(&shell);
         });
     }
     {
@@ -354,17 +408,6 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 11]) {
     bind_hide_on_escape(shell, &edit);
     bind_hide_on_escape(shell, &list);
 
-    // Hiding on KEY_DOWN leaves the follow-up CHAR event to reach the native
-    // single-line edit, which dings on an Escape it can't process. Swallow it.
-    edit.on_char(|event| {
-        if let WindowEventData::Keyboard(key_event) = &event {
-            if key_event.get_key_code() == Some(27) {
-                return;
-            }
-        }
-        event.skip(true);
-    });
-
     // Alt+F4 and the title-bar close box send a vetoable close event; hide the
     // window instead of quitting. A genuine exit (exit_app) forces the close
     // with `close(true)`, which is not vetoable, so it falls through.
@@ -383,17 +426,35 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 11]) {
     }
 }
 
+/// Escape hides the window, and its beep is silenced.
+///
+/// Handling only KEY_DOWN is not enough: Windows still translates the key
+/// press into a WM_CHAR, and every native control that cannot use Escape —
+/// the edit *and* the list — answers it with a MessageBeep. Both events have
+/// to be eaten, on every window that can hold the focus, which is why this is
+/// bound to the frame, the panel, the edit and the list alike.
 fn bind_hide_on_escape<W: WindowEvents>(shell: &SharedShell, target: &W) {
     let shell = shell.clone();
     target.on_key_down(move |event| {
-        if let WindowEventData::Keyboard(key_event) = &event {
-            if key_event.get_key_code() == Some(27) {
-                shell.borrow().frame.show(false);
-                return;
-            }
+        if is_escape(&event) {
+            shell.borrow().frame.show(false);
+            return;
         }
         event.skip(true);
     });
+    target.on_char(|event| {
+        if is_escape(&event) {
+            return;
+        }
+        event.skip(true);
+    });
+}
+
+fn is_escape(event: &WindowEventData) -> bool {
+    match event {
+        WindowEventData::Keyboard(key_event) => key_event.get_key_code() == Some(27),
+        _ => false,
+    }
 }
 
 pub fn toggle_visibility(shell: &SharedShell) {
@@ -421,6 +482,8 @@ pub fn toggle_visibility(shell: &SharedShell) {
 
 pub fn update_list(shell: &SharedShell) {
     let mut s = shell.borrow_mut();
+    // Connecting needs the shell unborrowed, so it waits until the end.
+    let mut entered_ssh = false;
 
     // Trigger characters switch modes and are consumed.
     let value = s.edit.get_value();
@@ -437,12 +500,14 @@ pub fn update_list(shell: &SharedShell) {
                 UiMode::Notebrook => tr("Notebrook new note mode, type your note and press enter"),
                 UiMode::Realtime => tr("realtime data mode"),
                 UiMode::Stats => tr("statistics mode"),
+                UiMode::Ssh => tr("SSH mode, type a command and press enter"),
                 UiMode::Regions => unreachable!("no trigger char"),
             };
             speak_now(&announcement, true);
             match new_mode {
                 UiMode::Snippets => s.controller.reload_snippets(),
                 UiMode::Steam => s.controller.rescan_steam(),
+                UiMode::Ssh => entered_ssh = true,
                 _ => {}
             }
             s.mode = new_mode;
@@ -476,7 +541,10 @@ pub fn update_list(shell: &SharedShell) {
         s.list.append(&label);
     }
 
-    if !s.items.is_empty() {
+    // In SSH mode the input field holds the command being typed, not a
+    // search: jumping the selection back to the top of the transcript and
+    // reading it out on every keystroke would be useless noise.
+    if !s.items.is_empty() && mode != UiMode::Ssh {
         s.list.set_selection(0, true);
         if !value.is_empty() {
             let count = s.items.len();
@@ -491,12 +559,21 @@ pub fn update_list(shell: &SharedShell) {
             }
         }
     }
+
+    drop(s);
+    if entered_ssh {
+        crate::ssh_flows::enter_ssh_mode(shell);
+    }
 }
 
 pub fn run_clicked(shell: &SharedShell) {
     let mode = shell.borrow().mode;
     if mode == UiMode::Notebrook {
         send_notebrook_note(shell);
+        return;
+    }
+    if mode == UiMode::Ssh {
+        crate::ssh_flows::run_ssh_command(shell);
         return;
     }
 

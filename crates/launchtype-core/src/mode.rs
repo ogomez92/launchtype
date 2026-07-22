@@ -13,6 +13,9 @@ pub enum UiMode {
     Notebrook,
     Realtime,
     Stats,
+    /// Remote shell over SSH: the input field holds the command, the results
+    /// list holds the output lines.
+    Ssh,
     /// Entered programmatically after "explore regions" analysis, not by a
     /// trigger character: lists the AI-detected regions of the last screenshot.
     Regions,
@@ -33,6 +36,7 @@ impl UiMode {
             '#' => UiMode::Notebrook,
             '+' => UiMode::Realtime,
             '!' => UiMode::Stats,
+            '$' => UiMode::Ssh,
             _ => return None,
         })
     }
@@ -54,6 +58,7 @@ mod tests {
         assert_eq!(UiMode::from_trigger_char('#'), Some(UiMode::Notebrook));
         assert_eq!(UiMode::from_trigger_char('+'), Some(UiMode::Realtime));
         assert_eq!(UiMode::from_trigger_char('!'), Some(UiMode::Stats));
+        assert_eq!(UiMode::from_trigger_char('$'), Some(UiMode::Ssh));
         assert_eq!(UiMode::from_trigger_char('a'), None);
         assert_eq!(UiMode::from_trigger_char(' '), None);
     }

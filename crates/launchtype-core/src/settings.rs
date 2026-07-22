@@ -17,6 +17,11 @@ pub const DEFAULT_STEAM_LIBRARY: &str = "~/.steam/steam/steamapps";
 
 pub const DEFAULT_AI_MODEL: &str = "claude-opus-4-8";
 
+/// `language` value meaning "follow the operating system locale".
+pub const LANGUAGE_SYSTEM: &str = "system";
+
+pub const DEFAULT_SSH_PORT: u16 = 22;
+
 /// Field order mirrors the Python DEFAULTS dict so the saved file keeps the
 /// same key order.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -33,7 +38,22 @@ pub struct Settings {
     pub ai_model: String,
     /// Commands mode sort order: false = last modified (default), true = by uses.
     pub command_sort_by_uses: bool,
+    /// UI language: `"system"` follows the OS locale, otherwise a catalog code
+    /// such as `"en"` or `"es"`. Applied at startup.
+    pub language: String,
+    /// Active commands file, relative to the app folder. Switchable from
+    /// Settings; the `-c` command line flag overrides it for the current run.
+    pub commands_file: String,
+    /// SSH mode ($) target. The key is preferred over the password; when both
+    /// are set the password is also tried as the key's passphrase.
+    pub ssh_host: String,
+    pub ssh_port: u16,
+    pub ssh_user: String,
+    pub ssh_key_path: String,
+    pub ssh_password: String,
 }
+
+pub const DEFAULT_COMMANDS_FILE: &str = "commands.json";
 
 impl Default for Settings {
     fn default() -> Self {
@@ -46,7 +66,23 @@ impl Default for Settings {
             notebrook_token: String::new(),
             ai_model: DEFAULT_AI_MODEL.to_string(),
             command_sort_by_uses: false,
+            language: LANGUAGE_SYSTEM.to_string(),
+            commands_file: DEFAULT_COMMANDS_FILE.to_string(),
+            ssh_host: String::new(),
+            ssh_port: DEFAULT_SSH_PORT,
+            ssh_user: String::new(),
+            ssh_key_path: String::new(),
+            ssh_password: String::new(),
         }
+    }
+}
+
+impl Settings {
+    /// True when SSH mode has enough configuration to attempt a connection.
+    pub fn ssh_configured(&self) -> bool {
+        !self.ssh_host.trim().is_empty()
+            && !self.ssh_user.trim().is_empty()
+            && (!self.ssh_key_path.trim().is_empty() || !self.ssh_password.is_empty())
     }
 }
 
@@ -116,6 +152,22 @@ mod tests {
         let text = std::fs::read_to_string(&path).unwrap();
         assert!(!text.contains("mystery_key"));
         assert!(text.contains("\"enable_sounds\": false"));
+    }
+
+    #[test]
+    fn ssh_needs_a_host_a_user_and_one_credential() {
+        let mut settings = Settings::default();
+        assert!(!settings.ssh_configured());
+        settings.ssh_host = "example.com".into();
+        settings.ssh_user = "me".into();
+        assert!(!settings.ssh_configured(), "no key and no password");
+        settings.ssh_password = "hunter2".into();
+        assert!(settings.ssh_configured());
+        settings.ssh_password.clear();
+        settings.ssh_key_path = "id_ed25519".into();
+        assert!(settings.ssh_configured(), "a key alone is enough");
+        settings.ssh_user = "   ".into();
+        assert!(!settings.ssh_configured(), "a blank user is no user");
     }
 
     #[test]

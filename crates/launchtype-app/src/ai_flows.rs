@@ -1,10 +1,8 @@
 //! Screenshot AI flows (describe / explore regions / grab specific region) —
 //! port of the AI half of `ui_manager.py`. Workers run on plain threads and
 //! marshal results back with `wxdragon::call_after`; the shell is reached
-//! from those closures via the main-thread [`with_shell`] registry, because
-//! `Rc` handles cannot cross threads.
-
-use std::cell::RefCell;
+//! from those closures via the main-thread registry in [`crate::shell`],
+//! because `Rc` handles cannot cross threads.
 
 use launchtype_core::i18n::{format_args, tr, Arg};
 use wxdragon::prelude::WxWidget;
@@ -12,25 +10,8 @@ use launchtype_core::mode::UiMode;
 use launchtype_services::screenshot::{self, RgbaImage};
 use launchtype_services::sounds::SoundPlayer;
 
-use crate::shell::{update_list, SharedShell};
+use crate::shell::{update_list, with_shell, SharedShell};
 use crate::speech::speak_now;
-
-thread_local! {
-    static ACTIVE_SHELL: RefCell<Option<SharedShell>> = const { RefCell::new(None) };
-}
-
-/// Register the shell for cross-thread completions (main thread only).
-pub fn set_active_shell(shell: &SharedShell) {
-    ACTIVE_SHELL.with(|slot| *slot.borrow_mut() = Some(shell.clone()));
-}
-
-fn with_shell(f: impl FnOnce(&SharedShell)) {
-    ACTIVE_SHELL.with(|slot| {
-        if let Some(shell) = slot.borrow().clone() {
-            f(&shell);
-        }
-    });
-}
 
 /// Localized prompt asking the AI to describe a screenshot for a blind user.
 /// Its translation also sets the language the AI answers in.
