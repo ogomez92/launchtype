@@ -574,6 +574,10 @@ msgstr "semana al {percent} por ciento"
 msgid "opus week at {percent} percent"
 msgstr "semana de opus al {percent} por ciento"
 
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "{model} week at {percent} percent"
+msgstr "semana de {model} al {percent} por ciento"
+
 #: src/services/realtime_service.py
 msgid "Claude usage: {parts}"
 msgstr "Uso de Claude: {parts}"

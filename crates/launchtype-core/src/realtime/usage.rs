@@ -120,12 +120,45 @@ where
         });
     }
 
+    let mut scoped: Vec<String> = Vec::new();
     if let Some(value) = utilization(body.get("seven_day_opus")) {
         let percent = format_number(python_float(value).ok_or(RealtimeError::NotUnderstood)?, 0);
+        scoped.push("opus".to_string());
         parts.push(format_args(
             &tr("opus week at {percent} percent"),
             &[("percent", Arg::Str(&percent))],
         ));
+    }
+
+    // Newer responses report the per-model weekly cap (Fable, Opus, …) as a
+    // `weekly_scoped` entry in `limits` instead of its own top-level section,
+    // so the dedicated sections above can be null while this one is live.
+    for limit in body.get("limits").and_then(Value::as_array).map_or(&[][..], Vec::as_slice) {
+        if limit.get("kind").and_then(Value::as_str) != Some("weekly_scoped") {
+            continue;
+        }
+        let Some(model) = limit
+            .pointer("/scope/model/display_name")
+            .and_then(Value::as_str)
+            .filter(|name| !name.is_empty())
+            .map(str::to_lowercase)
+        else {
+            continue;
+        };
+        let Some(percent) = limit.get("percent").and_then(python_float) else {
+            continue;
+        };
+        if scoped.contains(&model) {
+            continue;
+        }
+        parts.push(format_args(
+            &tr("{model} week at {percent} percent"),
+            &[
+                ("model", Arg::Str(&model)),
+                ("percent", Arg::Str(&format_number(percent, 0))),
+            ],
+        ));
+        scoped.push(model);
     }
 
     if parts.is_empty() {
@@ -257,6 +290,65 @@ mod tests {
             "Claude usage: session at 42 percent, resets at 20:30, \
              week at 81 percent, resets on 24/07 12:00, opus week at 12 percent"
         );
+    }
+
+    #[test]
+    fn claude_scoped_weekly_limit_is_reported() {
+        // The live shape: dedicated model sections null, the model cap in `limits`.
+        let body = r#"{
+            "five_hour": {"utilization": 14, "resets_at": "2026-07-21T18:00:00+00:00"},
+            "seven_day": {"utilization": 40, "resets_at": "2026-07-23T21:00:00+00:00"},
+            "seven_day_opus": null,
+            "limits": [
+                {"kind": "session", "percent": 14},
+                {"kind": "weekly_all", "percent": 40},
+                {"kind": "weekly_scoped", "percent": 47,
+                 "scope": {"model": {"id": null, "display_name": "Fable"}, "surface": null}}
+            ]
+        }"#;
+        assert_eq!(
+            claude_usage_sentence(body, &plus2()).unwrap(),
+            "Claude usage: session at 14 percent, resets at 20:00, \
+             week at 40 percent, resets on 23/07 23:00, fable week at 47 percent"
+        );
+    }
+
+    #[test]
+    fn claude_scoped_weekly_limit_never_duplicates_a_section() {
+        // `seven_day_opus` and a scoped opus limit describe the same window.
+        let body = r#"{
+            "seven_day_opus": {"utilization": 12},
+            "limits": [
+                {"kind": "weekly_scoped", "percent": 12,
+                 "scope": {"model": {"display_name": "Opus"}}},
+                {"kind": "weekly_scoped", "percent": 47,
+                 "scope": {"model": {"display_name": "Fable"}}}
+            ]
+        }"#;
+        assert_eq!(
+            claude_usage_sentence(body, &plus2()).unwrap(),
+            "Claude usage: opus week at 12 percent, fable week at 47 percent"
+        );
+    }
+
+    #[test]
+    fn claude_scoped_limits_without_a_usable_model_are_skipped() {
+        for limits in [
+            r#"[{"kind": "weekly_scoped", "percent": 47}]"#,
+            r#"[{"kind": "weekly_scoped", "percent": 47, "scope": null}]"#,
+            r#"[{"kind": "weekly_scoped", "percent": 47, "scope": {"model": {"display_name": ""}}}]"#,
+            r#"[{"kind": "weekly_scoped", "scope": {"model": {"display_name": "Fable"}}}]"#,
+            r#"[{"kind": "weekly_all", "percent": 47,
+                 "scope": {"model": {"display_name": "Fable"}}}]"#,
+            r#"{"not": "an array"}"#,
+        ] {
+            let body = format!(r#"{{"five_hour": {{"utilization": 3}}, "limits": {limits}}}"#);
+            assert_eq!(
+                claude_usage_sentence(&body, &plus2()).unwrap(),
+                "Claude usage: session at 3 percent",
+                "for {limits}"
+            );
+        }
     }
 
     #[test]

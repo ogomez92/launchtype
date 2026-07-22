@@ -55,8 +55,15 @@ English msgids live in the source (`tr("...")`); Spanish in
 Every user-facing string must exist in both languages:
 
 ```
-python scripts/check_msgids.py   # verifies every tr() literal is in the catalog
+python scripts/check_msgids.py          # verifies every tr() literal is in the catalog
+python scripts/compile_catalog.py       # recompiles the .po into the shipped .mo
+python scripts/compile_catalog.py --check   # fails if the shipped .mo is stale
 ```
+
+After editing the `.po`, recompile: the `.mo` is a committed binary, and a
+stale one silently falls back to English with no error. `--check` is the CI
+guard. Compiling needs GNU gettext's `msgfmt`
+(`winget install mlocati.GetText` on Windows).
 
 ## Manual QA
 
