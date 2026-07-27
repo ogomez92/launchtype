@@ -1,0 +1,61 @@
+name: Release to GitHub
+
+on:
+  push:
+    tags:
+      - "v*"
+  # Lets us verify the build without cutting a release; the publish step below
+  # only runs for tag pushes.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: New Release
+    runs-on: windows-latest
+
+    env:
+      # Prism is not published anywhere fetchable, so the Windows x64 slice of
+      # the SDK is vendored. See vendor/prism-sdk/README.md.
+      PRISM_SDK_DIR: ${{ github.workspace }}\vendor\prism-sdk
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: rustup show
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release -p launchtype
+
+      # Mirrors scripts/deploy.ps1: exe + Prism runtime DLLs + assets.
+      - name: Stage dist
+        shell: pwsh
+        run: |
+          $bin = "$env:PRISM_SDK_DIR\windows\x64\dynamic\release\bin"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item target\release\launchtype.exe dist
+          Copy-Item "$bin\prism.dll" dist
+          Copy-Item "$bin\tolk.dll" dist
+          Copy-Item -Recurse assets\sounds dist\sounds
+          Copy-Item -Recurse assets\locale dist\locale
+          Get-ChildItem -Recurse dist | Select-Object FullName
+
+      - name: Archive release
+        shell: pwsh
+        run: Compress-Archive -Path dist\* -DestinationPath launchtype.zip
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: launchtype.zip
+          tag_name: ${{ github.ref_name }}
+          body: |
+            This is a new release of LaunchType. For the user manual see https://www.oriolgomez.com/software/
+          draft: false
+          prerelease: false
