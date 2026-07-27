@@ -8,7 +8,7 @@ Tengo una aplicación para Mac llamada [Launchbar](https://www.obdev.at/products
 
 No me gusta tener el escritorio de Windows desordenado y a veces tengo muchas páginas web distintas con URLs complicadas que acabo guardando en archivos de texto; tenía que buscar el archivo, copiar la dirección al navegador, etc. Con esto se acabó.
 
-Es un lanzador al que se accede pulsando Ctrl+Alt+Espacio (puede que en el futuro lo haga configurable).
+Es un lanzador al que se accede pulsando Ctrl+Alt+Espacio, o Ctrl+Cmd+Espacio en Mac (puede que en el futuro lo haga configurable).
 
 Puedes añadir comandos desde la interfaz. Por ejemplo, añadir chrome.exe con una URL como argumento para abrir una web, o añadir tu juego favorito poniendo la ruta del ejecutable para lanzarlo con un comando.
 
@@ -164,7 +164,7 @@ Por ejemplo, con un archivo email.txt que contenga mi_email@gmail.com, basta con
 
 Para acceder a las sustituciones debes estar en modo sustituciones: escribe un guion (-) en la caja. Desaparecerán los comandos y aparecerán las sustituciones.
 
-Para volver a comandos, escribe un punto (.). En cualquier caso, cada vez que se invoca con Ctrl+Alt+Espacio la aplicación arranca en modo comandos, así que no hace falta hacer nada.
+Para volver a comandos, escribe un punto (.). En cualquier caso, cada vez que se invoca con el atajo del lanzador la aplicación arranca en modo comandos, así que no hace falta hacer nada.
 
 ## Historial del portapapeles
 

@@ -8,7 +8,7 @@ I have an app on my mac called [Launchbar](https://www.obdev.at/products/launchb
 
 I don't like having a cluttered desktop on Windows, and sometimes I have a lot of different websites to run with complicated URLs and I have to find the text file where I have them stored, copy the address to the browser, etc. this is now over.
 
-This is a launcher that can be used with the press of ctrl+alt+space (maybe I will make it configurable later).
+This is a launcher that can be used with the press of ctrl+alt+space, or ctrl+cmd+space on the Mac (maybe I will make it configurable later).
 
 You can add commands via the UI, for example add chrome.exe using a URL as arguments to run a website, or add your favorite game as the path to directly run that game using a comand.
 
@@ -164,7 +164,7 @@ For example, if you have a file called email.txt in the snippets folder which co
 
 In order to access snippets you need to be in snippets mode, you can do this by typing a dash character (-) in the input field. This will cause all the commands to be removed form the list and the snippets will show up.
 
-To go back to commands mode, you can press the period key (.). anyway, each time the app is opened by using ctrl alt space, it is by default in commands mode so nothing needs to be done.
+To go back to commands mode, you can press the period key (.). anyway, each time the app is opened by using the launcher hotkey, it is by default in commands mode so nothing needs to be done.
 
 ## Clipboard History
 

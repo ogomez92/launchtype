@@ -8,7 +8,7 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] App starts silently in the background with `-m`; without it the window
       shows, plays the "show" sound, and focus lands in the input field
 - [ ] "logo" sound plays once on startup
-- [ ] Ctrl+Alt+Space toggles the window from anywhere (hidden ⇄ shown)
+- [ ] Ctrl+Alt+Space (Ctrl+Cmd+Space on macOS) toggles the window from anywhere (hidden ⇄ shown)
 - [ ] Escape and Alt+F4 hide the window (app keeps running, hotkey still works)
 - [ ] Reopening clears the input field and returns to commands mode
       (snippets mode instead when snippets-on-invoke is set)
