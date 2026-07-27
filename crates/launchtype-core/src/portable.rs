@@ -137,6 +137,17 @@ pub fn all_specs() -> Vec<VarSpec> {
     DIR_VARS.iter().chain(BROWSER_VARS.iter()).copied().collect()
 }
 
+/// Whether this placeholder is allowed to have no value on a given machine.
+///
+/// Every other catalogued placeholder resolves everywhere, and a missing value
+/// means one was added without being wired up. OneDrive is the exception: the
+/// folder only exists where OneDrive is installed. Callers that offer
+/// placeholders to the user filter on the value actually being present rather
+/// than on this, so an uninstalled OneDrive is never offered as `{{onedrive}}`.
+pub fn is_machine_dependent(name: &str) -> bool {
+    matches!(name, "onedrive")
+}
+
 /// The placeholder text for `name`, e.g. `"{{home}}"`.
 pub fn placeholder(name: &str) -> String {
     format!("{OPEN}{name}{CLOSE}")

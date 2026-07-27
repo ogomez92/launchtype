@@ -232,16 +232,36 @@ mod tests {
 
     /// Every catalogued placeholder must resolve to something, or a command
     /// using it would launch a path with a literal `{{name}}` in it.
+    ///
+    /// Machine-dependent placeholders are exempt: `{{onedrive}}` has no value
+    /// without OneDrive installed, so this machine having none proves nothing.
+    /// The insert menu filters on the value being present, so an absent one is
+    /// never offered.
     #[test]
     fn every_catalogued_placeholder_has_a_value() {
         let vars = vars();
         for spec in launchtype_core::portable::all_specs() {
+            if launchtype_core::portable::is_machine_dependent(spec.name) {
+                continue;
+            }
             assert!(
                 vars.get(spec.name).is_some(),
                 "{} has no value on this machine",
                 spec.name
             );
         }
+    }
+
+    /// The exemption above must stay narrow: a placeholder is only allowed to be
+    /// machine-dependent if it is in the catalog in the first place.
+    #[test]
+    fn machine_dependent_placeholders_are_catalogued() {
+        let catalogued: Vec<&str> = launchtype_core::portable::all_specs()
+            .iter()
+            .map(|spec| spec.name)
+            .filter(|name| launchtype_core::portable::is_machine_dependent(name))
+            .collect();
+        assert_eq!(catalogued, ["onedrive"]);
     }
 
     #[test]

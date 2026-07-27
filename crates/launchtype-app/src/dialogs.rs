@@ -160,7 +160,15 @@ fn variable_menu_button(
     let button = Button::builder(dialog).with_label(label).build();
     row.add(&button, 0, SizerFlag::All, 0);
 
-    let specs = portable::all_specs();
+    // Only offer placeholders this machine can resolve: inserting one with no
+    // value (`{{onedrive}}` without OneDrive installed) would leave the literal
+    // text in the command. Menu ids are `base_id + index into this list`, so both
+    // closures below share the same filtered vec.
+    let vars = launchtype_services::portable::vars();
+    let specs: Vec<VarSpec> = portable::all_specs()
+        .into_iter()
+        .filter(|spec| vars.get(spec.name).is_some())
+        .collect();
     {
         let dialog = *dialog;
         let specs = specs.clone();

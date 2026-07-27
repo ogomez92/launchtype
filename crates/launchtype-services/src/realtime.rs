@@ -5,6 +5,8 @@
 
 use std::time::Duration;
 
+// Only the WMI sensor path base64-encodes a PowerShell command.
+#[cfg(windows)]
 use base64::Engine;
 use chrono::Local;
 use launchtype_core::ai_auth::{claude_access_token, jwt_is_expired};
@@ -16,9 +18,11 @@ use launchtype_core::realtime::market::{
 };
 use launchtype_core::realtime::rss::{rss_headline_sentence, BBC, CATALUNYA, ELPAIS, VILAWEB};
 use launchtype_core::realtime::temperatures::{
-    collect_hwmonitor_sensors, parse_nvidia_smi, parse_windows_sensors, temperatures_sentence,
-    HwSensor, HWMONITOR_TIMEOUT_SECONDS, HWMONITOR_URL, NVIDIA_SMI_ARGS, SENSORS_POWERSHELL,
+    collect_hwmonitor_sensors, parse_nvidia_smi, temperatures_sentence, HwSensor,
+    HWMONITOR_TIMEOUT_SECONDS, HWMONITOR_URL, NVIDIA_SMI_ARGS,
 };
+#[cfg(windows)]
+use launchtype_core::realtime::temperatures::{parse_windows_sensors, SENSORS_POWERSHELL};
 use launchtype_core::realtime::usage::{
     claude_usage_sentence, openai_usage_sentence, CLAUDE_OAUTH_BETA, CLAUDE_USAGE_URL,
     CODEX_USAGE_URL,
