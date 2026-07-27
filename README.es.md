@@ -344,6 +344,16 @@ El modo de estadísticas se abre escribiendo `!` (signo de exclamación) en la c
 
 Para volver a comandos, pulsa la tecla punto (.).
 
+## Modo emojis
+
+Pulsa `:` (dos puntos) en la caja y escribe lo que *es* el emoji. Los nombres son los mismos que dice tu lector de pantalla, así que "cara sonriendo" encuentra 😀 y "corazón rojo" encuentra ❤️.
+
+No hace falta saberse el nombre oficial. Cada emoji lleva además sus palabras clave de CLDR, así que "risa" llega a "cara llorando de risa" y "café" llega a "bebida caliente". Escribe un par de palabras y la mejor coincidencia queda la primera; pulsa intro para copiar el emoji al portapapeles y pégalo donde estuvieras.
+
+Los nombres y las palabras clave siguen el idioma de la aplicación, y las tildes son opcionales: "corazon" funciona igual de bien que "corazón". La lista muestra solo el nombre, nunca el emoji al lado, porque si no el lector de pantalla leería lo mismo dos veces en cada flecha.
+
+Toda la tabla va compilada dentro del programa: no se descarga nada, y Windows y macOS dan resultados idénticos. Hay casi dos mil emojis y la lista enseña las 200 mejores coincidencias a la vez, así que añade una palabra si lo que buscas todavía no aparece. Las variantes de tono de piel no se incluyen.
+
 ## Ejecutar como administrador
 
 Al añadir o editar un comando puedes marcar la casilla "Ejecutar como administrador". El comando se lanzará con privilegios elevados (aparecerá el cuadro de UAC al ejecutarlo).
@@ -369,6 +379,7 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `+` | Datos en tiempo real | Leer en voz alta precios, tiempo, titulares y temperaturas del ordenador |
 | `!` | Estadísticas | Comandos más y menos usados |
 | `$` | SSH | Ejecuta comandos en un servidor remoto y lee la salida |
+| `:` | Emojis | Buscar un emoji por su descripción y copiarlo |
 | `.` | (cualquier modo) | Volver al modo Comandos |
 
 ## Retroalimentación de audio

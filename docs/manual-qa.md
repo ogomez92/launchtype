@@ -16,7 +16,7 @@ behavioral reference: when in doubt, compare side by side on the same data.
 ## Screen reader
 - [ ] Typing into the input field echoes normally
 - [ ] The results list is announced as "Results" (not "Sort commands by:")
-- [ ] Every mode trigger speaks its announcement (- ? . , ' [ ] # + !)
+- [ ] Every mode trigger speaks its announcement (- ? . , ' [ ] # + ! : $)
 - [ ] Typing a search speaks the first result; multiple results speak
       "{first}, {n} search results shown, use tab and down arrow..."
 - [ ] Exact shortcut match plays the "match" sound and shows a single result
@@ -33,6 +33,13 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Notebrook: # then text then Run posts to "feeds"; 401 forgets credentials
 - [ ] Realtime: fetch announces "Fetching {name}" then speaks the value
 - [ ] Stats: total + most/least used lines, spoken in full (no 40-char clip)
+- [ ] Emoji: `:` lists smileys first; "red heart" then Enter copies ❤️ with the
+      "copy" sound and hides the window; paste it somewhere to confirm the
+      glyph, not the name, landed on the clipboard
+- [ ] Emoji: the list reads names only — no emoji glyph, so no double
+      announcement ("grinning face", not "grinning face grinning face")
+- [ ] Emoji: in Spanish the names are Spanish ("cara sonriendo") and "corazon"
+      without the accent finds ❤️
 - [ ] Screenshots: capture copies a pasteable FILE to the clipboard
       (paste into Explorer/Finder); describe/regions/grab flows speak results
 - [ ] UAC: run_as_admin command shows the elevation prompt

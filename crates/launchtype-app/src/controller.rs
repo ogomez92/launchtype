@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use launchtype_core::alarms::AlarmEngine;
 use launchtype_core::clipboard_history::ClipboardHistory;
 use launchtype_core::clock::{Clock, SystemClock};
+use launchtype_core::emoji;
 use launchtype_core::i18n::tr;
 use launchtype_core::mode::UiMode;
 use launchtype_core::search::{exact_shortcut_match, fuzzy_search};
@@ -16,6 +17,12 @@ use launchtype_services::snippets::{load_snippets, Snippet};
 use launchtype_services::sounds::SoundPlayer;
 use launchtype_services::steam::scan_games;
 use launchtype_services::stores::{AlarmStore, CommandsStore, TimerStore};
+
+/// How many emoji the list will show at once. There are close to two thousand,
+/// and a single common letter matches most of them; past a couple of hundred
+/// rows the list is neither navigable nor quick to redraw on every keystroke,
+/// and the best matches are at the top anyway.
+const EMOJI_LIMIT: usize = 200;
 
 /// One row of the results list, carrying everything Run needs.
 #[derive(Debug, Clone)]
@@ -38,6 +45,8 @@ pub enum ItemKind {
     Timer,
     Alarm,
     Realtime { key: String },
+    /// The characters to copy; the item's name is the emoji's spoken name.
+    Emoji { emoji: &'static str },
     Stat,
     Region { r#box: [f64; 4] },
     /// One line of SSH command output (or of the echoed command line).
@@ -108,6 +117,7 @@ impl ModeController {
             // The note content is taken straight from the edit field on run.
             UiMode::Notebrook => Vec::new(),
             UiMode::Realtime => self.realtime_items(search),
+            UiMode::Emoji => self.emoji_items(search),
             UiMode::Stats => self.stats_items(),
             // The input field holds the command being typed, so it must not
             // filter the transcript away (same reasoning as screenshots mode).
@@ -303,6 +313,29 @@ impl ModeController {
             })
             .collect();
         self.shortcut_then_fuzzy(search, items, true)
+    }
+
+    /// Emoji, searched by name *and* by CLDR's keywords ("laugh" finds "face
+    /// with tears of joy") but listed by name alone.
+    ///
+    /// The glyph itself is deliberately not in the label: screen readers
+    /// announce emoji by the very name next to it, so showing both means
+    /// hearing "grinning face grinning face" on every arrow press.
+    fn emoji_items(&self, search: &str) -> Vec<Item> {
+        let matches = emoji::search(&launchtype_core::i18n::language(), search);
+        if !search.is_empty() {
+            self.sounds.play("type");
+        }
+        matches
+            .into_iter()
+            .take(EMOJI_LIMIT)
+            .map(|e| Item {
+                name: e.name.to_string(),
+                shortcut: String::new(),
+                id: String::new(),
+                kind: ItemKind::Emoji { emoji: e.emoji },
+            })
+            .collect()
     }
 
     fn stats_items(&self) -> Vec<Item> {

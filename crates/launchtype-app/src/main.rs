@@ -93,7 +93,12 @@ fn init_i18n(language: &str) {
     let mo_path = asset_dir("locale").join(&code).join("LC_MESSAGES").join("launchtype.mo");
     match std::fs::File::open(&mo_path) {
         Ok(file) => match gettext::Catalog::parse(file) {
-            Ok(catalog) => launchtype_core::i18n::set_catalog(Some(catalog)),
+            Ok(catalog) => {
+                launchtype_core::i18n::set_catalog(Some(catalog));
+                // Emoji names are too many to be catalog msgids, so they live
+                // in a table of their own that is keyed by this code.
+                launchtype_core::i18n::set_language(&code);
+            }
             Err(e) => log::warn!("failed to parse {}: {e}", mo_path.display()),
         },
         Err(_) => log::info!("no catalog for {code:?}, using English"),

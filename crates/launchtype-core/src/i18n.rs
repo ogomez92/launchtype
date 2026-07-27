@@ -9,10 +9,27 @@
 use std::sync::RwLock;
 
 static CATALOG: RwLock<Option<gettext::Catalog>> = RwLock::new(None);
+static LANGUAGE: RwLock<String> = RwLock::new(String::new());
 
 /// Install the translation catalog (or `None` for English).
 pub fn set_catalog(catalog: Option<gettext::Catalog>) {
     *CATALOG.write().unwrap() = catalog;
+}
+
+/// Record which language the catalog is for. Text that is translated in a
+/// table of its own rather than in the catalog — emoji names, which are far
+/// too many to be msgids — is looked up by this code.
+pub fn set_language(code: &str) {
+    *LANGUAGE.write().unwrap() = code.to_string();
+}
+
+/// The active language code; `"en"` until [`set_language`] says otherwise.
+pub fn language() -> String {
+    let guard = LANGUAGE.read().unwrap();
+    match guard.as_str() {
+        "" => "en".to_string(),
+        code => code.to_string(),
+    }
 }
 
 /// Translate `msgid`, falling back to the msgid itself (English source text).
@@ -154,5 +171,10 @@ mod tests {
     #[test]
     fn tr_without_catalog_returns_msgid() {
         assert_eq!(tr("stopped"), "stopped");
+    }
+
+    #[test]
+    fn language_defaults_to_english() {
+        assert_eq!(language(), "en");
     }
 }

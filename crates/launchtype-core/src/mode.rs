@@ -16,6 +16,8 @@ pub enum UiMode {
     /// Remote shell over SSH: the input field holds the command, the results
     /// list holds the output lines.
     Ssh,
+    /// Pick an emoji by the name a screen reader gives it, and copy it.
+    Emoji,
     /// Entered programmatically after "explore regions" analysis, not by a
     /// trigger character: lists the AI-detected regions of the last screenshot.
     Regions,
@@ -37,6 +39,7 @@ impl UiMode {
             '+' => UiMode::Realtime,
             '!' => UiMode::Stats,
             '$' => UiMode::Ssh,
+            ':' => UiMode::Emoji,
             _ => return None,
         })
     }
@@ -56,13 +59,14 @@ impl UiMode {
             UiMode::Realtime => '+',
             UiMode::Stats => '!',
             UiMode::Ssh => '$',
+            UiMode::Emoji => ':',
             UiMode::Regions => return None,
         })
     }
 
     /// Every user-selectable mode, in the order shown by the modes menu. Kept
     /// in sync with [`from_trigger_char`]; Regions is excluded (no trigger).
-    pub const MENU_MODES: [UiMode; 11] = [
+    pub const MENU_MODES: [UiMode; 12] = [
         UiMode::Commands,
         UiMode::Snippets,
         UiMode::Clipboard,
@@ -74,6 +78,7 @@ impl UiMode {
         UiMode::Realtime,
         UiMode::Stats,
         UiMode::Ssh,
+        UiMode::Emoji,
     ];
 }
 
@@ -94,6 +99,7 @@ mod tests {
         assert_eq!(UiMode::from_trigger_char('+'), Some(UiMode::Realtime));
         assert_eq!(UiMode::from_trigger_char('!'), Some(UiMode::Stats));
         assert_eq!(UiMode::from_trigger_char('$'), Some(UiMode::Ssh));
+        assert_eq!(UiMode::from_trigger_char(':'), Some(UiMode::Emoji));
         assert_eq!(UiMode::from_trigger_char('a'), None);
         assert_eq!(UiMode::from_trigger_char(' '), None);
     }
@@ -105,5 +111,17 @@ mod tests {
             assert_eq!(UiMode::from_trigger_char(c), Some(mode));
         }
         assert_eq!(UiMode::Regions.trigger_char(), None);
+    }
+
+    /// Two modes sharing a trigger would make one of them unreachable by
+    /// typing, and only the round-trip above would notice — after the fact.
+    #[test]
+    fn every_trigger_char_is_unique() {
+        let mut seen = Vec::new();
+        for mode in UiMode::MENU_MODES {
+            let c = mode.trigger_char().expect("menu mode has a trigger char");
+            assert!(!seen.contains(&c), "{c:?} triggers more than one mode");
+            seen.push(c);
+        }
     }
 }

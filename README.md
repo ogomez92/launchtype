@@ -344,6 +344,16 @@ Stats mode can be accessed by pressing `!` (exclamation mark) in the input field
 
 To go back to commands mode, press the period key (.).
 
+## Emoji mode
+
+Press `:` (colon) in the input field, then type what the emoji *is*. Names are the ones your screen reader uses, so "grinning face" finds 😀 and "red heart" finds ❤️.
+
+You do not have to know the official name. Each emoji also carries its CLDR keywords, so "laugh" reaches "face with tears of joy", "coffee" reaches "hot beverage" and "tada" reaches "party popper". Type a couple of words and the closest match is first; press Enter to copy the emoji to the clipboard, then paste it wherever you were.
+
+Names and keywords follow the app language — in Spanish you search "fuego", "cohete" or "corazón" — and accents are optional, so "corazon" works just as well. The list shows the name only, never the emoji character next to it, because a screen reader would otherwise read the same thing twice on every arrow press.
+
+The whole table is compiled into the app: nothing is downloaded, and Windows and macOS give identical results. There are close to two thousand emoji and the list shows the best 200 matches at a time, so add a word if what you want is not there yet. Skin-tone variants are left out.
+
 ## Run as administrator
 
 When adding or editing a command you can tick the "Run as administrator" checkbox. The command will be launched with elevated privileges (a UAC prompt will appear on launch).
@@ -369,6 +379,7 @@ The app has several modes, each accessed by typing a special character in the in
 | `+` | Realtime data | Speak live prices, weather, news headlines and computer temperatures |
 | `!` | Stats | Most and least used commands |
 | `$` | SSH | Run commands on a remote server and read the output |
+| `:` | Emoji | Find an emoji by its description and copy it |
 | `.` | (any mode) | Return to Commands mode |
 
 ## Audio Feedback

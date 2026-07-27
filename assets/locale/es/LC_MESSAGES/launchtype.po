@@ -1489,3 +1489,11 @@ msgstr "Im&portar seleccionados"
 #: crates/launchtype-app/src/shell.rs
 msgid "That file has no commands in it."
 msgstr "Ese archivo no tiene ningún comando."
+
+#: crates/launchtype-app/src/shell.rs
+msgid "emoji mode, type a description and press enter to copy"
+msgstr "modo emoji, escribe una descripción y pulsa intro para copiar"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Emoji"
+msgstr "Emojis"

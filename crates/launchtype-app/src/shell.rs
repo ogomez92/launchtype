@@ -643,6 +643,7 @@ fn mode_announcement(mode: UiMode) -> String {
         UiMode::Realtime => tr("realtime data mode"),
         UiMode::Stats => tr("statistics mode"),
         UiMode::Ssh => tr("SSH mode, type a command and press enter"),
+        UiMode::Emoji => tr("emoji mode, type a description and press enter to copy"),
         UiMode::Regions => unreachable!("no trigger char"),
     }
 }
@@ -661,6 +662,7 @@ fn mode_name(mode: UiMode) -> String {
         UiMode::Realtime => tr("Realtime data"),
         UiMode::Stats => tr("Statistics"),
         UiMode::Ssh => tr("SSH"),
+        UiMode::Emoji => tr("Emoji"),
         UiMode::Regions => tr("Regions"),
     }
 }
@@ -794,6 +796,11 @@ fn run_hidden_action(shell: &SharedShell, item: &Item, kind: ItemKind) -> Result
         }
         ItemKind::Snippet => {
             clipboard::set_text(&item.name);
+            shell.borrow().sounds.play("copy");
+        }
+        // The name is what the list showed; the glyph rides along in the kind.
+        ItemKind::Emoji { emoji } => {
+            clipboard::set_text(emoji);
             shell.borrow().sounds.play("copy");
         }
         ItemKind::Clip => {
