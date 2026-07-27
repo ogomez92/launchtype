@@ -555,16 +555,16 @@ msgid "Claude Code session expired, open Claude Code to log in again."
 msgstr "La sesión de Claude Code ha caducado, abre Claude Code para iniciar sesión de nuevo."
 
 #: src/services/realtime_service.py
-msgid "session at {percent} percent, resets at {reset}"
-msgstr "sesión al {percent} por ciento, se reinicia a las {reset}"
+msgid "session at {percent} percent, resets {reset}"
+msgstr "sesión al {percent} por ciento, se reinicia {reset}"
 
 #: src/services/realtime_service.py
 msgid "session at {percent} percent"
 msgstr "sesión al {percent} por ciento"
 
 #: src/services/realtime_service.py
-msgid "week at {percent} percent, resets on {reset}"
-msgstr "semana al {percent} por ciento, se reinicia el {reset}"
+msgid "week at {percent} percent, resets {reset}"
+msgstr "semana al {percent} por ciento, se reinicia {reset}"
 
 #: src/services/realtime_service.py
 msgid "week at {percent} percent"
@@ -595,8 +595,8 @@ msgid "Codex session expired, run Codex to log in again."
 msgstr "La sesión de Codex ha caducado, ejecuta Codex para iniciar sesión de nuevo."
 
 #: src/services/realtime_service.py
-msgid "month at {percent} percent, resets on {reset}"
-msgstr "mes al {percent} por ciento, se reinicia el {reset}"
+msgid "month at {percent} percent, resets {reset}"
+msgstr "mes al {percent} por ciento, se reinicia {reset}"
 
 #: src/services/realtime_service.py
 msgid "month at {percent} percent"
@@ -1123,3 +1123,285 @@ msgstr "Salida de errores"
 #: crates/launchtype-app/src
 msgid "Line copied"
 msgstr "Línea copiada"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "&Modes (Alt+M)"
+msgstr "&Modos (Alt+M)"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Commands"
+msgstr "Comandos"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Snippets"
+msgstr "Sustituciones"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Clipboard history"
+msgstr "Historial de portapapeles"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Steam games"
+msgstr "Juegos de Steam"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Screenshots"
+msgstr "Capturas de pantalla"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Timers"
+msgstr "Temporizadores"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Alarms"
+msgstr "Alarmas"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Notebrook"
+msgstr "Notebrook"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Realtime data"
+msgstr "Datos en tiempo real"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Statistics"
+msgstr "Estadísticas"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "SSH"
+msgstr "SSH"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Regions"
+msgstr "Regiones"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "all models {percent}%"
+msgstr "todos los modelos {percent}%"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "weekly {percent}%"
+msgstr "semanal {percent}%"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "{model} {percent}%"
+msgstr "{model} {percent}%"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "session resets {reset}"
+msgstr "la sesión se reinicia {reset}"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "weekly resets {reset}"
+msgstr "lo semanal se reinicia {reset}"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "in {duration}"
+msgstr "en {duration}"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "in less than a minute"
+msgstr "en menos de un minuto"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "{n} day"
+msgstr "{n} día"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "{n} days"
+msgstr "{n} días"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "{n} hour"
+msgstr "{n} hora"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "{n} hours"
+msgstr "{n} horas"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "{n} minute"
+msgstr "{n} minuto"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "{n} minutes"
+msgstr "{n} minutos"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Shortcut conflicts"
+msgstr "Conflictos de accesos abreviados"
+
+#: crates/launchtype-app/src/shell.rs
+msgid ""
+"The following keyboard shortcuts are each assigned to more than one command. "
+"Only the first matching command will run; please edit them so every shortcut "
+"is unique."
+msgstr ""
+"Los siguientes accesos abreviados están asignados a más de un comando. Solo "
+"se ejecutará el primero que coincida; edítalos para que cada acceso abreviado "
+"sea único."
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Your user folder"
+msgstr "Tu carpeta de usuario"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Your Desktop folder"
+msgstr "Tu carpeta Escritorio"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Your Documents folder"
+msgstr "Tu carpeta Documentos"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Your Downloads folder"
+msgstr "Tu carpeta Descargas"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Your Music folder"
+msgstr "Tu carpeta Música"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Your Pictures folder"
+msgstr "Tu carpeta Imágenes"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Your Videos folder"
+msgstr "Tu carpeta Vídeos"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Your OneDrive folder"
+msgstr "Tu carpeta OneDrive"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Roaming application data (Application Support on macOS)"
+msgstr "Datos de aplicación itinerantes (Application Support en macOS)"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Local application data (Application Support on macOS)"
+msgstr "Datos de aplicación locales (Application Support en macOS)"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Program Files (Applications on macOS)"
+msgstr "Archivos de programa (Applications en macOS)"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Program Files x86 (Applications on macOS)"
+msgstr "Archivos de programa x86 (Applications en macOS)"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Machine-wide application data"
+msgstr "Datos de aplicación de todo el equipo"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "The temporary files folder"
+msgstr "La carpeta de archivos temporales"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "The folder Launchtype itself runs from"
+msgstr "La carpeta desde la que se ejecuta Launchtype"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Your login name on its own, for arguments"
+msgstr "Tu nombre de usuario por sí solo, para argumentos"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Your default web browser"
+msgstr "Tu navegador web predeterminado"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Google Chrome"
+msgstr "Google Chrome"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Mozilla Firefox"
+msgstr "Mozilla Firefox"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Microsoft Edge"
+msgstr "Microsoft Edge"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Brave"
+msgstr "Brave"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Vivaldi"
+msgstr "Vivaldi"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Opera"
+msgstr "Opera"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Safari"
+msgstr "Safari"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Path &variable..."
+msgstr "&Variable de ruta..."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Argument var&iable..."
+msgstr "Var&iable de argumento..."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Unknown variable"
+msgstr "Variable desconocida"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "There is no variable called {name}. Use the Variable button to pick one."
+msgstr "No existe ninguna variable llamada {name}. Usa el botón Variable para elegir una."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Machine-specific paths"
+msgstr "Rutas específicas de este equipo"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Some commands point at folders and programs that only exist on this machine, so they will break if you move Launchtype elsewhere. Tick the ones to replace with a variable that each machine resolves for itself."
+msgstr "Algunos comandos apuntan a carpetas y programas que solo existen en este equipo, así que dejarán de funcionar si mueves Launchtype a otro sitio. Marca los que quieras reemplazar por una variable que cada equipo resuelva por su cuenta."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Replacements to make:"
+msgstr "&Reemplazos a realizar:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "{from} becomes {to} ({count} used)"
+msgstr "{from} pasa a ser {to} ({count} en uso)"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "These paths cannot be reached on this machine and no variable can fix them; edit or delete those commands yourself:"
+msgstr "No se puede acceder a estas rutas en este equipo y ninguna variable puede arreglarlas; edita o elimina esos comandos tú mismo:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "\nand {count} more."
+msgstr "\ny {count} más."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Fix selected"
+msgstr "&Corregir seleccionados"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Not now"
+msgstr "Ahora &no"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Ne&ver ask again"
+msgstr "No preguntar &nunca más"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Check for machine-s&pecific paths at startup"
+msgstr "Buscar rutas es&pecíficas de este equipo al iniciar"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Enter your Notebrook server URL and access token. They are stored locally in settings.json."
+msgstr "Introduce la URL de tu servidor de Notebrook y el token de acceso. Se guardan localmente en settings.json."
+
+#: crates/launchtype-app/src/shell.rs
+msgid "{count} paths made portable"
+msgstr "{count} rutas hechas portables"
+
+#: crates/launchtype-services/src/runner.rs
+msgid "this command opens its first argument with the default application, but it has no arguments"
+msgstr "este comando abre su primer argumento con la aplicación predeterminada, pero no tiene argumentos"

@@ -92,6 +92,49 @@ Una vez añadido un comando desde el botón Añadir de la interfaz, para usarlo 
 
 En modo comandos hay un cuadro combinado "Ordenar comandos por" que permite ordenar la lista por última modificación (lo predeterminado) o por número de usos. La elección se recuerda.
 
+## Rutas portables (variables)
+
+Launchtype está pensado para viajar: copia la carpeta a otro equipo (o a un Mac) y sigue funcionando. Normalmente hay dos cosas que lo impiden, y ambas se resuelven con variables que puedes poner en la ruta o en los argumentos de un comando.
+
+Una variable se escribe `{{nombre}}` y cada equipo la resuelve por su cuenta. Las llaves dobles son intencionadas: `%nombre%` sería ambiguo con las URL codificadas en porcentaje (`?sex%5B%5D=female`), habituales en los argumentos de comandos reales.
+
+### Variables de carpetas
+
+| Variable | Windows | macOS |
+| --- | --- | --- |
+| `{{home}}` | `C:\Users\tu_usuario` | `/Users/tu_usuario` |
+| `{{desktop}}`, `{{documents}}`, `{{downloads}}` | tus carpetas Escritorio / Documentos / Descargas | las mismas carpetas |
+| `{{music}}`, `{{pictures}}`, `{{videos}}` | tus carpetas Música / Imágenes / Vídeos | las mismas carpetas |
+| `{{onedrive}}` | tu carpeta OneDrive | tu carpeta OneDrive |
+| `{{appdata}}` | `%APPDATA%` (itinerante) | `~/Library/Application Support` |
+| `{{localappdata}}` | `%LOCALAPPDATA%` | `~/Library/Application Support` |
+| `{{programfiles}}` | `C:\Program Files` | `/Applications` |
+| `{{programfiles86}}` | `C:\Program Files (x86)` | `/Applications` |
+| `{{programdata}}` | `C:\ProgramData` | `/Library/Application Support` |
+| `{{temp}}` | la carpeta temporal | la carpeta temporal |
+| `{{launchtype}}` | la carpeta desde la que se ejecuta Launchtype | la misma |
+| `{{username}}` | tu nombre de usuario por sí solo, para argumentos | el mismo |
+
+Las barras invertidas de Windows se traducen automáticamente, así que `{{home}}\stuff\notas.txt` escrito en Windows abre `/Users/tu_usuario/stuff/notas.txt` en un Mac.
+
+### Variables de navegadores
+
+`{{browser}}` es lo que use tu sistema operativo para abrir un enlace, así que un comando con `{{browser}}` como ruta y una URL como argumento funciona en cualquier sitio.
+
+`{{chrome}}`, `{{firefox}}`, `{{edge}}`, `{{brave}}`, `{{vivaldi}}`, `{{opera}}` y `{{safari}}` nombran un navegador concreto, para que puedas mantener unos enlaces en un navegador y otros en otro. Cada uno se busca en las ubicaciones de instalación habituales de la plataforma actual y **recurre a `{{browser}}` cuando ese navegador no está instalado**: un comando con `{{chrome}}` sigue abriéndose en un Mac que solo tenga Safari, en lugar de fallar.
+
+### Cómo añadirlas
+
+En los diálogos Añadir y Editar comando, los botones "Variable de ruta..." y "Variable de argumento..." abren un menú con todas las variables, su descripción y a qué se resuelven en este equipo. Al elegir una se inserta donde está el cursor y el foco se queda en el campo, para que puedas seguir escribiendo.
+
+El botón Examinar también lo hace por ti: si eliges un archivo dentro de tu carpeta de usuario, se guarda como `{{home}}\...` en lugar de dejar tu nombre de usuario fijado.
+
+### La comprobación al iniciar
+
+Cuando Launchtype encuentra rutas que solo funcionan en este equipo, ofrece reemplazarlas una vez, al iniciar. La lista se agrupa por regla y no por comando (una sola línea que dice `C:\Program Files\Google\Chrome\Application\chrome.exe pasa a ser {{chrome}} (189 en uso)` en vez de 189 filas distintas) y todo viene marcado por omisión. "Corregir seleccionados" las reescribe, "Ahora no" vuelve a preguntar la próxima vez y "No preguntar nunca más" desactiva la comprobación (puedes reactivarla en Ajustes).
+
+El mismo diálogo lista también las rutas que ninguna variable puede rescatar: una letra de unidad o un recurso de red que solo existe en el equipo donde se añadió el comando. Se muestran solo a título informativo; esos comandos hay que editarlos o borrarlos a mano. Nunca abren el diálogo por sí solas, así que unas cuantas unidades muertas no te darán la lata en cada arranque.
+
 ## Ajustes
 
 El botón Ajustes de la interfaz abre un diálogo donde puedes guardar estas preferencias en `settings.json`:
@@ -99,6 +142,7 @@ El botón Ajustes de la interfaz abre un diálogo donde puedes guardar estas pre
 - Habilitar sonidos
 - Arrancar minimizado
 - Arrancar en modo sustituciones al invocar
+- Buscar rutas específicas de este equipo al iniciar (ver [Rutas portables](#rutas-portables-variables))
 - Ruta de la biblioteca de Steam
 - Modelo de IA para las descripciones de capturas (Claude Opus, Sonnet o Haiku)
 - Idioma de la interfaz (el mismo del sistema, inglés o español); se aplica al reiniciar la aplicación

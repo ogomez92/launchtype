@@ -17,6 +17,7 @@ clipboard-rs = "0.3"
 ureq = "2"
 base64 = "0.22"
 dirs = "6"
+open = "5"
 xcap = "0.8"
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 russh = { version = "0.62", default-features = false, features = ["ring", "rsa", "flate2"] }

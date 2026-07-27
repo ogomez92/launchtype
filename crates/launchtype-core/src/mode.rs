@@ -40,6 +40,41 @@ impl UiMode {
             _ => return None,
         })
     }
+
+    /// The trigger character that enters this mode, or `None` for modes that
+    /// are only reachable programmatically (Regions).
+    pub fn trigger_char(self) -> Option<char> {
+        Some(match self {
+            UiMode::Snippets => '-',
+            UiMode::Clipboard => '?',
+            UiMode::Commands => '.',
+            UiMode::Steam => ',',
+            UiMode::Screenshots => '\'',
+            UiMode::Timers => '[',
+            UiMode::Alarms => ']',
+            UiMode::Notebrook => '#',
+            UiMode::Realtime => '+',
+            UiMode::Stats => '!',
+            UiMode::Ssh => '$',
+            UiMode::Regions => return None,
+        })
+    }
+
+    /// Every user-selectable mode, in the order shown by the modes menu. Kept
+    /// in sync with [`from_trigger_char`]; Regions is excluded (no trigger).
+    pub const MENU_MODES: [UiMode; 11] = [
+        UiMode::Commands,
+        UiMode::Snippets,
+        UiMode::Clipboard,
+        UiMode::Steam,
+        UiMode::Screenshots,
+        UiMode::Timers,
+        UiMode::Alarms,
+        UiMode::Notebrook,
+        UiMode::Realtime,
+        UiMode::Stats,
+        UiMode::Ssh,
+    ];
 }
 
 #[cfg(test)]
@@ -61,5 +96,14 @@ mod tests {
         assert_eq!(UiMode::from_trigger_char('$'), Some(UiMode::Ssh));
         assert_eq!(UiMode::from_trigger_char('a'), None);
         assert_eq!(UiMode::from_trigger_char(' '), None);
+    }
+
+    #[test]
+    fn menu_modes_round_trip_through_their_trigger_char() {
+        for mode in UiMode::MENU_MODES {
+            let c = mode.trigger_char().expect("menu mode has a trigger char");
+            assert_eq!(UiMode::from_trigger_char(c), Some(mode));
+        }
+        assert_eq!(UiMode::Regions.trigger_char(), None);
     }
 }

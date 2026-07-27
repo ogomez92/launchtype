@@ -133,12 +133,13 @@ pub fn build_shell(
     let snippets_button = Button::builder(&panel).with_label(&tr("Open &Snippets folder")).build();
     let new_snippet_button = Button::builder(&panel).with_label(&tr("&New snipet")).build();
     let run_button = Button::builder(&panel).with_label(&tr("&Run")).build();
+    let modes_button = Button::builder(&panel).with_label(&tr("&Modes (Alt+M)")).build();
     let help_button = Button::builder(&panel).with_label(&tr("&Help")).build();
     let settings_button = Button::builder(&panel).with_label(&tr("Se&ttings...")).build();
     let exit_button = Button::builder(&panel).with_label(&tr("E&xit")).build();
     for b in [
         &add_button, &edit_button, &copy_button, &delete_button, &copy_args_button,
-        &snippets_button, &new_snippet_button, &run_button, &help_button,
+        &snippets_button, &new_snippet_button, &run_button, &modes_button, &help_button,
         &settings_button, &exit_button,
     ] {
         button_sizer.add(b, 0, SizerFlag::All, 0);
@@ -175,15 +176,15 @@ pub fn build_shell(
         &shell,
         [
             add_button, edit_button, copy_button, delete_button, copy_args_button,
-            snippets_button, new_snippet_button, run_button, help_button,
+            snippets_button, new_snippet_button, run_button, modes_button, help_button,
             settings_button, exit_button,
         ],
     );
     shell
 }
 
-fn bind_events(shell: &SharedShell, buttons: [Button; 11]) {
-    let [add_button, edit_button, copy_button, delete_button, copy_args_button, snippets_button, new_snippet_button, run_button, help_button, settings_button, exit_button] =
+fn bind_events(shell: &SharedShell, buttons: [Button; 12]) {
+    let [add_button, edit_button, copy_button, delete_button, copy_args_button, snippets_button, new_snippet_button, run_button, modes_button, help_button, settings_button, exit_button] =
         buttons;
     let (frame, edit, list, panel, sort_choice) = {
         let s = shell.borrow();
@@ -399,14 +400,43 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 11]) {
     }
     {
         let shell = shell.clone();
+        modes_button.on_click(move |_| show_modes_menu(&shell));
+    }
+    // The modes menu posts a wxEVT_MENU to the frame; route the selected id
+    // back to its mode. Bound once, it also serves any future frame menus.
+    {
+        let shell = shell.clone();
+        frame.on_menu(move |event| {
+            let id = event.get_id();
+            if let Some(index) = id.checked_sub(MODE_MENU_BASE_ID) {
+                if let Some(&mode) = UiMode::MENU_MODES.get(index as usize) {
+                    switch_to_mode(&shell, mode);
+                }
+            }
+        });
+    }
+    {
+        let shell = shell.clone();
         exit_button.on_click(move |_| exit_app(&shell));
     }
 
-    // Escape hides the window instead of closing the app.
+    // Escape hides the window instead of closing the app. wxWidgets does not
+    // bubble key events up to parent windows, and wxdragon exposes neither an
+    // accelerator table nor CHAR_HOOK, so the handler has to sit on every
+    // control that can hold the focus — otherwise Escape is ignored (and the
+    // native control beeps) whenever focus isn't in the input field.
     bind_hide_on_escape(shell, &frame);
     bind_hide_on_escape(shell, &panel);
     bind_hide_on_escape(shell, &edit);
     bind_hide_on_escape(shell, &list);
+    bind_hide_on_escape(shell, &sort_choice);
+    for button in [
+        &add_button, &edit_button, &copy_button, &delete_button, &copy_args_button,
+        &snippets_button, &new_snippet_button, &run_button, &modes_button, &help_button,
+        &settings_button, &exit_button,
+    ] {
+        bind_hide_on_escape(shell, button);
+    }
 
     // Alt+F4 and the title-bar close box send a vetoable close event; hide the
     // window instead of quitting. A genuine exit (exit_app) forces the close
@@ -489,29 +519,7 @@ pub fn update_list(shell: &SharedShell) {
     let value = s.edit.get_value();
     if value.len() == 1 {
         if let Some(new_mode) = UiMode::from_trigger_char(value.chars().next().unwrap()) {
-            let announcement = match new_mode {
-                UiMode::Snippets => tr("snippet mode"),
-                UiMode::Clipboard => tr("Clipboard history mode"),
-                UiMode::Commands => tr("commands mode"),
-                UiMode::Steam => tr("Steam games mode"),
-                UiMode::Screenshots => tr("screenshots mode"),
-                UiMode::Timers => tr("timers mode"),
-                UiMode::Alarms => tr("alarms mode"),
-                UiMode::Notebrook => tr("Notebrook new note mode, type your note and press enter"),
-                UiMode::Realtime => tr("realtime data mode"),
-                UiMode::Stats => tr("statistics mode"),
-                UiMode::Ssh => tr("SSH mode, type a command and press enter"),
-                UiMode::Regions => unreachable!("no trigger char"),
-            };
-            speak_now(&announcement, true);
-            match new_mode {
-                UiMode::Snippets => s.controller.reload_snippets(),
-                UiMode::Steam => s.controller.rescan_steam(),
-                UiMode::Ssh => entered_ssh = true,
-                _ => {}
-            }
-            s.mode = new_mode;
-            s.edit.change_value("");
+            entered_ssh = apply_mode_switch(&mut s, new_mode);
         }
     }
 
@@ -564,6 +572,99 @@ pub fn update_list(shell: &SharedShell) {
     if entered_ssh {
         crate::ssh_flows::enter_ssh_mode(shell);
     }
+}
+
+/// The first menu item id used by the modes menu; each mode takes the id
+/// `MODE_MENU_BASE_ID + its index in UiMode::MENU_MODES`.
+const MODE_MENU_BASE_ID: i32 = 6100;
+
+/// Apply a mode change on an already-borrowed shell: announce it, run the
+/// mode's one-time setup, select it and clear the input. Returns `true` when
+/// SSH mode was entered, which the caller must finish (unborrowed) by calling
+/// [`ssh_flows::enter_ssh_mode`].
+fn apply_mode_switch(s: &mut Shell, new_mode: UiMode) -> bool {
+    speak_now(&mode_announcement(new_mode), true);
+    let mut entered_ssh = false;
+    match new_mode {
+        UiMode::Snippets => s.controller.reload_snippets(),
+        UiMode::Steam => s.controller.rescan_steam(),
+        UiMode::Ssh => entered_ssh = true,
+        _ => {}
+    }
+    s.mode = new_mode;
+    s.edit.change_value("");
+    entered_ssh
+}
+
+/// Switch to `new_mode` from outside `update_list` (the modes menu). Mirrors
+/// the trigger-character path: apply the switch, refresh the list, and finish
+/// SSH entry once the shell is unborrowed.
+pub fn switch_to_mode(shell: &SharedShell, new_mode: UiMode) {
+    let entered_ssh = {
+        let mut s = shell.borrow_mut();
+        apply_mode_switch(&mut s, new_mode)
+    };
+    update_list(shell);
+    if entered_ssh {
+        crate::ssh_flows::enter_ssh_mode(shell);
+    }
+}
+
+/// The spoken sentence announced on entering a mode.
+fn mode_announcement(mode: UiMode) -> String {
+    match mode {
+        UiMode::Snippets => tr("snippet mode"),
+        UiMode::Clipboard => tr("Clipboard history mode"),
+        UiMode::Commands => tr("commands mode"),
+        UiMode::Steam => tr("Steam games mode"),
+        UiMode::Screenshots => tr("screenshots mode"),
+        UiMode::Timers => tr("timers mode"),
+        UiMode::Alarms => tr("alarms mode"),
+        UiMode::Notebrook => tr("Notebrook new note mode, type your note and press enter"),
+        UiMode::Realtime => tr("realtime data mode"),
+        UiMode::Stats => tr("statistics mode"),
+        UiMode::Ssh => tr("SSH mode, type a command and press enter"),
+        UiMode::Regions => unreachable!("no trigger char"),
+    }
+}
+
+/// The short, human name of a mode, used as the modes-menu item label.
+fn mode_name(mode: UiMode) -> String {
+    match mode {
+        UiMode::Commands => tr("Commands"),
+        UiMode::Snippets => tr("Snippets"),
+        UiMode::Clipboard => tr("Clipboard history"),
+        UiMode::Steam => tr("Steam games"),
+        UiMode::Screenshots => tr("Screenshots"),
+        UiMode::Timers => tr("Timers"),
+        UiMode::Alarms => tr("Alarms"),
+        UiMode::Notebrook => tr("Notebrook"),
+        UiMode::Realtime => tr("Realtime data"),
+        UiMode::Stats => tr("Statistics"),
+        UiMode::Ssh => tr("SSH"),
+        UiMode::Regions => tr("Regions"),
+    }
+}
+
+/// Pop up the accessible modes menu: every mode with its trigger character,
+/// with the current one checked. Selecting an item routes through the frame's
+/// menu handler (see `bind_events`) into [`switch_to_mode`].
+fn show_modes_menu(shell: &SharedShell) {
+    let (frame, current) = {
+        let s = shell.borrow();
+        (s.frame, s.mode)
+    };
+    let mut builder = Menu::builder();
+    for (index, &mode) in UiMode::MENU_MODES.iter().enumerate() {
+        let trigger = mode.trigger_char().unwrap_or(' ');
+        let label = format!("{} ({})", mode_name(mode), trigger);
+        builder = builder.append_check_item(MODE_MENU_BASE_ID + index as i32, &label, "");
+    }
+    let mut menu = builder.build();
+    if let Some(index) = UiMode::MENU_MODES.iter().position(|&m| m == current) {
+        menu.check_item(MODE_MENU_BASE_ID + index as i32, true);
+    }
+    frame.popup_menu(&mut menu, None);
 }
 
 pub fn run_clicked(shell: &SharedShell) {
@@ -658,7 +759,16 @@ fn run_hidden_action(shell: &SharedShell, item: &Item, kind: ItemKind) -> Result
         ItemKind::Command { path, args, run_as_admin } => {
             let (result, id) = {
                 let s = shell.borrow();
-                (run_command(&path, &args, run_as_admin, &s.sounds), item.id.clone())
+                (
+                    run_command(
+                        &path,
+                        &args,
+                        run_as_admin,
+                        &s.sounds,
+                        launchtype_services::portable::vars(),
+                    ),
+                    item.id.clone(),
+                )
             };
             result.map_err(|e| e.to_string())?;
             shell.borrow_mut().controller.commands.record_run(&id);
@@ -748,6 +858,139 @@ pub fn exit_app(shell: &SharedShell) {
         scheduler.stop();
     }
     s.frame.close(true);
+}
+
+/// Ask a startup question against the main window, making sure it is on screen
+/// first.
+///
+/// With `start_minimized` (or `-m`) the frame is created but never shown, and
+/// a modal dialog parented to a window that has never been shown does not come
+/// to the foreground on Windows — the app just looks like it ignored you. Show
+/// the frame for as long as the question is up, then put it back as it was.
+///
+/// Deliberately quiet: no "show" sound and no focus move, because this is the
+/// app interrupting the user, not the user invoking the app.
+fn asking_at_startup<T>(shell: &SharedShell, ask: impl FnOnce(&Frame) -> T) -> T {
+    let (frame, was_hidden) = {
+        let s = shell.borrow();
+        (s.frame, !s.frame.is_shown())
+    };
+    // Showing the frame is what gives the process a foreground window at all;
+    // without one Windows will not let the dialog take the foreground either.
+    if was_hidden {
+        frame.show(true);
+        frame.raise();
+    }
+    let answer = ask(&frame);
+    if was_hidden {
+        frame.show(false);
+    }
+    answer
+}
+
+/// Report a startup failure, surfacing the main window first so the message
+/// can take the foreground even when the app started minimized.
+pub fn show_startup_error(shell: &SharedShell, title: &str, text: &str) {
+    asking_at_startup(shell, |frame| show_error(frame, title, text));
+}
+
+/// On startup, warn once when a keyboard shortcut is shared by two or more
+/// commands. Only the first matching command ever runs, so the rest are dead;
+/// listing them lets the user go fix the clash.
+pub fn warn_shortcut_conflicts(shell: &SharedShell) {
+    let conflicts = shell.borrow().controller.commands.file.shortcut_conflicts();
+    if conflicts.is_empty() {
+        return;
+    }
+    let mut body = tr(
+        "The following keyboard shortcuts are each assigned to more than one command. Only the first matching command will run; please edit them so every shortcut is unique.",
+    );
+    body.push_str("\n\n");
+    for (shortcut, names) in &conflicts {
+        body.push_str(&format!("{}: {}\n", shortcut, names.join(", ")));
+    }
+    asking_at_startup(shell, |frame| {
+        show_alert(frame, &tr("Shortcut conflicts"), body.trim_end())
+    });
+}
+
+/// On startup, offer to replace machine-specific paths (a hardcoded user
+/// folder, a browser executable) with placeholders that each machine resolves
+/// for itself, and report paths that are simply unreachable here.
+///
+/// Runs after the shortcut-conflict warning so the two never stack up, and is
+/// skipped once the user answers "never ask again".
+pub fn check_portability(shell: &SharedShell) {
+    let report = {
+        let s = shell.borrow();
+        if !s.settings.settings.portability_check {
+            return;
+        }
+        let vars = launchtype_services::portable::vars();
+        launchtype_core::portable::scan(
+            &s.controller.commands.file,
+            &s.settings.settings.machine_specific_paths(),
+            vars,
+            &|path| std::path::Path::new(path).exists(),
+        )
+    };
+    // Only ask when there is something to accept. Unreachable paths ride along
+    // in that dialog as information, but they are never a reason to open it:
+    // nothing can fix them, so a machine that keeps a few dead drive letters
+    // would otherwise show this same dialog on every single start.
+    if report.fixes.is_empty() {
+        return;
+    }
+
+    let choice =
+        asking_at_startup(shell, |frame| crate::dialogs::portability_dialog(frame, &report));
+    match choice {
+        crate::dialogs::PortabilityChoice::NotNow => {}
+        crate::dialogs::PortabilityChoice::NeverAsk => {
+            let mut s = shell.borrow_mut();
+            s.settings.settings.portability_check = false;
+            let _ = s.settings.save();
+        }
+        crate::dialogs::PortabilityChoice::Fix(selected) => {
+            if selected.is_empty() {
+                return;
+            }
+            let changed = {
+                let mut s = shell.borrow_mut();
+                let vars = launchtype_services::portable::vars();
+                let mut changed = launchtype_core::portable::apply(
+                    &mut s.controller.commands.file,
+                    &selected,
+                    vars,
+                );
+                s.controller.commands.sync();
+                // Settings hold machine-specific paths too, and they were
+                // counted in the same report. Borrow the struct once so the
+                // two fields are disjoint borrows rather than two of `s`.
+                let settings = &mut s.settings.settings;
+                for field in [&mut settings.steam_library, &mut settings.ssh_key_path] {
+                    if let Some(fixed) =
+                        launchtype_core::portable::apply_to_setting(field, &selected, vars)
+                    {
+                        *field = fixed;
+                        changed += 1;
+                    }
+                }
+                let _ = s.settings.save();
+                changed
+            };
+            // The rows cache each command's path; rebuild so a run right after
+            // the migration uses the rewritten one.
+            update_list(shell);
+            speak_now(
+                &format_args(
+                    &tr("{count} paths made portable"),
+                    &[("count", Arg::Int(changed as i64))],
+                ),
+                true,
+            );
+        }
+    }
 }
 
 pub fn show_alert(parent: &Frame, title: &str, text: &str) {

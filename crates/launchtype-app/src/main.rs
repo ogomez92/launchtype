@@ -120,6 +120,12 @@ fn main() {
         .commands_file
         .clone()
         .unwrap_or_else(|| settings.settings.commands_file.clone());
+    // The library may be stored with placeholders so it survives a move to
+    // another machine; the scanner needs the real folder.
+    let steam_library = launchtype_core::portable::expand(
+        &steam_library,
+        launchtype_services::portable::vars(),
+    );
 
     let sounds = Arc::new(SoundPlayer::new(asset_dir("sounds"), effective_sounds));
 
@@ -194,14 +200,22 @@ fn main() {
                 // Keep the manager + polling timer alive for the app lifetime.
                 std::mem::forget(hotkey);
             }
-            Err(e) => shell::show_error(
-                &frame,
+            Err(e) => shell::show_startup_error(
+                &shell,
                 "error",
                 &format!("{}{e}", tr("There was an error registering the hotkey for the program: ")),
             ),
         }
 
         sounds_for_ui.play("logo");
+
+        // Surface any commands that fight over the same shortcut, once, at
+        // launch — only the first of each group would ever run otherwise.
+        shell::warn_shortcut_conflicts(&shell);
+
+        // Then offer to make machine-specific paths portable. Sequenced after
+        // the conflict warning so the two dialogs never overlap.
+        shell::check_portability(&shell);
     });
     if let Err(e) = main_result {
         eprintln!("launchtype failed to start: {e}");

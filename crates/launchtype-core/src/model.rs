@@ -65,6 +65,26 @@ impl CommandsFile {
         }
         self.total_runs = Some(self.total_runs.unwrap_or(0) + 1);
     }
+
+    /// Shortcuts assigned to more than one command, each paired with the
+    /// display names of the commands that share it, in first-seen order.
+    /// Empty shortcuts are ignored. Only an exact shortcut match ever runs a
+    /// command, so any group of two or more here is a real conflict.
+    pub fn shortcut_conflicts(&self) -> Vec<(String, Vec<String>)> {
+        let mut groups: Vec<(String, Vec<String>)> = Vec::new();
+        for cmd in &self.commands {
+            let shortcut = cmd.shortcut();
+            if shortcut.is_empty() {
+                continue;
+            }
+            match groups.iter_mut().find(|(s, _)| s == shortcut) {
+                Some((_, names)) => names.push(cmd.name.clone()),
+                None => groups.push((shortcut.to_string(), vec![cmd.name.clone()])),
+            }
+        }
+        groups.retain(|(_, names)| names.len() > 1);
+        groups
+    }
 }
 
 /// File names in `dir` that parse as a commands document, sorted
@@ -123,6 +143,24 @@ mod tests {
         // total_runs unconditionally).
         file.record_run("nope");
         assert_eq!(file.total_runs, Some(19));
+    }
+
+    #[test]
+    fn shortcut_conflicts_group_shared_shortcuts_only() {
+        let file: CommandsFile = serde_json::from_str(
+            r#"{"commands": [
+                {"path": "a", "name": "alpha", "shortcut": "g", "id": "1"},
+                {"path": "b", "name": "beta", "shortcut": "g", "id": "2"},
+                {"path": "c", "name": "gamma", "shortcut": "h", "id": "3"},
+                {"path": "d", "name": "delta", "id": "4"},
+                {"path": "e", "name": "epsilon", "shortcut": "", "id": "5"}
+            ]}"#,
+        )
+        .unwrap();
+
+        // "g" is shared by alpha+beta; "h" and the empty shortcuts are alone.
+        let conflicts = file.shortcut_conflicts();
+        assert_eq!(conflicts, vec![("g".to_string(), vec!["alpha".to_string(), "beta".to_string()])]);
     }
 
     #[test]

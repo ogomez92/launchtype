@@ -63,6 +63,41 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Settings: changing the SSH server drops the live connection
 - [ ] Settings: SSH password field is masked
 
+## Portable paths (variables)
+- [ ] Add dialog: "Path variable..." and "Argument variable..." are distinct
+      buttons, each announced by its own label (not two "Variable" buttons)
+- [ ] The variable menu is navigable with the arrow keys and announces each
+      item as "{{name}} - description (resolved value)"
+- [ ] Picking a variable inserts it AT THE CURSOR (not at the end) and leaves
+      focus in the field, so typing continues straight after it
+- [ ] Each field's menu only ever fills its own field
+- [ ] Browse in the Add dialog stores `{{home}}\...` for a file inside the
+      user folder; Settings Browse does the same for the SSH key
+- [ ] A command with `{{browser}}` and a URL opens in the default browser;
+      `{{chrome}}` opens Chrome, and falls back to the default when Chrome is
+      not installed
+- [ ] OK on a path with a typo'd variable (`{{hom}}`) shows the "no variable
+      called" error and stays in the dialog
+- [ ] OK accepts `{{browser}}` even though it is not a file on disk
+- [ ] Startup: with hardcoded paths present, the dialog lists one row PER RULE
+      with its count, all ticked, and the list is reachable with the keyboard
+- [ ] Started minimized (`-m` or the setting): the dialog comes to the FRONT
+      and the screen reader announces it, rather than opening behind other
+      windows unfocused; the main window goes back to hidden afterwards
+- [ ] Same when minimized for the shortcut-conflict alert and for the hotkey
+      registration error (run a second copy to force one)
+- [ ] "Fix selected" rewrites commands.json, speaks "N paths made portable",
+      and running a migrated command still launches the right thing
+- [ ] Unticking a row leaves those commands alone
+- [ ] "Not now" changes nothing and asks again next start
+- [ ] "Never ask again" changes nothing and does not ask again; the Settings
+      checkbox turns it back on
+- [ ] Restarting after a fix does NOT show the dialog again
+- [ ] A file whose only problem is unreachable drive letters never opens the
+      dialog on its own
+- [ ] Elevated (run_as_admin) command with a quoted, spaced argument still
+      receives it as one argument
+
 ## CLI flags
 - [ ] -q silences effect sounds (alerts still audible)
 - [ ] -m starts hidden; -s opens in snippets mode

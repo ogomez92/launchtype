@@ -12,12 +12,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PO_PATH = ROOT / "assets" / "locale" / "es" / "LC_MESSAGES" / "launchtype.po"
 
-TR_RE = re.compile(r'\btr\(\s*"((?:[^"\\]|\\.)*)"\s*\)', re.DOTALL)
+# The trailing comma is optional: rustfmt adds one whenever a long literal is
+# broken onto its own line, and without it here those strings were silently
+# skipped — exactly the ones most likely to be missing a translation.
+TR_RE = re.compile(r'\btr\(\s*"((?:[^"\\]|\\.)*)"\s*,?\s*\)', re.DOTALL)
 
 
 def unescape(rust_literal: str) -> str:
+    # A backslash at end of line continues a Rust string literal: the newline
+    # and the indentation that follows it are not part of the value. Undo that
+    # first, or a wrapped msgid never matches its catalog entry.
+    without_continuations = re.sub(r"\\\n\s*", "", rust_literal)
     return (
-        rust_literal.replace('\\"', '"')
+        without_continuations.replace('\\"', '"')
         .replace("\\n", "\n")
         .replace("\\t", "\t")
         .replace("\\\\", "\\")

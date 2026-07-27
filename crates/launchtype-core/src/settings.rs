@@ -8,12 +8,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::storage::atomic_write_json;
 
+/// Written with [`crate::portable`] placeholders so the default survives a
+/// move to another machine. The macOS and Linux defaults used to carry a
+/// literal `~`, which nothing ever expanded.
 #[cfg(windows)]
-pub const DEFAULT_STEAM_LIBRARY: &str = r"C:\Program Files (x86)\Steam\steamapps";
+pub const DEFAULT_STEAM_LIBRARY: &str = r"{{programfiles86}}\Steam\steamapps";
 #[cfg(target_os = "macos")]
-pub const DEFAULT_STEAM_LIBRARY: &str = "~/Library/Application Support/Steam/steamapps";
+pub const DEFAULT_STEAM_LIBRARY: &str = "{{appdata}}/Steam/steamapps";
 #[cfg(not(any(windows, target_os = "macos")))]
-pub const DEFAULT_STEAM_LIBRARY: &str = "~/.steam/steam/steamapps";
+pub const DEFAULT_STEAM_LIBRARY: &str = "{{home}}/.steam/steam/steamapps";
 
 pub const DEFAULT_AI_MODEL: &str = "claude-opus-4-8";
 
@@ -51,6 +54,9 @@ pub struct Settings {
     pub ssh_user: String,
     pub ssh_key_path: String,
     pub ssh_password: String,
+    /// Whether to check for machine-specific paths at startup and offer to
+    /// replace them with placeholders. Turned off by "Never ask again".
+    pub portability_check: bool,
 }
 
 pub const DEFAULT_COMMANDS_FILE: &str = "commands.json";
@@ -73,6 +79,7 @@ impl Default for Settings {
             ssh_user: String::new(),
             ssh_key_path: String::new(),
             ssh_password: String::new(),
+            portability_check: true,
         }
     }
 }
@@ -83,6 +90,16 @@ impl Settings {
         !self.ssh_host.trim().is_empty()
             && !self.ssh_user.trim().is_empty()
             && (!self.ssh_key_path.trim().is_empty() || !self.ssh_password.is_empty())
+    }
+
+    /// Settings values that name a file or folder, and so break when the app
+    /// moves to another machine. The portability scan covers these alongside
+    /// the commands.
+    pub fn machine_specific_paths(&self) -> Vec<String> {
+        [self.steam_library.clone(), self.ssh_key_path.clone()]
+            .into_iter()
+            .filter(|value| !value.trim().is_empty())
+            .collect()
     }
 }
 
@@ -168,6 +185,31 @@ mod tests {
         assert!(settings.ssh_configured(), "a key alone is enough");
         settings.ssh_user = "   ".into();
         assert!(!settings.ssh_configured(), "a blank user is no user");
+    }
+
+    /// The defaults must not carry a literal `~` or a hardcoded user folder:
+    /// nothing expands those, and the app is meant to move between machines.
+    #[test]
+    fn the_default_steam_library_is_machine_independent() {
+        let default = Settings::default().steam_library;
+        assert!(!default.contains('~'), "unexpandable home shortcut in {default}");
+        assert!(
+            crate::portable::placeholder_names(&default).next().is_some(),
+            "{default} has no placeholder"
+        );
+    }
+
+    #[test]
+    fn machine_specific_paths_skips_blanks() {
+        let mut settings = Settings { ssh_key_path: "  ".into(), ..Default::default() };
+        assert_eq!(settings.machine_specific_paths(), vec![settings.steam_library.clone()]);
+        settings.ssh_key_path = r"C:\Users\me\.ssh\id".into();
+        assert_eq!(settings.machine_specific_paths().len(), 2);
+    }
+
+    #[test]
+    fn the_portability_check_is_on_until_dismissed() {
+        assert!(Settings::default().portability_check);
     }
 
     #[test]

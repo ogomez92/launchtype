@@ -2093,6 +2093,7 @@ dependencies = [
  "image",
  "launchtype-core",
  "log",
+ "open",
  "plist",
  "russh",
  "serde",

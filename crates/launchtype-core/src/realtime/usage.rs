@@ -1,6 +1,6 @@
 //! Claude Code and Codex subscription usage responses turned into spoken
-//! summaries. Timezone is injected so reset moments are testable; production
-//! callers pass `&chrono::Local` to match Python's `.astimezone()`.
+//! summaries. The current instant is injected so relative reset moments ("in
+//! 5 days") are testable; production callers pass `&chrono::Local::now()`.
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use serde_json::Value;
@@ -20,42 +20,47 @@ pub const CODEX_TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
 pub const CODEX_CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 pub const CODEX_USAGE_URL: &str = "https://chatgpt.com/backend-api/wham/usage";
 
-/// Python `_format_reset_moment`: format an ISO reset timestamp in local
-/// time, or `None` if unparseable. Naive timestamps keep their wall time
-/// (Python's `astimezone()` treats them as already-local).
-pub fn format_reset_moment<Tz>(value: Option<&Value>, include_date: bool, tz: &Tz) -> Option<String>
+/// Turn an ISO reset timestamp into a localized *relative* phrase measured
+/// from `now` — "in 5 days", "in 3 hours 20 minutes" — or `None` if it is
+/// unparseable. Naive timestamps (no offset) are read as local wall time,
+/// interpreted in `now`'s timezone (Python's `astimezone()` treats them as
+/// already-local).
+pub fn format_reset_moment<Tz>(value: Option<&Value>, now: &DateTime<Tz>) -> Option<String>
 where
     Tz: TimeZone,
-    Tz::Offset: std::fmt::Display,
 {
     let text = value?.as_str()?;
-    let pattern = if include_date { "%d/%m %H:%M" } else { "%H:%M" };
-    if let Ok(aware) = DateTime::parse_from_rfc3339(text) {
-        return Some(aware.with_timezone(tz).format(pattern).to_string());
-    }
-    for naive_pattern in [
+    let target = if let Ok(aware) = DateTime::parse_from_rfc3339(text) {
+        aware.with_timezone(&Utc)
+    } else {
+        now.timezone()
+            .from_local_datetime(&parse_naive(text)?)
+            .single()?
+            .with_timezone(&Utc)
+    };
+    Some(humanize_until(target, now))
+}
+
+fn parse_naive(text: &str) -> Option<NaiveDateTime> {
+    for pattern in [
         "%Y-%m-%dT%H:%M:%S%.f",
         "%Y-%m-%d %H:%M:%S%.f",
         "%Y-%m-%dT%H:%M",
         "%Y-%m-%d %H:%M",
     ] {
-        if let Ok(naive) = NaiveDateTime::parse_from_str(text, naive_pattern) {
-            return Some(naive.format(pattern).to_string());
+        if let Ok(naive) = NaiveDateTime::parse_from_str(text, pattern) {
+            return Some(naive);
         }
     }
-    if let Ok(date) = NaiveDate::parse_from_str(text, "%Y-%m-%d") {
-        return Some(date.and_hms_opt(0, 0, 0)?.format(pattern).to_string());
-    }
-    None
+    NaiveDate::parse_from_str(text, "%Y-%m-%d").ok()?.and_hms_opt(0, 0, 0)
 }
 
-/// Python `_format_epoch_moment`: format a unix-epoch reset timestamp in
-/// local time, or `None` if invalid (negative or absurd values fail, like
-/// `datetime.fromtimestamp` on Windows).
-pub fn format_epoch_moment<Tz>(value: Option<&Value>, include_date: bool, tz: &Tz) -> Option<String>
+/// Turn a unix-epoch reset timestamp into a localized relative phrase (see
+/// [`format_reset_moment`]), or `None` if invalid — negative or absurd values
+/// fail like `datetime.fromtimestamp` on Windows.
+pub fn format_epoch_moment<Tz>(value: Option<&Value>, now: &DateTime<Tz>) -> Option<String>
 where
     Tz: TimeZone,
-    Tz::Offset: std::fmt::Display,
 {
     let seconds = python_float(value?)?;
     // Windows fromtimestamp rejects pre-epoch values; year 9999 is the cap.
@@ -64,9 +69,62 @@ where
     }
     let whole = seconds.trunc() as i64;
     let nanos = (((seconds - whole as f64) * 1e9).round() as u32).min(999_999_999);
-    let moment = DateTime::<Utc>::from_timestamp(whole, nanos)?.with_timezone(tz);
-    let pattern = if include_date { "%d/%m %H:%M" } else { "%H:%M" };
-    Some(moment.format(pattern).to_string())
+    let target = DateTime::<Utc>::from_timestamp(whole, nanos)?;
+    Some(humanize_until(target, now))
+}
+
+/// Localized "in {duration}" for the gap between `now` and `target`, using the
+/// two most significant non-zero units (days+hours, hours+minutes, or
+/// minutes). Sub-minute gaps — and resets already due — read "in less than a
+/// minute".
+fn humanize_until<Tz>(target: DateTime<Utc>, now: &DateTime<Tz>) -> String
+where
+    Tz: TimeZone,
+{
+    let seconds = (target - now.with_timezone(&Utc)).num_seconds();
+    if seconds < 60 {
+        return tr("in less than a minute");
+    }
+    let total_minutes = seconds / 60;
+    let days = total_minutes / (24 * 60);
+    let hours = (total_minutes % (24 * 60)) / 60;
+    let minutes = total_minutes % 60;
+
+    let duration = if days >= 1 {
+        join_units(unit(days, Unit::Day), (hours > 0).then(|| unit(hours, Unit::Hour)))
+    } else if hours >= 1 {
+        join_units(unit(hours, Unit::Hour), (minutes > 0).then(|| unit(minutes, Unit::Minute)))
+    } else {
+        unit(minutes, Unit::Minute)
+    };
+    format_args(&tr("in {duration}"), &[("duration", Arg::Str(&duration))])
+}
+
+fn join_units(major: String, minor: Option<String>) -> String {
+    match minor {
+        Some(minor) => format!("{major} {minor}"),
+        None => major,
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Unit {
+    Day,
+    Hour,
+    Minute,
+}
+
+/// One pluralized, localized count phrase like "5 days" or "1 hour".
+fn unit(n: i64, kind: Unit) -> String {
+    let template = match (kind, n == 1) {
+        (Unit::Day, true) => tr("{n} day"),
+        (Unit::Day, false) => tr("{n} days"),
+        (Unit::Hour, true) => tr("{n} hour"),
+        (Unit::Hour, false) => tr("{n} hours"),
+        (Unit::Minute, true) => tr("{n} minute"),
+        (Unit::Minute, false) => tr("{n} minutes"),
+    };
+    format_args(&template, &[("n", Arg::Int(n))])
 }
 
 fn utilization(section: Option<&Value>) -> Option<&Value> {
@@ -76,57 +134,49 @@ fn utilization(section: Option<&Value>) -> Option<&Value> {
 /// Python `_fetch_claude_usage`, minus the credential read and HTTP call:
 /// turn the api.anthropic.com/api/oauth/usage response into the spoken
 /// summary of the 5-hour session, 7-day week and opus-week windows.
-pub fn claude_usage_sentence<Tz>(body: &str, tz: &Tz) -> Result<String, RealtimeError>
+pub fn claude_usage_sentence<Tz>(body: &str, now: &DateTime<Tz>) -> Result<String, RealtimeError>
 where
     Tz: TimeZone,
-    Tz::Offset: std::fmt::Display,
 {
     let body = parse_json_body(body)?;
-    let mut parts: Vec<String> = Vec::new();
+    // Percentages lead the sentence (the numbers watched at a glance); the
+    // reset moments trail behind them, so the whole line reads "all models X%,
+    // weekly Y%, fable Z%, session resets in …, weekly resets in …".
+    let mut percents: Vec<String> = Vec::new();
+    let mut resets: Vec<String> = Vec::new();
 
     let session = body.get("five_hour");
     if let Some(value) = utilization(session) {
         let percent = format_number(python_float(value).ok_or(RealtimeError::NotUnderstood)?, 0);
-        let reset = format_reset_moment(
-            session.and_then(|s| s.get("resets_at")),
-            false,
-            tz,
-        );
-        parts.push(match reset {
-            Some(reset) => format_args(
-                &tr("session at {percent} percent, resets at {reset}"),
-                &[("percent", Arg::Str(&percent)), ("reset", Arg::Str(&reset))],
-            ),
-            None => format_args(
-                &tr("session at {percent} percent"),
-                &[("percent", Arg::Str(&percent))],
-            ),
-        });
+        percents.push(format_args(&tr("all models {percent}%"), &[("percent", Arg::Str(&percent))]));
+        if let Some(reset) = format_reset_moment(session.and_then(|s| s.get("resets_at")), now) {
+            resets.push(format_args(
+                &tr("session resets {reset}"),
+                &[("reset", Arg::Str(&reset))],
+            ));
+        }
     }
 
     let week = body.get("seven_day");
     if let Some(value) = utilization(week) {
         let percent = format_number(python_float(value).ok_or(RealtimeError::NotUnderstood)?, 0);
-        let reset = format_reset_moment(week.and_then(|w| w.get("resets_at")), true, tz);
-        parts.push(match reset {
-            Some(reset) => format_args(
-                &tr("week at {percent} percent, resets on {reset}"),
-                &[("percent", Arg::Str(&percent)), ("reset", Arg::Str(&reset))],
-            ),
-            None => format_args(
-                &tr("week at {percent} percent"),
-                &[("percent", Arg::Str(&percent))],
-            ),
-        });
+        percents.push(format_args(&tr("weekly {percent}%"), &[("percent", Arg::Str(&percent))]));
+        if let Some(reset) = format_reset_moment(week.and_then(|w| w.get("resets_at")), now) {
+            resets.push(format_args(
+                &tr("weekly resets {reset}"),
+                &[("reset", Arg::Str(&reset))],
+            ));
+        }
     }
 
+    // Per-model weekly caps, each as "{model} {percent}%".
     let mut scoped: Vec<String> = Vec::new();
     if let Some(value) = utilization(body.get("seven_day_opus")) {
         let percent = format_number(python_float(value).ok_or(RealtimeError::NotUnderstood)?, 0);
         scoped.push("opus".to_string());
-        parts.push(format_args(
-            &tr("opus week at {percent} percent"),
-            &[("percent", Arg::Str(&percent))],
+        percents.push(format_args(
+            &tr("{model} {percent}%"),
+            &[("model", Arg::Str("opus")), ("percent", Arg::Str(&percent))],
         ));
     }
 
@@ -151,8 +201,8 @@ where
         if scoped.contains(&model) {
             continue;
         }
-        parts.push(format_args(
-            &tr("{model} week at {percent} percent"),
+        percents.push(format_args(
+            &tr("{model} {percent}%"),
             &[
                 ("model", Arg::Str(&model)),
                 ("percent", Arg::Str(&format_number(percent, 0))),
@@ -161,9 +211,11 @@ where
         scoped.push(model);
     }
 
-    if parts.is_empty() {
+    if percents.is_empty() {
         return Err(RealtimeError::NotUnderstood);
     }
+    let mut parts = percents;
+    parts.extend(resets);
     Ok(format_args(&tr("Claude usage: {parts}"), &[("parts", Arg::Str(&parts.join(", ")))]))
 }
 
@@ -171,10 +223,9 @@ where
 /// or `None`. The window's duration decides its label: up to a day it is the
 /// session (reset as a time of day), around a week the week, longer the month
 /// (reset with the date).
-pub fn codex_window_part<Tz>(window: &Value, tz: &Tz) -> Option<String>
+pub fn codex_window_part<Tz>(window: &Value, now: &DateTime<Tz>) -> Option<String>
 where
     Tz: TimeZone,
-    Tz::Offset: std::fmt::Display,
 {
     let window = window.as_object()?;
     let used = window.get("used_percent").filter(|value| !value.is_null())?;
@@ -187,10 +238,10 @@ where
         / 3600.0;
 
     if hours <= 24.0 {
-        let reset = format_epoch_moment(window.get("reset_at"), false, tz);
+        let reset = format_epoch_moment(window.get("reset_at"), now);
         return Some(match reset {
             Some(reset) => format_args(
-                &tr("session at {percent} percent, resets at {reset}"),
+                &tr("session at {percent} percent, resets {reset}"),
                 &[("percent", Arg::Str(&percent)), ("reset", Arg::Str(&reset))],
             ),
             None => format_args(
@@ -200,11 +251,11 @@ where
         });
     }
 
-    let reset = format_epoch_moment(window.get("reset_at"), true, tz);
+    let reset = format_epoch_moment(window.get("reset_at"), now);
     if hours <= 10.0 * 24.0 {
         return Some(match reset {
             Some(reset) => format_args(
-                &tr("week at {percent} percent, resets on {reset}"),
+                &tr("week at {percent} percent, resets {reset}"),
                 &[("percent", Arg::Str(&percent)), ("reset", Arg::Str(&reset))],
             ),
             None => format_args(
@@ -216,7 +267,7 @@ where
 
     Some(match reset {
         Some(reset) => format_args(
-            &tr("month at {percent} percent, resets on {reset}"),
+            &tr("month at {percent} percent, resets {reset}"),
             &[("percent", Arg::Str(&percent)), ("reset", Arg::Str(&reset))],
         ),
         None => format_args(
@@ -240,10 +291,9 @@ fn python_truthy(value: &Value) -> bool {
 /// Python `_fetch_openai_usage`, minus the token handling and HTTP call:
 /// turn the chatgpt.com/backend-api/wham/usage response into the spoken
 /// summary, windows labelled from their duration.
-pub fn openai_usage_sentence<Tz>(body: &str, tz: &Tz) -> Result<String, RealtimeError>
+pub fn openai_usage_sentence<Tz>(body: &str, now: &DateTime<Tz>) -> Result<String, RealtimeError>
 where
     Tz: TimeZone,
-    Tz::Offset: std::fmt::Display,
 {
     let body = parse_json_body(body)?;
     let mut parts: Vec<String> = Vec::new();
@@ -251,7 +301,7 @@ where
     let rate_limit = body.get("rate_limit").and_then(Value::as_object);
     for window_key in ["primary_window", "secondary_window"] {
         if let Some(window) = rate_limit.and_then(|limit| limit.get(window_key)) {
-            if let Some(part) = codex_window_part(window, tz) {
+            if let Some(part) = codex_window_part(window, now) {
                 parts.push(part);
             }
         }
@@ -278,23 +328,32 @@ mod tests {
         FixedOffset::east_opt(2 * 3600).unwrap()
     }
 
+    /// A fixed `now` in the +02:00 zone; production passes `Local::now()`.
+    fn now_at(month: u32, day: u32, hour: u32, minute: u32) -> DateTime<FixedOffset> {
+        plus2().with_ymd_and_hms(2026, month, day, hour, minute, 0).unwrap()
+    }
+
     #[test]
     fn claude_sentence_exact() {
+        // now = 2026-07-20 10:00 UTC: session reset 8h30m out, weekly 4d out.
+        let now = now_at(7, 20, 12, 0);
         let body = r#"{
             "five_hour": {"utilization": 42, "resets_at": "2026-07-20T18:30:00+00:00"},
             "seven_day": {"utilization": 81.4, "resets_at": "2026-07-24T10:00:00+00:00"},
             "seven_day_opus": {"utilization": 12}
         }"#;
         assert_eq!(
-            claude_usage_sentence(body, &plus2()).unwrap(),
-            "Claude usage: session at 42 percent, resets at 20:30, \
-             week at 81 percent, resets on 24/07 12:00, opus week at 12 percent"
+            claude_usage_sentence(body, &now).unwrap(),
+            "Claude usage: all models 42%, weekly 81%, opus 12%, \
+             session resets in 8 hours 30 minutes, weekly resets in 4 days"
         );
     }
 
     #[test]
     fn claude_scoped_weekly_limit_is_reported() {
         // The live shape: dedicated model sections null, the model cap in `limits`.
+        // now = 2026-07-20 10:00 UTC: session reset 1d8h out, weekly 3d11h out.
+        let now = now_at(7, 20, 12, 0);
         let body = r#"{
             "five_hour": {"utilization": 14, "resets_at": "2026-07-21T18:00:00+00:00"},
             "seven_day": {"utilization": 40, "resets_at": "2026-07-23T21:00:00+00:00"},
@@ -307,9 +366,9 @@ mod tests {
             ]
         }"#;
         assert_eq!(
-            claude_usage_sentence(body, &plus2()).unwrap(),
-            "Claude usage: session at 14 percent, resets at 20:00, \
-             week at 40 percent, resets on 23/07 23:00, fable week at 47 percent"
+            claude_usage_sentence(body, &now).unwrap(),
+            "Claude usage: all models 14%, weekly 40%, fable 47%, \
+             session resets in 1 day 8 hours, weekly resets in 3 days 11 hours"
         );
     }
 
@@ -326,8 +385,8 @@ mod tests {
             ]
         }"#;
         assert_eq!(
-            claude_usage_sentence(body, &plus2()).unwrap(),
-            "Claude usage: opus week at 12 percent, fable week at 47 percent"
+            claude_usage_sentence(body, &now_at(7, 20, 12, 0)).unwrap(),
+            "Claude usage: opus 12%, fable 47%"
         );
     }
 
@@ -344,8 +403,8 @@ mod tests {
         ] {
             let body = format!(r#"{{"five_hour": {{"utilization": 3}}, "limits": {limits}}}"#);
             assert_eq!(
-                claude_usage_sentence(&body, &plus2()).unwrap(),
-                "Claude usage: session at 3 percent",
+                claude_usage_sentence(&body, &now_at(7, 20, 12, 0)).unwrap(),
+                "Claude usage: all models 3%",
                 "for {limits}"
             );
         }
@@ -355,13 +414,13 @@ mod tests {
     fn claude_partial_sections_and_missing_resets() {
         let body = r#"{"five_hour": {"utilization": 0}}"#;
         assert_eq!(
-            claude_usage_sentence(body, &plus2()).unwrap(),
-            "Claude usage: session at 0 percent"
+            claude_usage_sentence(body, &now_at(7, 20, 12, 0)).unwrap(),
+            "Claude usage: all models 0%"
         );
         let body = r#"{"seven_day": {"utilization": 99.6, "resets_at": null}}"#;
         assert_eq!(
-            claude_usage_sentence(body, &plus2()).unwrap(),
-            "Claude usage: week at 100 percent"
+            claude_usage_sentence(body, &now_at(7, 20, 12, 0)).unwrap(),
+            "Claude usage: weekly 100%"
         );
     }
 
@@ -373,91 +432,112 @@ mod tests {
             r#"{"five_hour": {"utilization": null}}"#,
             "not json",
         ] {
-            let error = claude_usage_sentence(body, &plus2()).unwrap_err();
+            let error = claude_usage_sentence(body, &now_at(7, 20, 12, 0)).unwrap_err();
             assert_eq!(error, RealtimeError::NotUnderstood, "for {body:?}");
         }
     }
 
     #[test]
     fn reset_moment_formats() {
-        let tz = plus2();
+        // now = 2026-07-20 10:00 UTC (12:00 in the +02:00 zone).
+        let now = now_at(7, 20, 12, 0);
         let aware = json!("2026-07-20T18:30:00+00:00");
-        assert_eq!(format_reset_moment(Some(&aware), false, &tz), Some("20:30".to_string()));
-        assert_eq!(format_reset_moment(Some(&aware), true, &tz), Some("20/07 20:30".to_string()));
+        assert_eq!(
+            format_reset_moment(Some(&aware), &now),
+            Some("in 8 hours 30 minutes".to_string())
+        );
+        // A whole number of days omits the trailing (zero) hours.
+        let days = json!("2026-07-25T10:00:00Z");
+        assert_eq!(format_reset_moment(Some(&days), &now), Some("in 5 days".to_string()));
         let zulu = json!("2026-07-20T23:30:00Z");
-        assert_eq!(format_reset_moment(Some(&zulu), true, &tz), Some("21/07 01:30".to_string()));
-        // Naive timestamps keep their wall time regardless of timezone.
+        assert_eq!(
+            format_reset_moment(Some(&zulu), &now),
+            Some("in 13 hours 30 minutes".to_string())
+        );
+        // Naive timestamps are read as local wall time in `now`'s zone (+02:00),
+        // so 18:30 local is 16:30 UTC — 6h30m out.
         let naive = json!("2026-07-20T18:30:00");
-        assert_eq!(format_reset_moment(Some(&naive), false, &tz), Some("18:30".to_string()));
-        assert_eq!(format_reset_moment(None, false, &tz), None);
-        assert_eq!(format_reset_moment(Some(&json!(null)), false, &tz), None);
-        assert_eq!(format_reset_moment(Some(&json!(12345)), false, &tz), None);
-        assert_eq!(format_reset_moment(Some(&json!("garbage")), false, &tz), None);
+        assert_eq!(
+            format_reset_moment(Some(&naive), &now),
+            Some("in 6 hours 30 minutes".to_string())
+        );
+        // A reset barely ahead (or already due) collapses to a single phrase.
+        let imminent = json!("2026-07-20T10:00:30Z");
+        assert_eq!(
+            format_reset_moment(Some(&imminent), &now),
+            Some("in less than a minute".to_string())
+        );
+        assert_eq!(format_reset_moment(None, &now), None);
+        assert_eq!(format_reset_moment(Some(&json!(null)), &now), None);
+        assert_eq!(format_reset_moment(Some(&json!(12345)), &now), None);
+        assert_eq!(format_reset_moment(Some(&json!("garbage")), &now), None);
     }
 
     #[test]
     fn epoch_moment_formats() {
-        let tz = plus2();
-        // 1767225600 == 2026-01-01T00:00:00Z.
+        // now = 2025-12-31T00:00:00Z; 1767225600 == 2026-01-01T00:00:00Z (1 day out).
+        let now = Utc.with_ymd_and_hms(2025, 12, 31, 0, 0, 0).unwrap();
         let epoch = json!(1767225600);
-        assert_eq!(format_epoch_moment(Some(&epoch), false, &tz), Some("02:00".to_string()));
-        assert_eq!(format_epoch_moment(Some(&epoch), true, &tz), Some("01/01 02:00".to_string()));
+        assert_eq!(format_epoch_moment(Some(&epoch), &now), Some("in 1 day".to_string()));
         // Numeric strings coerce like Python float().
         let text = json!("1767225600");
-        assert_eq!(format_epoch_moment(Some(&text), false, &tz), Some("02:00".to_string()));
-        assert_eq!(format_epoch_moment(Some(&json!(-5)), false, &tz), None);
-        assert_eq!(format_epoch_moment(Some(&json!(1e18)), false, &tz), None);
-        assert_eq!(format_epoch_moment(Some(&json!(null)), false, &tz), None);
-        assert_eq!(format_epoch_moment(None, false, &tz), None);
+        assert_eq!(format_epoch_moment(Some(&text), &now), Some("in 1 day".to_string()));
+        assert_eq!(format_epoch_moment(Some(&json!(-5)), &now), None);
+        assert_eq!(format_epoch_moment(Some(&json!(1e18)), &now), None);
+        assert_eq!(format_epoch_moment(Some(&json!(null)), &now), None);
+        assert_eq!(format_epoch_moment(None, &now), None);
     }
 
     #[test]
     fn openai_sentence_exact() {
+        // now = 2026-01-01T00:00:00Z (epoch 1767225600); primary resets 4h30m
+        // out (1767241800), secondary 6 days out (1767744000).
+        let now = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
         let body = r#"{
             "plan_type": "plus",
             "rate_limit": {
                 "primary_window": {
                     "used_percent": 23.4,
                     "limit_window_seconds": 18000,
-                    "reset_at": 1767225600
+                    "reset_at": 1767241800
                 },
                 "secondary_window": {
                     "used_percent": 61.2,
                     "limit_window_seconds": 604800,
-                    "reset_at": 1767225600
+                    "reset_at": 1767744000
                 }
             }
         }"#;
         assert_eq!(
-            openai_usage_sentence(body, &plus2()).unwrap(),
-            "OpenAI usage: plus plan, session at 23 percent, resets at 02:00, \
-             week at 61 percent, resets on 01/01 02:00"
+            openai_usage_sentence(body, &now).unwrap(),
+            "OpenAI usage: plus plan, session at 23 percent, resets in 4 hours 30 minutes, \
+             week at 61 percent, resets in 6 days"
         );
     }
 
     #[test]
     fn codex_windows_label_by_duration() {
-        let tz = plus2();
+        let now = now_at(7, 20, 12, 0);
         // A 30-day window becomes the month; without reset_at, no reset clause.
         let month = json!({"used_percent": 5, "limit_window_seconds": 2592000});
-        assert_eq!(codex_window_part(&month, &tz), Some("month at 5 percent".to_string()));
+        assert_eq!(codex_window_part(&month, &now), Some("month at 5 percent".to_string()));
         // Exactly 24 hours still counts as the session.
         let day = json!({"used_percent": 50, "limit_window_seconds": 86400});
-        assert_eq!(codex_window_part(&day, &tz), Some("session at 50 percent".to_string()));
+        assert_eq!(codex_window_part(&day, &now), Some("session at 50 percent".to_string()));
         // Missing/null/zero duration defaults to the session label.
         let no_duration = json!({"used_percent": 7, "limit_window_seconds": null});
-        assert_eq!(codex_window_part(&no_duration, &tz), Some("session at 7 percent".to_string()));
+        assert_eq!(codex_window_part(&no_duration, &now), Some("session at 7 percent".to_string()));
         // An unparseable duration falls back to 0 hours, like Python's except.
         let bad_duration = json!({"used_percent": 7, "limit_window_seconds": "abc"});
-        assert_eq!(codex_window_part(&bad_duration, &tz), Some("session at 7 percent".to_string()));
+        assert_eq!(codex_window_part(&bad_duration, &now), Some("session at 7 percent".to_string()));
         // Windows without used_percent are skipped, not errors.
-        assert_eq!(codex_window_part(&json!({"limit_window_seconds": 18000}), &tz), None);
-        assert_eq!(codex_window_part(&json!({"used_percent": null}), &tz), None);
-        assert_eq!(codex_window_part(&json!({"used_percent": "n/a"}), &tz), None);
-        assert_eq!(codex_window_part(&json!("not a window"), &tz), None);
+        assert_eq!(codex_window_part(&json!({"limit_window_seconds": 18000}), &now), None);
+        assert_eq!(codex_window_part(&json!({"used_percent": null}), &now), None);
+        assert_eq!(codex_window_part(&json!({"used_percent": "n/a"}), &now), None);
+        assert_eq!(codex_window_part(&json!("not a window"), &now), None);
         // A negative epoch drops the reset clause (Windows fromtimestamp).
         let bad_reset = json!({"used_percent": 9, "limit_window_seconds": 18000, "reset_at": -5});
-        assert_eq!(codex_window_part(&bad_reset, &tz), Some("session at 9 percent".to_string()));
+        assert_eq!(codex_window_part(&bad_reset, &now), Some("session at 9 percent".to_string()));
     }
 
     #[test]
@@ -468,7 +548,7 @@ mod tests {
             r#"{"rate_limit": null, "plan_type": "plus"}"#,
             r#"{"rate_limit": {"primary_window": {"used_percent": null}}}"#,
         ] {
-            let error = openai_usage_sentence(body, &plus2()).unwrap_err();
+            let error = openai_usage_sentence(body, &now_at(7, 20, 12, 0)).unwrap_err();
             assert_eq!(error, RealtimeError::NotUnderstood, "for {body:?}");
         }
     }
@@ -478,7 +558,7 @@ mod tests {
         // The plan is inserted only when at least one window part exists.
         let body = r#"{"plan_type": "pro", "rate_limit": {"primary_window": {"used_percent": 1}}}"#;
         assert_eq!(
-            openai_usage_sentence(body, &plus2()).unwrap(),
+            openai_usage_sentence(body, &now_at(7, 20, 12, 0)).unwrap(),
             "OpenAI usage: pro plan, session at 1 percent"
         );
     }

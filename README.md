@@ -92,6 +92,49 @@ Once you add a command using the Add button in the UI, in order to use it you ca
 
 In commands mode a "Sort commands by" combo box lets you order the list by last modified (the default) or by number of uses. The choice is remembered.
 
+## Portable paths (variables)
+
+Launchtype is meant to travel: copy the folder to another machine — or to a Mac — and keep working. Two things normally break that, and both are solved by variables you can put in a command's path or arguments.
+
+A variable is written `{{name}}` and every machine resolves it for itself. The double braces are deliberate: `%name%` would be ambiguous with percent-encoded URLs (`?sex%5B%5D=female`), which are common in real command arguments.
+
+### Folder variables
+
+| Variable | Windows | macOS |
+| --- | --- | --- |
+| `{{home}}` | `C:\Users\you` | `/Users/you` |
+| `{{desktop}}`, `{{documents}}`, `{{downloads}}` | your Desktop / Documents / Downloads | the same folders |
+| `{{music}}`, `{{pictures}}`, `{{videos}}` | your Music / Pictures / Videos | the same folders |
+| `{{onedrive}}` | your OneDrive folder | your OneDrive folder |
+| `{{appdata}}` | `%APPDATA%` (Roaming) | `~/Library/Application Support` |
+| `{{localappdata}}` | `%LOCALAPPDATA%` | `~/Library/Application Support` |
+| `{{programfiles}}` | `C:\Program Files` | `/Applications` |
+| `{{programfiles86}}` | `C:\Program Files (x86)` | `/Applications` |
+| `{{programdata}}` | `C:\ProgramData` | `/Library/Application Support` |
+| `{{temp}}` | the temp folder | the temp folder |
+| `{{launchtype}}` | the folder Launchtype runs from | the same |
+| `{{username}}` | your login name on its own, for arguments | the same |
+
+Windows-style backslashes are translated automatically, so `{{home}}\stuff\notes.txt` written on Windows opens `/Users/you/stuff/notes.txt` on a Mac.
+
+### Browser variables
+
+`{{browser}}` is whatever your operating system uses to open a link, so a command with `{{browser}}` as its path and a URL as its argument works everywhere.
+
+`{{chrome}}`, `{{firefox}}`, `{{edge}}`, `{{brave}}`, `{{vivaldi}}`, `{{opera}}` and `{{safari}}` name a specific browser, so you can keep some links in one browser and some in another. Each is looked up in the usual install locations for the current platform, and **falls back to `{{browser}}` when that browser is not installed** — a `{{chrome}}` command still opens on a Mac that only has Safari, rather than failing.
+
+### Adding them
+
+In the Add and Edit Command dialogs, the "Path variable..." and "Argument variable..." buttons open a menu of every variable with its description and what it resolves to on this machine. Choosing one inserts it where the cursor is and leaves you in the field, so you can carry on typing.
+
+The Browse button also does this for you: pick a file inside your user folder and it is stored as `{{home}}\...` rather than with your user name baked in.
+
+### The startup check
+
+When Launchtype finds paths that only work on this machine it offers to replace them, once, at startup. The list is grouped by rule rather than by command — one line reading `C:\Program Files\Google\Chrome\Application\chrome.exe becomes {{chrome}} (189 used)` rather than 189 separate rows — and everything is ticked by default. "Fix selected" rewrites them, "Not now" asks again next time, and "Never ask again" turns the check off (you can turn it back on in Settings).
+
+The same dialog also lists paths that no variable can rescue — a drive letter or a network share that only exists on the machine the command was added on. Those are shown for information only; edit or delete those commands yourself. They never open the dialog on their own, so a few dead drive letters will not nag you at every start.
+
 ## Settings
 
 The Settings button in the UI opens a dialog where you can persist the following preferences to `settings.json`:
@@ -99,6 +142,7 @@ The Settings button in the UI opens a dialog where you can persist the following
 - Enable sounds
 - Start minimized
 - Start in snippets mode when invoked
+- Check for machine-specific paths at startup (see [Portable paths](#portable-paths-variables))
 - Steam library path
 - AI model used for screenshot descriptions (Claude Opus, Sonnet or Haiku)
 - Interface language (same as the system, English or Spanish) — applied the next time the app starts

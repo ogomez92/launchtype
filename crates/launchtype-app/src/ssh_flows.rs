@@ -37,7 +37,12 @@ fn config_from(settings: &Settings) -> SshConfig {
         host: settings.ssh_host.clone(),
         port: settings.ssh_port,
         user: settings.ssh_user.clone(),
-        key_path: settings.ssh_key_path.clone(),
+        // Typically `{{home}}\.ssh\id_ed25519`, which has to resolve to this
+        // machine's user folder rather than the one it was configured on.
+        key_path: launchtype_core::portable::expand(
+            &settings.ssh_key_path,
+            launchtype_services::portable::vars(),
+        ),
         password: settings.ssh_password.clone(),
     }
 }
@@ -191,14 +196,11 @@ fn finish_command(shell: &SharedShell, result: &Result<CommandOutput, SshError>)
         if s.mode == UiMode::Ssh {
             s.list.set_selection(first_new_line as u32, true);
         }
+        // Read the output aloud, one line per line, so the user hears it
+        // straight away without having to arrow into the results list.
+        let spoken = s.controller.ssh_output[first_new_line..].join("\n");
         drop(s);
-        speak_now(
-            &format_args(
-                &tr("{count} lines of output"),
-                &[("count", Arg::Int(new_lines as i64))],
-            ),
-            true,
-        );
+        speak_now(&spoken, true);
     } else if stderr.trim().is_empty() {
         speak_now(&tr("The command produced no output"), true);
     }

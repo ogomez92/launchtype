@@ -4,8 +4,9 @@
 //! returns, which sidesteps the Windows default-button double-click bug the
 //! Python code worked around with wx.CallAfter.
 
-use launchtype_core::i18n::tr;
+use launchtype_core::i18n::{format_args, tr, Arg};
 use launchtype_core::model::Command;
+use launchtype_core::portable::{self, Target, VarSpec};
 use wxdragon::dialogs::dir_dialog::DirDialog;
 use wxdragon::dialogs::file_dialog::{FileDialog, FileDialogStyle};
 use wxdragon::dialogs::message_dialog::{MessageDialog, MessageDialogStyle};
@@ -16,6 +17,15 @@ use crate::controller::ModeController;
 
 const ID_OK: i32 = wxdragon::id::ID_OK as i32;
 const ID_YES: i32 = wxdragon::id::ID_YES as i32;
+
+/// First menu id of each insert-variable menu; a placeholder takes
+/// `base + its index in `portable::all_specs()``.
+///
+/// Every menu on a dialog posts `wxEVT_MENU` to that same dialog, so the two
+/// fields need ranges far enough apart that a pick can only ever land in the
+/// field it was opened from. The catalog is ~24 entries; 100 apart is ample.
+const PATH_VARIABLE_MENU_BASE_ID: i32 = 6300;
+const ARGS_VARIABLE_MENU_BASE_ID: i32 = 6400;
 
 /// Model ids offered in the AI-model dropdown, in display order.
 const AI_MODEL_IDS: [&str; 3] = ["claude-opus-4-8", "claude-sonnet-5", "claude-haiku-4-5"];
@@ -104,6 +114,97 @@ fn labeled_password_row(dialog: &Dialog, sizer: &BoxSizer, label: &str) -> TextC
     entry
 }
 
+/// Insert `text` where the caret is and leave focus in the field, so typing
+/// carries straight on after picking a variable.
+fn insert_at_caret(entry: &TextCtrl, text: &str) {
+    let value = entry.get_value();
+    // wx counts characters, not bytes; a path may hold non-ASCII.
+    let chars: Vec<char> = value.chars().collect();
+    let at = (entry.get_insertion_point().max(0) as usize).min(chars.len());
+    let mut updated: String = chars[..at].iter().collect();
+    updated.push_str(text);
+    updated.extend(chars[at..].iter());
+    entry.set_value(&updated);
+    entry.set_insertion_point((at + text.chars().count()) as i64);
+    entry.set_focus();
+}
+
+/// The menu line for one placeholder: what to type, what it means, and what it
+/// resolves to here — the resolved value is the part that tells the user
+/// whether the variable is the one they want.
+fn variable_menu_label(spec: &VarSpec) -> String {
+    let name = portable::placeholder(spec.name);
+    let description = portable::description(spec.name);
+    match launchtype_services::portable::vars().display_value(spec.name) {
+        Some(value) => format!("{name} - {description} ({value})"),
+        // A default-handler variable has no path to show.
+        None => format!("{name} - {description}"),
+    }
+}
+
+/// Add an "insert variable" button to `row` that drops a placeholder into
+/// `entry` at the caret.
+///
+/// The popup mirrors the Alt+M modes menu, which is the accessible pattern
+/// already established in this app. `Dialog` does not implement wxdragon's
+/// `MenuEvents` trait (and the orphan rule rules out adding it), but it does
+/// implement `WxEvtHandler`, so the `wxEVT_MENU` the popup posts is bound
+/// directly here.
+fn variable_menu_button(
+    dialog: &Dialog,
+    row: &BoxSizer,
+    entry: &TextCtrl,
+    label: &str,
+    base_id: i32,
+) {
+    let button = Button::builder(dialog).with_label(label).build();
+    row.add(&button, 0, SizerFlag::All, 0);
+
+    let specs = portable::all_specs();
+    {
+        let dialog = *dialog;
+        let specs = specs.clone();
+        button.on_click(move |_| {
+            let mut builder = Menu::builder();
+            for (index, spec) in specs.iter().enumerate() {
+                builder =
+                    builder.append_item(base_id + index as i32, &variable_menu_label(spec), "");
+            }
+            let mut menu = builder.build();
+            dialog.popup_menu(&mut menu, None);
+        });
+    }
+    {
+        let entry = *entry;
+        let count = specs.len() as i32;
+        dialog.bind_internal(wxdragon::event::EventType::MENU, move |event| {
+            let Some(index) = event.get_id().checked_sub(base_id) else { return };
+            // Ignore the other field's menu, which posts to this same dialog.
+            if index >= count {
+                return;
+            }
+            if let Some(spec) = specs.get(index as usize) {
+                insert_at_caret(&entry, &portable::placeholder(spec.name));
+            }
+        });
+    }
+}
+
+/// Rewrite a browsed-for path into placeholder form when one applies, so
+/// picking a file out of your user folder does not hardcode it.
+fn portabilize(path: &str) -> String {
+    let vars = launchtype_services::portable::vars();
+    match portable::suggest(path, vars) {
+        Some((from, to)) => portable::apply_to_setting(
+            path,
+            &[portable::Fix { from, to, count: 1 }],
+            vars,
+        )
+        .unwrap_or_else(|| path.to_string()),
+        None => path.to_string(),
+    }
+}
+
 fn ok_cancel_row(dialog: &Dialog, sizer: &BoxSizer) -> (Button, Button) {
     let row = BoxSizer::builder(Orientation::Horizontal).build();
     // Standard ids let wxDialog map Enter -> OK and Escape -> Cancel. Without
@@ -153,9 +254,33 @@ pub fn command_edition_dialog(
     path_row.add(&path_label, 0, SizerFlag::All, 0);
     path_row.add(&path_entry, 0, SizerFlag::All, 0);
     path_row.add(&browse, 0, SizerFlag::All, 0);
+    variable_menu_button(
+        &dialog,
+        &path_row,
+        &path_entry,
+        // Distinct labels, not two buttons both reading "Variable": a screen
+        // reader announces the label, and "which one am I on" must be obvious.
+        &tr("Path &variable..."),
+        PATH_VARIABLE_MENU_BASE_ID,
+    );
     sizer.add_sizer(&path_row, 0, SizerFlag::All, 0);
 
-    let args_entry = labeled_row(&dialog, &sizer, &tr("&Arguments (optional, comma separated):"));
+    let args_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let args_title = tr("&Arguments (optional, comma separated):");
+    let args_label = StaticText::builder(&dialog).with_label(&args_title).build();
+    let args_entry = TextCtrl::builder(&dialog).build();
+    ax_name(&args_entry, &args_title);
+    args_row.add(&args_label, 0, SizerFlag::All, 0);
+    args_row.add(&args_entry, 0, SizerFlag::All, 0);
+    variable_menu_button(
+        &dialog,
+        &args_row,
+        &args_entry,
+        &tr("Argument var&iable..."),
+        ARGS_VARIABLE_MENU_BASE_ID,
+    );
+    sizer.add_sizer(&args_row, 0, SizerFlag::All, 0);
+
     let name_entry = labeled_row(&dialog, &sizer, &tr("Display &Name:"));
     let shortcut_entry = labeled_row(&dialog, &sizer, &tr("&Shortcut (optional):"));
     let admin_checkbox = checkbox(&dialog, &tr("Run as &administrator"));
@@ -182,7 +307,9 @@ pub fn command_edition_dialog(
                 .build();
             if file_dialog.show_modal() == ID_OK {
                 if let Some(path) = file_dialog.get_path() {
-                    path_entry.set_value(&path);
+                    // Store the portable form: browsing to something in your
+                    // user folder must not hardcode that folder.
+                    path_entry.set_value(&portabilize(&path));
                 }
             }
         });
@@ -191,17 +318,45 @@ pub fn command_edition_dialog(
         // Validation errors stay inside the modal (matching Python); success
         // ends the modal and the save happens after show_modal returns.
         let dialog = dialog;
+        // A shortcut may belong to at most one command. When editing, the
+        // command's own shortcut must not clash with itself; adds and copies
+        // exclude nothing (the original still owns its shortcut).
+        let editing_id = if is_editing {
+            seed.as_ref().map(|c| c.id.clone())
+        } else {
+            None
+        };
         let existing_shortcuts: Vec<String> = controller
             .commands
             .file
             .commands
             .iter()
+            .filter(|c| editing_id.as_deref() != Some(c.id.as_str()))
             .map(|c| c.shortcut().to_string())
             .collect();
         ok.on_click(move |_| {
-            if !std::path::Path::new(&path_entry.get_value()).exists() {
-                error_box(&dialog, &tr("This path is incorrect."), "Error");
+            let path = path_entry.get_value();
+            let vars = launchtype_services::portable::vars();
+            // A typo inside {{...}} would otherwise be launched literally.
+            let unknown = portable::unknown_placeholders(&path, vars);
+            if let Some(name) = unknown.first() {
+                error_box(
+                    &dialog,
+                    &format_args(
+                        &tr("There is no variable called {name}. Use the Variable button to pick one."),
+                        &[("name", Arg::Str(&portable::placeholder(name)))],
+                    ),
+                    &tr("Unknown variable"),
+                );
                 return;
+            }
+            // {{browser}} names a handler rather than a file, so there is
+            // nothing on disk to check.
+            if let Target::Path(resolved) = portable::resolve_target(&path, vars) {
+                if !std::path::Path::new(&resolved).exists() {
+                    error_box(&dialog, &tr("This path is incorrect."), "Error");
+                    return;
+                }
             }
             if name_entry.get_value().is_empty() {
                 error_box(
@@ -212,7 +367,7 @@ pub fn command_edition_dialog(
                 return;
             }
             let shortcut = shortcut_entry.get_value().to_lowercase();
-            if !is_editing && !shortcut.is_empty() && existing_shortcuts.iter().any(|s| *s == shortcut) {
+            if !shortcut.is_empty() && existing_shortcuts.iter().any(|s| *s == shortcut) {
                 error_box(&dialog, &tr("The shortcut is already in use."), &tr("Shortcut taken"));
                 return;
             }
@@ -287,6 +442,125 @@ pub fn command_edition_dialog(
     true
 }
 
+/// What the user chose in the portability dialog.
+pub enum PortabilityChoice {
+    /// Apply these fixes (a subset of the ones offered).
+    Fix(Vec<portable::Fix>),
+    /// Leave everything alone this time, but ask again next start.
+    NotNow,
+    /// Leave everything alone and stop checking.
+    NeverAsk,
+}
+
+/// Offer to replace machine-specific paths with placeholders.
+///
+/// Fixes are listed one row per *rule*, not per command: the real file has 389
+/// commands but only about a dozen distinct rules, and a 389-row list would be
+/// unusable with a screen reader. Paths that no placeholder can rescue (a
+/// drive letter or a network share that only exists on the machine they were
+/// added on) are reported below for information — there is nothing to tick.
+pub fn portability_dialog(
+    parent: &Frame,
+    report: &portable::Report,
+) -> PortabilityChoice {
+    let dialog = Dialog::builder(parent, &tr("Machine-specific paths")).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+
+    let help = StaticText::builder(&dialog)
+        .with_label(&tr(
+            "Some commands point at folders and programs that only exist on this machine, so they will break if you move Launchtype elsewhere. Tick the ones to replace with a variable that each machine resolves for itself.",
+        ))
+        .build();
+    sizer.add(&help, 0, SizerFlag::All, 5);
+
+    let list_title = tr("&Replacements to make:");
+    let list_label = StaticText::builder(&dialog).with_label(&list_title).build();
+    sizer.add(&list_label, 0, SizerFlag::All, 5);
+    let list = CheckListBox::builder(&dialog).build();
+    ax_name(&list, &list_title);
+    for fix in &report.fixes {
+        list.append(&format_args(
+            &tr("{from} becomes {to} ({count} used)"),
+            &[
+                ("from", Arg::Str(&fix.from)),
+                ("to", Arg::Str(&fix.to)),
+                ("count", Arg::Int(fix.count as i64)),
+            ],
+        ));
+    }
+    // Everything on offer is safe and reversible from the Edit dialog, so
+    // start with all of it ticked: the common answer is "yes, all of them".
+    for index in 0..list.get_count() {
+        list.check(index, true);
+    }
+    sizer.add(&list, 1, SizerFlag::Expand, 5);
+
+    if !report.unreachable.is_empty() {
+        let mut text = tr(
+            "These paths cannot be reached on this machine and no variable can fix them; edit or delete those commands yourself:",
+        );
+        text.push('\n');
+        for entry in report.unreachable.iter().take(15) {
+            text.push_str(&format!("\n{}", entry.path));
+        }
+        if report.unreachable.len() > 15 {
+            text.push_str(&format_args(
+                &tr("\nand {count} more."),
+                &[("count", Arg::Int((report.unreachable.len() - 15) as i64))],
+            ));
+        }
+        let unreachable_label = StaticText::builder(&dialog).with_label(&text).build();
+        sizer.add(&unreachable_label, 0, SizerFlag::All, 5);
+    }
+
+    let button_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let fix = Button::builder(&dialog).with_id(ID_OK).with_label(&tr("&Fix selected")).build();
+    let not_now = Button::builder(&dialog)
+        .with_id(wxdragon::id::ID_CANCEL)
+        .with_label(&tr("&Not now"))
+        .build();
+    let never = Button::builder(&dialog).with_label(&tr("Ne&ver ask again")).build();
+    fix.set_default();
+    // Nothing to tick means nothing to fix; the list is informational only.
+    if report.fixes.is_empty() {
+        fix.enable(false);
+        not_now.set_default();
+    }
+    for button in [&fix, &not_now, &never] {
+        button_row.add(button, 0, SizerFlag::All, 0);
+    }
+    sizer.add_sizer(&button_row, 0, SizerFlag::All, 5);
+    dialog.set_sizer(sizer, true);
+
+    const ID_NEVER: i32 = 6500;
+    {
+        let dialog = dialog;
+        fix.on_click(move |_| dialog.end_modal(ID_OK));
+    }
+    {
+        let dialog = dialog;
+        not_now.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+    }
+    {
+        let dialog = dialog;
+        never.on_click(move |_| dialog.end_modal(ID_NEVER));
+    }
+
+    match dialog.show_modal() {
+        ID_OK => PortabilityChoice::Fix(
+            report
+                .fixes
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| list.is_checked(*index as u32))
+                .map(|(_, fix)| fix.clone())
+                .collect(),
+        ),
+        ID_NEVER => PortabilityChoice::NeverAsk,
+        _ => PortabilityChoice::NotNow,
+    }
+}
+
 /// Settings dialog; returns true when saved (caller refreshes sound enable).
 pub fn settings_dialog(
     parent: &Frame,
@@ -304,6 +578,10 @@ pub fn settings_dialog(
     let snippets_cb = checkbox(&dialog, &tr("Start in s&nippets mode when invoked"));
     snippets_cb.set_value(settings.settings.snippets_on_invoke);
     sizer.add(&snippets_cb, 0, SizerFlag::All, 5);
+    let portability_cb =
+        checkbox(&dialog, &tr("Check for machine-s&pecific paths at startup"));
+    portability_cb.set_value(settings.settings.portability_check);
+    sizer.add(&portability_cb, 0, SizerFlag::All, 5);
 
     let steam_label = StaticText::builder(&dialog).with_label(&tr("Steam &library path:")).build();
     sizer.add(&steam_label, 0, SizerFlag::All, 5);
@@ -413,12 +691,17 @@ pub fn settings_dialog(
             let dir_dialog = DirDialog::builder(
                 &dialog,
                 &tr("Choose Steam library folder"),
-                &steam_entry.get_value(),
+                // The stored value may be a placeholder; the picker needs the
+                // real folder to start in.
+                &portable::expand(
+                    &steam_entry.get_value(),
+                    launchtype_services::portable::vars(),
+                ),
             )
             .build();
             if dir_dialog.show_modal() == ID_OK {
                 if let Some(path) = dir_dialog.get_path() {
-                    steam_entry.set_value(&path);
+                    steam_entry.set_value(&portabilize(&path));
                 }
             }
         });
@@ -433,7 +716,7 @@ pub fn settings_dialog(
                 .build();
             if file_dialog.show_modal() == ID_OK {
                 if let Some(path) = file_dialog.get_path() {
-                    ssh_key_entry.set_value(&path);
+                    ssh_key_entry.set_value(&portabilize(&path));
                 }
             }
         });
@@ -455,6 +738,7 @@ pub fn settings_dialog(
     settings.settings.enable_sounds = sounds_cb.get_value();
     settings.settings.start_minimized = minimized_cb.get_value();
     settings.settings.snippets_on_invoke = snippets_cb.get_value();
+    settings.settings.portability_check = portability_cb.get_value();
     settings.settings.steam_library = steam_entry.get_value();
     let ai_index = ai_choice.get_selection().unwrap_or(0) as usize;
     settings.settings.ai_model = AI_MODEL_IDS[ai_index.min(AI_MODEL_IDS.len() - 1)].to_string();

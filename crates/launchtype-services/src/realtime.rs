@@ -127,7 +127,7 @@ fn fetch_claude_usage() -> Result<String, RealtimeError> {
             e
         }
     })?;
-    claude_usage_sentence(&body, &Local)
+    claude_usage_sentence(&body, &Local::now())
 }
 
 fn fetch_openai_usage() -> Result<String, RealtimeError> {
@@ -158,7 +158,7 @@ fn fetch_openai_usage() -> Result<String, RealtimeError> {
         }
         Err(e) => return Err(e),
     };
-    openai_usage_sentence(&body, &Local)
+    openai_usage_sentence(&body, &Local::now())
 }
 
 fn fetch_temperatures() -> Result<String, RealtimeError> {
