@@ -5,6 +5,7 @@
 //! Python code worked around with wx.CallAfter.
 
 use launchtype_core::i18n::{format_args, tr, Arg};
+use launchtype_core::merge;
 use launchtype_core::model::Command;
 use launchtype_core::portable::{self, Target, VarSpec};
 use wxdragon::dialogs::dir_dialog::DirDialog;
@@ -567,6 +568,136 @@ pub fn portability_dialog(
         ID_NEVER => PortabilityChoice::NeverAsk,
         _ => PortabilityChoice::NotNow,
     }
+}
+
+/// One line of the merge list: what the command is, plus whatever the checks
+/// turned up about it. Everything goes on the row itself rather than into a
+/// details pane, because a screen reader reads the row and nothing else.
+fn merge_row_label(candidate: &merge::Candidate) -> String {
+    let mut label = format_args(
+        &tr("{name} ({path})"),
+        &[
+            ("name", Arg::Str(&candidate.command.name)),
+            ("path", Arg::Str(&candidate.command.path)),
+        ],
+    );
+    for warning in &candidate.warnings {
+        label.push_str(" - ");
+        label.push_str(&merge_warning_text(warning));
+    }
+    label
+}
+
+fn merge_warning_text(warning: &merge::Warning) -> String {
+    match warning {
+        merge::Warning::ShortcutTaken { shortcut, owner } => format_args(
+            &tr("the shortcut {shortcut} already belongs to {owner}, so this one is imported without it"),
+            &[("shortcut", Arg::Str(shortcut)), ("owner", Arg::Str(owner))],
+        ),
+        merge::Warning::ShortcutTakenInFile { shortcut, owner } => format_args(
+            &tr("the shortcut {shortcut} is also used by {owner} in this file, so this one is imported without it"),
+            &[("shortcut", Arg::Str(shortcut)), ("owner", Arg::Str(owner))],
+        ),
+        merge::Warning::UnknownVariable { name } => format_args(
+            &tr("there is no variable called {name} on this machine"),
+            &[("name", Arg::Str(&portable::placeholder(name)))],
+        ),
+        merge::Warning::MissingPath { path } => format_args(
+            &tr("{path} does not exist on this machine"),
+            &[("path", Arg::Str(path))],
+        ),
+    }
+}
+
+/// Pick which of the new commands in another file to import. Returns the
+/// ticked commands; empty when nothing was chosen or the dialog was cancelled.
+///
+/// Only commands this list does not already hold are ever offered (see
+/// [`merge::plan`]), so there is no "replace" here and nothing to decide about
+/// the commands already present — they are not in the list at all.
+pub fn merge_dialog(parent: &Frame, file_name: &str, plan: &merge::Plan) -> Vec<Command> {
+    let dialog = Dialog::builder(parent, &tr("Merge commands")).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+
+    let mut summary = format_args(
+        &tr("{count} new commands were found in {file}. Tick the ones to add. Nothing already in your list is changed, replaced or removed."),
+        &[
+            ("count", Arg::Int(plan.candidates.len() as i64)),
+            ("file", Arg::Str(file_name)),
+        ],
+    );
+    if plan.already_present > 0 {
+        summary.push('\n');
+        summary.push_str(&format_args(
+            &tr("{count} commands in that file are already in your list and are not shown."),
+            &[("count", Arg::Int(plan.already_present as i64))],
+        ));
+    }
+    let help = StaticText::builder(&dialog).with_label(&summary).build();
+    sizer.add(&help, 0, SizerFlag::All, 5);
+
+    let list_title = tr("Commands to &import:");
+    let list_label = StaticText::builder(&dialog).with_label(&list_title).build();
+    sizer.add(&list_label, 0, SizerFlag::All, 5);
+    let list = CheckListBox::builder(&dialog).build();
+    ax_name(&list, &list_title);
+    for candidate in &plan.candidates {
+        list.append(&merge_row_label(candidate));
+    }
+    // The user browsed to this file on purpose and only new commands are on
+    // offer, so "all of them" is the expected answer; the buttons below make
+    // picking a few out of a long list cheap.
+    for index in 0..list.get_count() {
+        list.check(index, true);
+    }
+    sizer.add(&list, 1, SizerFlag::Expand, 5);
+
+    let button_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let all = Button::builder(&dialog).with_label(&tr("Select &all")).build();
+    let none = Button::builder(&dialog).with_label(&tr("Select &none")).build();
+    let import = Button::builder(&dialog)
+        .with_id(ID_OK)
+        .with_label(&tr("Im&port selected"))
+        .build();
+    let cancel = Button::builder(&dialog)
+        .with_id(wxdragon::id::ID_CANCEL)
+        .with_label(&tr("&Cancel"))
+        .build();
+    import.set_default();
+    for button in [&all, &none, &import, &cancel] {
+        button_row.add(button, 0, SizerFlag::All, 0);
+    }
+    sizer.add_sizer(&button_row, 0, SizerFlag::All, 5);
+    dialog.set_sizer(sizer, true);
+
+    all.on_click(move |_| {
+        for index in 0..list.get_count() {
+            list.check(index, true);
+        }
+    });
+    none.on_click(move |_| {
+        for index in 0..list.get_count() {
+            list.check(index, false);
+        }
+    });
+    {
+        let dialog = dialog;
+        import.on_click(move |_| dialog.end_modal(ID_OK));
+    }
+    {
+        let dialog = dialog;
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+    }
+
+    if dialog.show_modal() != ID_OK {
+        return Vec::new();
+    }
+    plan.candidates
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| list.is_checked(*index as u32))
+        .map(|(_, candidate)| candidate.command.clone())
+        .collect()
 }
 
 /// Settings dialog; returns true when saved (caller refreshes sound enable).

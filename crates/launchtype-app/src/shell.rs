@@ -15,6 +15,7 @@ use launchtype_services::scheduler::Scheduler;
 use launchtype_services::sounds::SoundPlayer;
 use launchtype_services::ssh::SshSession;
 use launchtype_services::{clipboard, notebrook, steam};
+use wxdragon::dialogs::file_dialog::{FileDialog, FileDialogStyle};
 use wxdragon::prelude::*;
 
 use crate::controller::{Item, ItemKind, ModeController};
@@ -136,11 +137,12 @@ pub fn build_shell(
     let modes_button = Button::builder(&panel).with_label(&tr("&Modes (Alt+M)")).build();
     let help_button = Button::builder(&panel).with_label(&tr("&Help")).build();
     let settings_button = Button::builder(&panel).with_label(&tr("Se&ttings...")).build();
+    let merge_button = Button::builder(&panel).with_label(&tr("Mer&ge in...")).build();
     let exit_button = Button::builder(&panel).with_label(&tr("E&xit")).build();
     for b in [
         &add_button, &edit_button, &copy_button, &delete_button, &copy_args_button,
         &snippets_button, &new_snippet_button, &run_button, &modes_button, &help_button,
-        &settings_button, &exit_button,
+        &settings_button, &merge_button, &exit_button,
     ] {
         button_sizer.add(b, 0, SizerFlag::All, 0);
     }
@@ -177,14 +179,14 @@ pub fn build_shell(
         [
             add_button, edit_button, copy_button, delete_button, copy_args_button,
             snippets_button, new_snippet_button, run_button, modes_button, help_button,
-            settings_button, exit_button,
+            settings_button, merge_button, exit_button,
         ],
     );
     shell
 }
 
-fn bind_events(shell: &SharedShell, buttons: [Button; 12]) {
-    let [add_button, edit_button, copy_button, delete_button, copy_args_button, snippets_button, new_snippet_button, run_button, modes_button, help_button, settings_button, exit_button] =
+fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
+    let [add_button, edit_button, copy_button, delete_button, copy_args_button, snippets_button, new_snippet_button, run_button, modes_button, help_button, settings_button, merge_button, exit_button] =
         buttons;
     let (frame, edit, list, panel, sort_choice) = {
         let s = shell.borrow();
@@ -417,6 +419,10 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 12]) {
     }
     {
         let shell = shell.clone();
+        merge_button.on_click(move |_| merge_clicked(&shell));
+    }
+    {
+        let shell = shell.clone();
         exit_button.on_click(move |_| exit_app(&shell));
     }
 
@@ -433,7 +439,7 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 12]) {
     for button in [
         &add_button, &edit_button, &copy_button, &delete_button, &copy_args_button,
         &snippets_button, &new_snippet_button, &run_button, &modes_button, &help_button,
-        &settings_button, &exit_button,
+        &settings_button, &merge_button, &exit_button,
     ] {
         bind_hide_on_escape(shell, button);
     }
@@ -860,6 +866,86 @@ fn send_notebrook_note(shell: &SharedShell) {
             show_error(&shell.borrow().frame, &tr("Note not sent"), &e.message);
         }
     }
+}
+
+/// Merge another commands file into this one.
+///
+/// Additive from end to end: pick a file, work out what in it is genuinely new
+/// (see [`launchtype_core::merge`]), let the user tick what to keep, and append
+/// that. Commands already here are never listed, never changed and never
+/// removed, so there is no replace question to answer anywhere in the flow.
+fn merge_clicked(shell: &SharedShell) {
+    let frame = shell.borrow().frame;
+    let file_dialog = FileDialog::builder(&frame)
+        .with_message(&tr("Choose a commands file to merge in"))
+        .with_default_dir(&std::env::current_dir().unwrap_or_default().to_string_lossy())
+        .with_wildcard(&tr("Command files (*.json)|*.json|All files (*.*)|*.*"))
+        .with_style(FileDialogStyle::Open | FileDialogStyle::FileMustExist)
+        .build();
+    if file_dialog.show_modal() != wxdragon::id::ID_OK {
+        return;
+    }
+    let Some(path) = file_dialog.get_path() else { return };
+
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) => {
+            show_error(&frame, &tr("Cannot merge"), &error.to_string());
+            return;
+        }
+    };
+    let incoming = match launchtype_core::merge::parse(&text) {
+        Ok(file) => file,
+        Err(_) => {
+            // Both failures land the user in the same place — pick another
+            // file — so they read as one message rather than a diagnosis.
+            show_error(
+                &frame,
+                &tr("Cannot merge"),
+                &tr("That file is not a Launchtype commands file."),
+            );
+            return;
+        }
+    };
+
+    let plan = {
+        let s = shell.borrow();
+        launchtype_core::merge::plan(
+            &s.controller.commands.file,
+            &incoming,
+            launchtype_services::portable::vars(),
+            &|path| std::path::Path::new(path).exists(),
+        )
+    };
+    if plan.candidates.is_empty() {
+        // An empty commands.json is easy to end up with (the Settings dropdown
+        // creates one from a typed name), and "already in your list" would be
+        // a puzzling thing to say about a file holding nothing.
+        let reason = if incoming.commands.is_empty() {
+            tr("That file has no commands in it.")
+        } else {
+            tr("Every command in that file is already in your list.")
+        };
+        show_alert(&frame, &tr("Nothing to merge"), &reason);
+        return;
+    }
+
+    let file_name = std::path::Path::new(&path)
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or(path);
+    let selected = crate::dialogs::merge_dialog(&frame, &file_name, &plan);
+    if selected.is_empty() {
+        return;
+    }
+
+    let added = shell.borrow_mut().controller.commands.merge_commands(&selected);
+    update_list(shell);
+    shell.borrow().sounds.play("match");
+    speak_now(
+        &format_args(&tr("{count} commands merged"), &[("count", Arg::Int(added as i64))]),
+        true,
+    );
 }
 
 pub fn exit_app(shell: &SharedShell) {

@@ -63,6 +63,31 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Settings: changing the SSH server drops the live connection
 - [ ] Settings: SSH password field is masked
 
+## Merging another commands file
+- [ ] "Merge in..." sits just before Exit and is reached by Tab like the rest
+- [ ] Picking settings.json, a timers.json, or a .txt shows "That file is not
+      a Launchtype commands file." and changes nothing
+- [ ] Merging the file you are already using shows "Nothing to merge"
+- [ ] The list holds ONLY commands you do not have; the header states how many
+      were left out for being present already
+- [ ] The checkbox list is navigable with the arrow keys, each row announced
+      with its name, path and any warning; space toggles a row
+- [ ] Everything starts ticked; "Select all" and "Select none" work and are
+      announced
+- [ ] A row whose shortcut you already use says so and names the owner; after
+      importing, that command has NO shortcut and the startup conflict warning
+      does not appear
+- [ ] Two rows in the same file sharing a shortcut: the first keeps it
+- [ ] A row with a `{{typo}}` and a row pointing at a path missing here are
+      both flagged, and both still import when ticked
+- [ ] "Import selected" adds exactly the ticked rows, speaks "N commands
+      merged", and the new commands run
+- [ ] Existing commands are byte-identical afterwards: same ids, paths,
+      shortcuts and run counts (diff commands.json before/after)
+- [ ] Imported commands start at zero uses, and `total_runs` is unchanged
+- [ ] Cancel, and unticking everything then importing, both change nothing
+- [ ] Merging the same file a second time offers nothing
+
 ## Portable paths (variables)
 - [ ] Add dialog: "Path variable..." and "Argument variable..." are distinct
       buttons, each announced by its own label (not two "Variable" buttons)

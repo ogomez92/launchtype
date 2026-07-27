@@ -152,6 +152,26 @@ The Settings button in the UI opens a dialog where you can persist the following
 
 Command line flags override these persisted settings for the current run (for example, passing `-q` disables sounds even if the setting is enabled, and passing `-m` starts minimized even if the setting is off).
 
+## Merging another commands file
+
+The "Merge in..." button brings commands over from a second `commands.json` — the one from your other machine, a set a friend sent you, or the work file you keep alongside the home one. Browse to it and, if it really is a commands file, a dialog lists what it holds.
+
+**Only commands you do not already have are listed.** A command counts as one you already have when it shares an id with one of yours, or when it points at the same path with the same arguments under the same display name (letter case and `\` versus `/` do not count as a difference). The dialog says how many were left out for that reason.
+
+Merging is purely additive, and that is the whole design:
+
+- nothing already in your list is edited, re-pointed, renamed or deleted;
+- you are never asked whether to replace a command you already have — those are not on the list to begin with;
+- the worst a careless merge can do is add rows, which you can then delete.
+
+Everything on the list is ticked to begin with; "Select all" and "Select none" are there for when you only want a few out of a long file. Each row reads as the command's name, its path, and anything the checks turned up about it:
+
+- **its shortcut is already taken** — by one of your commands, or by an earlier command in the same file. Only the first command matching a shortcut ever runs, so the imported copy comes in without one rather than arriving dead; give it a new shortcut from the Edit dialog.
+- **an unresolved variable** — a `{{typo}}`, or a variable from a newer version, in the path or the arguments. It would be launched literally.
+- **a path that does not exist here** — a program that machine had and this one does not. It is only a warning: import it anyway if you are about to install it.
+
+None of those block an import; they are there so nothing arrives as a surprise. Imported commands start with a run count of zero, since the runs happened on the other machine.
+
 ## Snippets
 
 Snippets are pieces of text that, when their filename is typed to the input field of the UI, the content of the file is put in the clipboard.

@@ -1405,3 +1405,87 @@ msgstr "{count} rutas hechas portables"
 #: crates/launchtype-services/src/runner.rs
 msgid "this command opens its first argument with the default application, but it has no arguments"
 msgstr "este comando abre su primer argumento con la aplicación predeterminada, pero no tiene argumentos"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Mer&ge in..."
+msgstr "Im&portar..."
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Choose a commands file to merge in"
+msgstr "Elige un archivo de comandos para importar"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Command files (*.json)|*.json|All files (*.*)|*.*"
+msgstr "Archivos de comandos (*.json)|*.json|Todos los archivos (*.*)|*.*"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Cannot merge"
+msgstr "No se puede importar"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "That file is not a Launchtype commands file."
+msgstr "Ese archivo no es un archivo de comandos de Launchtype."
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Nothing to merge"
+msgstr "Nada que importar"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Every command in that file is already in your list."
+msgstr "Todos los comandos de ese archivo ya están en tu lista."
+
+#: crates/launchtype-app/src/shell.rs
+msgid "{count} commands merged"
+msgstr "{count} comandos importados"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Merge commands"
+msgstr "Importar comandos"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "{count} new commands were found in {file}. Tick the ones to add. Nothing already in your list is changed, replaced or removed."
+msgstr "Se han encontrado {count} comandos nuevos en {file}. Marca los que quieras añadir. Nada de lo que ya está en tu lista se cambia, se reemplaza ni se elimina."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "{count} commands in that file are already in your list and are not shown."
+msgstr "{count} comandos de ese archivo ya están en tu lista y no se muestran."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Commands to &import:"
+msgstr "Comandos a &importar:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "{name} ({path})"
+msgstr "{name} ({path})"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "the shortcut {shortcut} already belongs to {owner}, so this one is imported without it"
+msgstr "el atajo {shortcut} ya pertenece a {owner}, así que este se importa sin él"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "the shortcut {shortcut} is also used by {owner} in this file, so this one is imported without it"
+msgstr "el atajo {shortcut} también lo usa {owner} en este archivo, así que este se importa sin él"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "there is no variable called {name} on this machine"
+msgstr "no existe ninguna variable llamada {name} en este equipo"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "{path} does not exist on this machine"
+msgstr "{path} no existe en este equipo"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Select &all"
+msgstr "Seleccionar &todo"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Select &none"
+msgstr "Seleccionar &ninguno"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Im&port selected"
+msgstr "Im&portar seleccionados"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "That file has no commands in it."
+msgstr "Ese archivo no tiene ningún comando."

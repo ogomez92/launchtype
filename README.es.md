@@ -152,6 +152,26 @@ El botón Ajustes de la interfaz abre un diálogo donde puedes guardar estas pre
 
 Los parámetros de línea de comandos tienen prioridad sobre estos ajustes durante la ejecución actual (por ejemplo, pasando `-q` se desactivan los sonidos aunque el ajuste esté habilitado, y pasando `-m` se arranca minimizado aunque el ajuste esté desactivado).
 
+## Importar otro archivo de comandos
+
+El botón "Importar..." trae comandos desde un segundo `commands.json`: el de tu otro equipo, un conjunto que te ha pasado alguien, o el archivo del trabajo que tienes junto al de casa. Búscalo y, si de verdad es un archivo de comandos, un diálogo lista lo que contiene.
+
+**Solo se listan los comandos que aún no tienes.** Un comando cuenta como ya presente cuando comparte el id con uno de los tuyos, o cuando apunta a la misma ruta con los mismos argumentos y el mismo nombre para mostrar (las mayúsculas y `\` frente a `/` no cuentan como diferencia). El diálogo dice cuántos se han dejado fuera por ese motivo.
+
+Importar solo añade, y en eso consiste todo el diseño:
+
+- nada de lo que ya está en tu lista se edita, se reapunta, se renombra ni se elimina;
+- nunca se te pregunta si quieres reemplazar un comando que ya tienes: esos ni siquiera aparecen en la lista;
+- lo peor que puede hacer una importación descuidada es añadir filas, que luego puedes eliminar.
+
+Todo aparece marcado de entrada; "Seleccionar todo" y "Seleccionar ninguno" están ahí para cuando solo quieres unos pocos de un archivo largo. Cada fila se lee como el nombre del comando, su ruta y lo que hayan detectado las comprobaciones:
+
+- **su atajo ya está ocupado**, por uno de tus comandos o por un comando anterior del mismo archivo. Solo se ejecuta el primer comando que coincide con un atajo, así que la copia importada entra sin él en lugar de llegar muerta; ponle un atajo nuevo desde el diálogo de edición.
+- **una variable sin resolver**: un `{{error}}`, o una variable de una versión más reciente, en la ruta o en los argumentos. Se lanzaría literalmente.
+- **una ruta que aquí no existe**: un programa que aquel equipo tenía y este no. Es solo un aviso: impórtalo igualmente si estás a punto de instalarlo.
+
+Nada de esto impide importar; está ahí para que nada llegue por sorpresa. Los comandos importados empiezan con cero usos, porque esos usos ocurrieron en el otro equipo.
+
 ## Sustituciones
 
 Las sustituciones son fragmentos de texto que, al escribir su nombre de archivo en la caja de texto, se copian al portapapeles.

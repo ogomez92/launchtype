@@ -8,6 +8,7 @@ pub mod clipboard_history;
 pub mod imaging;
 pub mod clock;
 pub mod i18n;
+pub mod merge;
 pub mod mode;
 pub mod model;
 pub mod portable;

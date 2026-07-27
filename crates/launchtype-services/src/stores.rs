@@ -89,6 +89,17 @@ impl CommandsStore {
         self.sync();
     }
 
+    /// Append commands imported from another file and persist. Purely
+    /// additive; see [`launchtype_core::merge::merge`]. Returns how many
+    /// were added.
+    pub fn merge_commands(&mut self, selected: &[Command]) -> usize {
+        let added = launchtype_core::merge::merge(&mut self.file, selected);
+        if added > 0 {
+            self.sync();
+        }
+        added
+    }
+
     pub fn shortcut_exists(&self, shortcut: &str) -> bool {
         !shortcut.is_empty() && self.file.commands.iter().any(|c| c.shortcut() == shortcut)
     }
@@ -209,6 +220,36 @@ mod tests {
 
         store.remove(&id);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "[]");
+    }
+
+    #[test]
+    fn merging_persists_the_additions_and_leaves_the_rest_alone() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("commands.json");
+        std::fs::write(
+            &path,
+            r#"{"commands": [{"path": "a.exe", "name": "alpha", "id": "1", "run_count": 5}], "total_runs": 5}"#,
+        )
+        .unwrap();
+        let mut store = CommandsStore::load(&path);
+
+        let added = store.merge_commands(&[Command {
+            path: "b.exe".into(),
+            name: "beta".into(),
+            args: None,
+            shortcut: Some("b".into()),
+            id: "2".into(),
+            run_as_admin: None,
+            run_count: None,
+            extra: Default::default(),
+        }]);
+
+        assert_eq!(added, 1);
+        let reloaded = CommandsStore::load(&path);
+        assert_eq!(reloaded.file.commands.len(), 2);
+        assert_eq!(reloaded.file.commands[0].run_count(), 5, "the existing command is untouched");
+        assert_eq!(reloaded.file.commands[1].name, "beta");
+        assert_eq!(reloaded.file.total_runs, Some(5));
     }
 
     #[test]
