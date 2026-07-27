@@ -46,7 +46,14 @@ fn main() {
             let libdir = sdk.join("macos/universal/static/release/lib");
             assert_dir(&libdir);
             println!("cargo:rustc-link-search=native={}", libdir.display());
-            println!("cargo:rustc-link-lib=static=prism");
+            // +whole-archive is load-bearing, not a size trade-off. Each backend
+            // (avspeech.cpp.o, voiceover.cpp.o) self-registers with BackendRegistry
+            // from a static initializer, and nothing outside those members
+            // references them. Under the normal archive rule — pull a member only
+            // to resolve an undefined symbol — the linker drops every backend, the
+            // registry comes up empty, and prism_registry_create_best returns null,
+            // so Speech::new fails with NoBackend and the app runs silent.
+            println!("cargo:rustc-link-lib=static:+whole-archive=prism");
             // libprism is C++; static archive needs the C++ runtime and Apple speech frameworks.
             println!("cargo:rustc-link-lib=c++");
             println!("cargo:rustc-link-search=framework=/System/Library/Frameworks");

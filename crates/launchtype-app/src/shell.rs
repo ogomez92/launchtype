@@ -502,7 +502,20 @@ pub fn toggle_visibility(shell: &SharedShell) {
             s.frame.show(true);
             s.sounds.play("show");
             s.frame.raise();
+            // Raise only reorders the window, and within an app that is already
+            // frontmost. The hotkey arrives while another app is active, so
+            // without this the frame appears with no keyboard: typing still
+            // goes to the app the user came from, and VoiceOver — which only
+            // announces for the frontmost app — stays silent too.
+            #[cfg(target_os = "macos")]
+            unsafe {
+                crate::macos::activate_window(s.frame.get_handle())
+            };
             s.edit.set_focus();
+            #[cfg(target_os = "macos")]
+            unsafe {
+                crate::macos::log_activation_state(s.frame.get_handle())
+            };
             s.edit.change_value("");
             s.mode = if s.snippets_on_invoke() { UiMode::Snippets } else { UiMode::Commands };
         }

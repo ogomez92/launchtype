@@ -73,15 +73,34 @@ fn system_beep() {
     }
 }
 
+/// Sounds still playing. `spawn` leaves the child for the parent to collect, so
+/// without this every effect — one per keystroke in the busiest modes — would
+/// strand a zombie for the lifetime of the app.
+#[cfg(not(windows))]
+static PLAYING: std::sync::Mutex<Vec<std::process::Child>> = std::sync::Mutex::new(Vec::new());
+
 #[cfg(not(windows))]
 fn play_file(path: &Path) -> bool {
-    // afplay ships with macOS; detach and let it finish on its own.
-    std::process::Command::new("afplay")
+    // A poisoned lock only means some other thread panicked mid-sweep; the list
+    // is still sound, and failing to play here would be worse than continuing.
+    let mut playing = PLAYING.lock().unwrap_or_else(|e| e.into_inner());
+    // Collect whatever has finished since the last effect. try_wait never
+    // blocks, so a sound that is still playing just stays in the list.
+    playing.retain_mut(|child| matches!(child.try_wait(), Ok(None)));
+
+    // afplay ships with macOS; let it finish on its own.
+    match std::process::Command::new("afplay")
         .arg(path)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .is_ok()
+    {
+        Ok(child) => {
+            playing.push(child);
+            true
+        }
+        Err(_) => false,
+    }
 }
 
 #[cfg(not(windows))]

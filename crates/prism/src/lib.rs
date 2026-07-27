@@ -116,18 +116,12 @@ fn error_string(err: sys::PrismError) -> String {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Manual smoke test: `cargo test -p prism -- --ignored --nocapture`
-    /// Requires a speech backend (screen reader or system TTS) on the machine.
-    #[test]
-    #[ignore]
-    fn speaks_hello() {
-        let speech = Speech::new().expect("prism init");
-        eprintln!("backend: {:?}", speech.backend_name());
-        speech.output("Prism speech test from Rust", true).expect("output");
-        std::thread::sleep(std::time::Duration::from_secs(2));
-    }
-}
+// The speech smoke test is `examples/speak.rs`, not a `#[test]`:
+//
+//     cargo run -p prism --example speak -- "hello"
+//
+// It cannot be a test. libtest runs every test on a spawned thread, while the
+// macOS backends `dispatch_sync` onto the main queue inside `initialize`, so
+// the call waits on a main thread that is itself parked waiting for the test to
+// finish — a hang, not a failure. An example owns `main`, so it runs where the
+// backends expect to be, and it prints the chosen backend and the timings.

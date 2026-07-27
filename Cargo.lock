@@ -2058,6 +2058,8 @@ dependencies = [
  "launchtype-core",
  "launchtype-services",
  "log",
+ "objc2",
+ "objc2-app-kit",
  "open",
  "prism",
  "serde_json",

@@ -13,6 +13,8 @@ use std::path::Path;
 use launchtype_core::portable::{
     arg_segments, expand, looks_like_url, resolve_target, Target, Vars,
 };
+#[cfg(target_os = "macos")]
+use launchtype_core::portable::browser_for_executable;
 
 use crate::sounds::SoundPlayer;
 
@@ -135,6 +137,15 @@ fn shell_execute_runas(path: &str, args: &[String], cwd: &Path) -> Result<(), Ru
 
 #[cfg(not(windows))]
 fn launch(path: &str, args: &[String], cwd: &Path, _run_as_admin: bool) -> Result<(), RunError> {
+    // A .app is a directory, so exec'ing it fails with EACCES ("permission
+    // denied", os error 13) rather than anything that names the real problem.
+    // Every macOS browser placeholder resolves to one, so this is the normal
+    // path on a Mac, not an edge case.
+    #[cfg(target_os = "macos")]
+    if is_app_bundle(path) {
+        return open_app_bundle(path, args, cwd);
+    }
+
     // run_as_admin has no macOS equivalent for GUI launches; run normally.
     std::process::Command::new(path)
         .args(args)
@@ -142,6 +153,52 @@ fn launch(path: &str, args: &[String], cwd: &Path, _run_as_admin: bool) -> Resul
         .spawn()
         .map(|_| ())
         .map_err(|e| RunError(e.to_string()))
+}
+
+#[cfg(target_os = "macos")]
+fn is_app_bundle(path: &str) -> bool {
+    let path = Path::new(path);
+    path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("app")) && path.is_dir()
+}
+
+/// Launch a bundle through `open`, which is the only supported way to start
+/// one: it finds the real executable inside `Contents/MacOS` and hands the app
+/// to the window server so it comes up focused.
+///
+/// `open` splits its tail two ways, and so does this. Plain arguments are
+/// documents/URLs for the app to open — `open -a Safari https://x.com` — while
+/// anything starting with `-` is a switch for the program itself and has to sit
+/// behind `--args`. Sending a URL through `--args` would leave Safari opening
+/// an empty window, which is the shape of the original bug.
+#[cfg(target_os = "macos")]
+fn open_app_bundle(bundle: &str, args: &[String], cwd: &Path) -> Result<(), RunError> {
+    let (flags, documents): (Vec<&String>, Vec<&String>) =
+        args.iter().partition(|arg| arg.starts_with('-'));
+
+    let mut command = std::process::Command::new("/usr/bin/open");
+    command.arg("-a").arg(bundle).current_dir(cwd);
+    for document in documents {
+        // Only a browser may assume a bare `gmail.com` is a website. For any
+        // other app the argument is far more likely to be a file, and turning
+        // `notes.txt` into `https://notes.txt` would break it.
+        if browser_for_executable(bundle).is_some() {
+            command.arg(with_scheme(document));
+        } else {
+            command.arg(document);
+        }
+    }
+    if !flags.is_empty() {
+        command.arg("--args").args(flags);
+    }
+
+    // `open` reports a failure to start the app in its exit status, not by
+    // failing to spawn, so this waits rather than detaching. It returns as soon
+    // as the app is launched, not when it exits.
+    match command.status() {
+        Ok(status) if status.success() => Ok(()),
+        Ok(status) => Err(RunError(format!("open failed for {bundle} ({status})"))),
+        Err(e) => Err(RunError(e.to_string())),
+    }
 }
 
 #[cfg(test)]
@@ -206,6 +263,46 @@ mod tests {
         assert_eq!(with_scheme("/Users/me/notes.txt"), "/Users/me/notes.txt");
         assert_eq!(with_scheme("--accessibility"), "--accessibility");
         assert_eq!(with_scheme("some-flag"), "some-flag");
+    }
+
+    /// An installed browser resolves to its `.app`, and a bundle is a directory,
+    /// so the old plain `spawn` came back EACCES — "permission denied (os error
+    /// 13)" — for every browser command on a Mac.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn app_bundles_are_recognised_and_never_spawned_directly() {
+        let dir = tempfile::tempdir().unwrap();
+        let bundle = dir.path().join("Some Browser.app");
+        std::fs::create_dir_all(bundle.join("Contents/MacOS")).unwrap();
+        assert!(is_app_bundle(bundle.to_str().unwrap()));
+
+        // The extension alone is not enough; a plain file keeps the exec path.
+        let file = dir.path().join("regular.app");
+        std::fs::write(&file, b"").unwrap();
+        assert!(!is_app_bundle(file.to_str().unwrap()));
+        assert!(!is_app_bundle("/bin/echo"));
+
+        // The real regression: spawning the bundle is what produced os error 13.
+        let spawned = std::process::Command::new(bundle.to_str().unwrap()).spawn();
+        assert_eq!(
+            spawned.err().and_then(|e| e.raw_os_error()),
+            Some(13),
+            "a .app must still be unspawnable, or this fix is guarding nothing"
+        );
+    }
+
+    /// End-to-end check of a real stored command against this machine, run by
+    /// hand because it opens a browser window:
+    /// `cargo test -p launchtype-services -- --ignored --nocapture browser`
+    #[cfg(target_os = "macos")]
+    #[test]
+    #[ignore]
+    fn browser_placeholder_launches() {
+        let vars = vars();
+        eprintln!("{{{{firefox}}}} resolves to {:?}", resolve_target("{{firefox}}", &vars));
+        let result =
+            run_command("{{firefox}}", "https://example.com/", false, &quiet_sounds(), &vars);
+        assert!(result.is_ok(), "{result:?}");
     }
 
     /// Arguments reach the process unquoted: a quoted path used to be passed

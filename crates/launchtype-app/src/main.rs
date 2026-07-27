@@ -6,6 +6,8 @@ mod ai_flows;
 mod controller;
 mod dialogs;
 mod hotkey;
+#[cfg(target_os = "macos")]
+mod macos;
 mod shell;
 mod speech;
 mod ssh_flows;
@@ -153,8 +155,6 @@ fn main() {
     let sounds_for_ui = sounds.clone();
 
     let main_result = wxdragon::main(move |_| {
-        speech::init_speech();
-
         let shell = shell::build_shell(
             controller,
             settings,
@@ -164,6 +164,13 @@ fn main() {
             commands_file_from_cli,
         );
         shell::set_active_shell(&shell);
+
+        // After the frame exists, not before. Prism's VoiceOver backend picks a
+        // window during `initialize` — announcements are posted against one —
+        // and reports itself unusable when the app has none. Initializing first
+        // meant the backend was rejected at every launch and speech silently
+        // dropped to AVSpeech, ignoring the user's VoiceOver voice and rate.
+        speech::init_speech();
 
         // Background services: clipboard history + timer/alarm firing.
         {
