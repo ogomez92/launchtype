@@ -4,10 +4,15 @@
 //! returns, which sidesteps the Windows default-button double-click bug the
 //! Python code worked around with wx.CallAfter.
 
+use std::sync::Arc;
+
+use launchtype_core::alarms::AlarmDef;
 use launchtype_core::i18n::{format_args, tr, Arg};
 use launchtype_core::merge;
 use launchtype_core::model::Command;
 use launchtype_core::portable::{self, Target, VarSpec};
+use launchtype_core::timers::TimerDef;
+use launchtype_services::sounds::{SoundPlayer, ALARM_SOUNDS, TIMER_SOUNDS};
 use wxdragon::dialogs::dir_dialog::DirDialog;
 use wxdragon::dialogs::file_dialog::{FileDialog, FileDialogStyle};
 use wxdragon::dialogs::message_dialog::{MessageDialog, MessageDialogStyle};
@@ -911,18 +916,94 @@ pub fn settings_dialog(
     true
 }
 
-fn sound_file_row(dialog: &Dialog, sizer: &BoxSizer) -> TextCtrl {
+/// The sound row shared by the timer and alarm dialogs: a dropdown of the
+/// tones bundled under `sounds/<category>/`, plus a "Custom file..." row backed
+/// by the path entry and Browse. Each pick plays as it lands, so arrowing
+/// through the dropdown auditions the tones without a separate Test button.
+#[derive(Clone)]
+struct SoundPicker {
+    choice: Choice,
+    entry: TextCtrl,
+    /// Stored values, parallel to the dropdown rows after the leading
+    /// "No sound"; the trailing "Custom file..." row has none, so an index
+    /// past the end means "use whatever is in the entry".
+    bundled: Vec<String>,
+}
+
+impl SoundPicker {
+    /// What to store on the timer or alarm: empty for the system beep, a
+    /// `<category>/<file>.wav` path for a bundled tone, or the browsed-for
+    /// absolute path.
+    fn value(&self) -> String {
+        match self.choice.get_selection() {
+            None | Some(0) => String::new(),
+            Some(index) => self
+                .bundled
+                .get(index as usize - 1)
+                .cloned()
+                .unwrap_or_else(|| self.entry.get_value()),
+        }
+    }
+
+    /// Audition the current pick, cutting off the one before it. Silent for
+    /// "No sound" and for a custom path that is not there yet — arrowing onto
+    /// either is routine, and a beep every time would only be noise.
+    fn preview(&self, sounds: &SoundPlayer) {
+        sounds.stop();
+        let value = self.value();
+        if !value.is_empty() {
+            sounds.play_alert(&value);
+        }
+    }
+}
+
+fn sound_picker(
+    dialog: &Dialog,
+    sizer: &BoxSizer,
+    category: &str,
+    sounds: &Arc<SoundPlayer>,
+    initial: &str,
+) -> SoundPicker {
+    let alerts = sounds.bundled_alerts(category);
+    let bundled: Vec<String> = alerts.iter().map(|(_, value)| value.clone()).collect();
+
+    let label = StaticText::builder(dialog).with_label(&tr("&Sound:")).build();
+    sizer.add(&label, 0, SizerFlag::All, 0);
+    let choice = Choice::builder(dialog).build();
+    ax_name(&choice, &tr("&Sound:"));
+    choice.append(&tr("No sound (system beep)"));
+    for (name, _) in &alerts {
+        choice.append(name);
+    }
+    choice.append(&tr("Custom file..."));
+    let custom_index = alerts.len() as u32 + 1;
+    // An edited alert reopens on what it was saved with: a bundled tone selects
+    // its own row, anything else is a custom path.
+    let selected = match bundled.iter().position(|value| value == initial) {
+        Some(index) => index as u32 + 1,
+        None if initial.is_empty() => 0,
+        None => custom_index,
+    };
+    choice.set_selection(selected);
+    sizer.add(&choice, 0, SizerFlag::Expand, 0);
+
     let row = BoxSizer::builder(Orientation::Horizontal).build();
-    let label = StaticText::builder(dialog).with_label(&tr("&Sound file (optional):")).build();
+    let file_label = StaticText::builder(dialog).with_label(&tr("Custom sound &file:")).build();
     let entry = TextCtrl::builder(dialog).build();
-    ax_name(&entry, &tr("&Sound file (optional):"));
+    ax_name(&entry, &tr("Custom sound &file:"));
+    if selected == custom_index {
+        entry.set_value(initial);
+    }
     let browse = Button::builder(dialog).with_label(&tr("&Browse...")).build();
-    row.add(&label, 0, SizerFlag::All, 0);
+    row.add(&file_label, 0, SizerFlag::All, 0);
     row.add(&entry, 0, SizerFlag::All, 0);
     row.add(&browse, 0, SizerFlag::All, 0);
     sizer.add_sizer(&row, 0, SizerFlag::All, 0);
+
     {
         let dialog = *dialog;
+        let picker = SoundPicker { choice, entry, bundled: bundled.clone() };
+        let sounds = sounds.clone();
         browse.on_click(move |_| {
             let file_dialog = FileDialog::builder(&dialog)
                 .with_message(&tr("Choose a sound file"))
@@ -932,23 +1013,45 @@ fn sound_file_row(dialog: &Dialog, sizer: &BoxSizer) -> TextCtrl {
             if file_dialog.show_modal() == ID_OK {
                 if let Some(path) = file_dialog.get_path() {
                     entry.set_value(&path);
+                    // Browsing only means anything on the custom row, so move
+                    // the dropdown there instead of dropping the pick.
+                    choice.set_selection(custom_index);
+                    // set_selection does not raise a command event, so the
+                    // browsed file has to be auditioned by hand.
+                    picker.preview(&sounds);
                 }
             }
         });
     }
-    entry
+    {
+        let picker = SoundPicker { choice, entry, bundled: bundled.clone() };
+        let sounds = sounds.clone();
+        choice.on_selection_changed(move |_| picker.preview(&sounds));
+    }
+
+    SoundPicker { choice, entry, bundled }
 }
 
-/// Add-timer dialog; adds to the store on OK. Returns true when added.
-pub fn add_timer_dialog(parent: &Frame, controller: &mut ModeController) -> bool {
-    let dialog = Dialog::builder(parent, &tr("Add Timer")).build();
+/// Add/edit timer dialog; writes to the store on OK. `existing` seeds the
+/// fields when editing. Returns true when the store changed.
+pub fn timer_dialog(
+    parent: &Frame,
+    controller: &mut ModeController,
+    existing: Option<TimerDef>,
+) -> bool {
+    let title = if existing.is_some() { tr("Edit Timer") } else { tr("Add Timer") };
+    let dialog = Dialog::builder(parent, &title).build();
     let sizer = BoxSizer::builder(Orientation::Vertical).build();
     let title_entry = labeled_row(&dialog, &sizer, &tr("&Title:"));
     let desc_entry = labeled_row(&dialog, &sizer, &tr("&Description:"));
 
     let minutes_row = BoxSizer::builder(Orientation::Horizontal).build();
     let minutes_label = StaticText::builder(&dialog).with_label(&tr("&Minutes:")).build();
-    let minutes_spin = SpinCtrl::builder(&dialog).with_min_value(1).with_max_value(1440).with_initial_value(5).build();
+    let minutes_spin = SpinCtrl::builder(&dialog)
+        .with_min_value(1)
+        .with_max_value(1440)
+        .with_initial_value(existing.as_ref().map_or(5, |t| t.minutes.clamp(1, 1440) as i32))
+        .build();
     ax_name(&minutes_spin, &tr("&Minutes:"));
     minutes_row.add(&minutes_label, 0, SizerFlag::All, 0);
     minutes_row.add(&minutes_spin, 0, SizerFlag::All, 0);
@@ -956,7 +1059,13 @@ pub fn add_timer_dialog(parent: &Frame, controller: &mut ModeController) -> bool
 
     let repeating_cb = checkbox(&dialog, &tr("&Repeating (fires every X minutes until disabled)"));
     sizer.add(&repeating_cb, 0, SizerFlag::All, 0);
-    let sound_entry = sound_file_row(&dialog, &sizer);
+    if let Some(seed) = &existing {
+        title_entry.set_value(&seed.title);
+        desc_entry.set_value(&seed.description);
+        repeating_cb.set_value(seed.repeating);
+    }
+    let seeded_sound = existing.as_ref().and_then(|t| t.sound.clone()).unwrap_or_default();
+    let sound = sound_picker(&dialog, &sizer, TIMER_SOUNDS, &controller.sounds, &seeded_sound);
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
     dialog.set_sizer(sizer, true);
 
@@ -975,33 +1084,63 @@ pub fn add_timer_dialog(parent: &Frame, controller: &mut ModeController) -> bool
         cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
     }
 
-    if dialog.show_modal() != ID_OK {
+    let confirmed = dialog.show_modal() == ID_OK;
+    // A tone auditioned in the dropdown runs for seconds; don't let it outlive
+    // the dialog it was picked in.
+    controller.sounds.stop();
+    if !confirmed {
         return false;
     }
-    let sound = sound_entry.get_value();
-    controller.timers.add(
-        launchtype_core::timers::TimerDef::new(
-            title_entry.get_value(),
-            desc_entry.get_value(),
-            minutes_spin.value().max(1) as u64,
-            repeating_cb.get_value(),
-            Some(sound),
+    let sound = Some(sound.value());
+    let minutes = minutes_spin.value().max(1) as u64;
+    match existing {
+        Some(seed) => controller.timers.update(
+            TimerDef {
+                title: title_entry.get_value(),
+                description: desc_entry.get_value(),
+                minutes,
+                repeating: repeating_cb.get_value(),
+                sound,
+                ..seed
+            },
+            controller.clock.now(),
         ),
-        controller.clock.now(),
-    );
-    true
+        None => {
+            controller.timers.add(
+                TimerDef::new(
+                    title_entry.get_value(),
+                    desc_entry.get_value(),
+                    minutes,
+                    repeating_cb.get_value(),
+                    sound,
+                ),
+                controller.clock.now(),
+            );
+            true
+        }
+    }
 }
 
-/// Add-alarm dialog; adds to the store on OK. Returns true when added.
-pub fn add_alarm_dialog(parent: &Frame, controller: &mut ModeController) -> bool {
-    let dialog = Dialog::builder(parent, &tr("Add Alarm")).build();
+/// Add/edit alarm dialog; writes to the store on OK. `existing` seeds the
+/// fields when editing. Returns true when the store changed.
+pub fn alarm_dialog(
+    parent: &Frame,
+    controller: &mut ModeController,
+    existing: Option<AlarmDef>,
+) -> bool {
+    let title = if existing.is_some() { tr("Edit Alarm") } else { tr("Add Alarm") };
+    let dialog = Dialog::builder(parent, &title).build();
     let sizer = BoxSizer::builder(Orientation::Vertical).build();
     let title_entry = labeled_row(&dialog, &sizer, &tr("&Title:"));
     let desc_entry = labeled_row(&dialog, &sizer, &tr("&Description:"));
 
     let hour_row = BoxSizer::builder(Orientation::Horizontal).build();
     let hour_label = StaticText::builder(&dialog).with_label(&tr("&Hour (0-23):")).build();
-    let hour_spin = SpinCtrl::builder(&dialog).with_min_value(0).with_max_value(23).with_initial_value(8).build();
+    let hour_spin = SpinCtrl::builder(&dialog)
+        .with_min_value(0)
+        .with_max_value(23)
+        .with_initial_value(existing.as_ref().map_or(8, |a| a.hour.min(23) as i32))
+        .build();
     ax_name(&hour_spin, &tr("&Hour (0-23):"));
     hour_row.add(&hour_label, 0, SizerFlag::All, 0);
     hour_row.add(&hour_spin, 0, SizerFlag::All, 0);
@@ -1009,13 +1148,22 @@ pub fn add_alarm_dialog(parent: &Frame, controller: &mut ModeController) -> bool
 
     let minute_row = BoxSizer::builder(Orientation::Horizontal).build();
     let minute_label = StaticText::builder(&dialog).with_label(&tr("&Minute (0-59):")).build();
-    let minute_spin = SpinCtrl::builder(&dialog).with_min_value(0).with_max_value(59).with_initial_value(0).build();
+    let minute_spin = SpinCtrl::builder(&dialog)
+        .with_min_value(0)
+        .with_max_value(59)
+        .with_initial_value(existing.as_ref().map_or(0, |a| a.minute.min(59) as i32))
+        .build();
     ax_name(&minute_spin, &tr("&Minute (0-59):"));
     minute_row.add(&minute_label, 0, SizerFlag::All, 0);
     minute_row.add(&minute_spin, 0, SizerFlag::All, 0);
     sizer.add_sizer(&minute_row, 0, SizerFlag::All, 0);
 
-    let sound_entry = sound_file_row(&dialog, &sizer);
+    if let Some(seed) = &existing {
+        title_entry.set_value(&seed.title);
+        desc_entry.set_value(&seed.description);
+    }
+    let seeded_sound = existing.as_ref().and_then(|a| a.sound.clone()).unwrap_or_default();
+    let sound = sound_picker(&dialog, &sizer, ALARM_SOUNDS, &controller.sounds, &seeded_sound);
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
     dialog.set_sizer(sizer, true);
 
@@ -1034,18 +1182,36 @@ pub fn add_alarm_dialog(parent: &Frame, controller: &mut ModeController) -> bool
         cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
     }
 
-    if dialog.show_modal() != ID_OK {
+    let confirmed = dialog.show_modal() == ID_OK;
+    // A tone auditioned in the dropdown runs for seconds; don't let it outlive
+    // the dialog it was picked in.
+    controller.sounds.stop();
+    if !confirmed {
         return false;
     }
-    let sound = sound_entry.get_value();
-    controller.alarms.add(launchtype_core::alarms::AlarmDef::new(
-        title_entry.get_value(),
-        desc_entry.get_value(),
-        hour_spin.value().clamp(0, 23) as u32,
-        minute_spin.value().clamp(0, 59) as u32,
-        Some(sound),
-    ));
-    true
+    let sound = Some(sound.value());
+    let hour = hour_spin.value().clamp(0, 23) as u32;
+    let minute = minute_spin.value().clamp(0, 59) as u32;
+    match existing {
+        Some(seed) => controller.alarms.update(AlarmDef {
+            title: title_entry.get_value(),
+            description: desc_entry.get_value(),
+            hour,
+            minute,
+            sound,
+            ..seed
+        }),
+        None => {
+            controller.alarms.add(AlarmDef::new(
+                title_entry.get_value(),
+                desc_entry.get_value(),
+                hour,
+                minute,
+                sound,
+            ));
+            true
+        }
+    }
 }
 
 /// Add/edit snippet dialog. `existing` = (shortcut, contents) when editing.

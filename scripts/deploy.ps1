@@ -33,7 +33,30 @@ try {
     # Copy program + assets only. User data (commands.json, settings.json,
     # timers.json, alarms.json, clipboard_history.json, realtime_history.json,
     # snippets/, screenshots/) lives in $target and is never touched.
-    Copy-Item (Join-Path $dist "*") $target -Recurse -Force
+    # Loose files (exe, DLLs) overwrite in place; whatever dist holds ships,
+    # so adding a DLL to the dist step above needs no change here.
+    Get-ChildItem $dist -File | Copy-Item -Destination $target -Force
+
+    # Asset folders go over with rclone sync, so each ends up matching dist
+    # exactly. Copy-Item only ever adds and overwrites: a sound that was renamed
+    # or dropped upstream would linger in the install forever, and the
+    # timer/alarm dropdowns list whatever .wav files they find in sounds/. The
+    # sync is per-folder on purpose — syncing $target itself would delete the
+    # user data sitting beside them.
+    $rclone = (Get-Command rclone -ErrorAction SilentlyContinue).Source
+    foreach ($dir in Get-ChildItem $dist -Directory) {
+        $dest = Join-Path $target $dir.Name
+        if ($rclone) {
+            & $rclone sync $dir.FullName $dest --create-empty-src-dirs
+            if ($LASTEXITCODE -ne 0) { throw "rclone sync of $($dir.Name) failed" }
+        }
+        else {
+            # No rclone on this machine: replace the folder outright, which
+            # gets the same end state for a directory that is ours alone.
+            if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+            Copy-Item -Recurse $dir.FullName $dest
+        }
+    }
 
     Start-Process (Join-Path $target "launchtype.exe") -WorkingDirectory $target
     Write-Host "Deployed and relaunched from $target"

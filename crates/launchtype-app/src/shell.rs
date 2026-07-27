@@ -222,10 +222,10 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
                 let frame = s.frame;
                 match s.mode {
                     UiMode::Timers => {
-                        crate::dialogs::add_timer_dialog(&frame, &mut s.controller);
+                        crate::dialogs::timer_dialog(&frame, &mut s.controller, None);
                     }
                     UiMode::Alarms => {
-                        crate::dialogs::add_alarm_dialog(&frame, &mut s.controller);
+                        crate::dialogs::alarm_dialog(&frame, &mut s.controller, None);
                     }
                     _ => {
                         crate::dialogs::command_edition_dialog(&frame, &mut s.controller, None);
@@ -251,6 +251,39 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
                             Some((item.shortcut.clone(), item.name.clone())),
                         ) {
                             s.controller.reload_snippets();
+                        }
+                    }
+                    // Timers and alarms live in their own stores, not in
+                    // commands.json; the engine lock is released with the
+                    // `let` so the dialog can take it again to save.
+                    ItemKind::Timer => {
+                        let seed = s
+                            .controller
+                            .timers
+                            .engine
+                            .lock()
+                            .unwrap()
+                            .timers
+                            .iter()
+                            .find(|t| t.id == item.id)
+                            .cloned();
+                        if let Some(seed) = seed {
+                            crate::dialogs::timer_dialog(&frame, &mut s.controller, Some(seed));
+                        }
+                    }
+                    ItemKind::Alarm => {
+                        let seed = s
+                            .controller
+                            .alarms
+                            .engine
+                            .lock()
+                            .unwrap()
+                            .alarms
+                            .iter()
+                            .find(|a| a.id == item.id)
+                            .cloned();
+                        if let Some(seed) = seed {
+                            crate::dialogs::alarm_dialog(&frame, &mut s.controller, Some(seed));
                         }
                     }
                     _ => {

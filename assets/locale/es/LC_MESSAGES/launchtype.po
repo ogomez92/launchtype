@@ -318,6 +318,14 @@ msgstr "Añadir temporizador"
 msgid "Add Alarm"
 msgstr "Añadir alarma"
 
+#: src/ui/add_timer_dialog.py
+msgid "Edit Timer"
+msgstr "Editar temporizador"
+
+#: src/ui/add_alarm_dialog.py
+msgid "Edit Alarm"
+msgstr "Editar alarma"
+
 #: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
 msgid "&Title:"
 msgstr "&Título:"
@@ -343,8 +351,20 @@ msgid "&Minute (0-59):"
 msgstr "&Minuto (0-59):"
 
 #: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
-msgid "&Sound file (optional):"
-msgstr "Archivo de &sonido (opcional):"
+msgid "&Sound:"
+msgstr "&Sonido:"
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "No sound (system beep)"
+msgstr "Sin sonido (pitido del sistema)"
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "Custom file..."
+msgstr "Archivo personalizado..."
+
+#: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
+msgid "Custom sound &file:"
+msgstr "Archivo de sonido &personalizado:"
 
 #: src/ui/add_timer_dialog.py src/ui/add_alarm_dialog.py
 msgid "Choose a sound file"

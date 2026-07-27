@@ -29,7 +29,17 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Steam: games listed, launch works (steam:// URL)
 - [ ] Timers: add, toggle (speaks started/stopped, stays open), fires with
       speech + sound, repeating reschedules
+- [ ] Timers: Edit reopens the timer with its saved values; changing the
+      minutes of a running timer restarts the countdown at the new length
 - [ ] Alarms: add, toggle (on/off persists), fires at the right minute
+- [ ] Alarms: Edit reopens the alarm with its saved values and leaves it on or
+      off as it was
+- [ ] Sound dropdown lists the .wav files in sounds/alarms (alarm dialog) and
+      sounds/timers (timer dialog)
+- [ ] Arrowing through the sound dropdown plays each tone and cuts off the one
+      before it; "No sound" is silent; closing the dialog stops the preview
+- [ ] A bundled sound still plays after a deploy (it is stored relative to
+      sounds/, so the install folder moving must not break it)
 - [ ] Notebrook: # then text then Run posts to "feeds"; 401 forgets credentials
 - [ ] Realtime: fetch announces "Fetching {name}" then speaks the value
 - [ ] Stats: total + most/least used lines, spoken in full (no 40-char clip)

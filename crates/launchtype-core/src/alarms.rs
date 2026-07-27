@@ -65,6 +65,21 @@ impl AlarmEngine {
         self.alarms.push(def);
     }
 
+    /// Replace an alarm's definition in place, keeping its list position and
+    /// its enabled state (the edit dialog does not offer that toggle). The
+    /// once-per-minute guard is dropped so an alarm edited onto the current
+    /// minute still fires. Returns false for an unknown id.
+    pub fn update(&mut self, mut def: AlarmDef) -> bool {
+        let Some(slot) = self.alarms.iter_mut().find(|a| a.id == def.id) else {
+            return false;
+        };
+        def.enabled = slot.enabled;
+        let id = def.id.clone();
+        *slot = def;
+        self.last_fired.remove(&id);
+        true
+    }
+
     /// Toggle an alarm's activation state. Returns the new enabled state, or
     /// `None` for an unknown id.
     pub fn toggle(&mut self, alarm_id: &str) -> Option<bool> {
@@ -158,6 +173,40 @@ mod tests {
         assert_eq!(engine.due(at(7, 30, 30)).len(), 1);
         assert_eq!(engine.toggle(&id), Some(false));
         assert_eq!(engine.toggle("nope"), None);
+    }
+
+    #[test]
+    fn update_keeps_enabled_and_lets_the_new_time_fire() {
+        let mut engine = AlarmEngine::from_defs(vec![alarm(7, 30)]);
+        let id = engine.alarms[0].id.clone();
+        engine.toggle(&id);
+        assert!(!engine.alarms[0].enabled);
+
+        let mut edited = engine.alarms[0].clone();
+        edited.enabled = true; // the dialog does not own this flag
+        edited.hour = 9;
+        edited.sound = Some("alarms/dawn.wav".into());
+        assert!(engine.update(edited));
+
+        assert_eq!(engine.alarms.len(), 1, "the edit replaces, it does not append");
+        assert_eq!(engine.alarms[0].id, id, "the id survives an edit");
+        assert_eq!(engine.alarms[0].hour, 9);
+        assert_eq!(engine.alarms[0].sound.as_deref(), Some("alarms/dawn.wav"));
+        assert!(!engine.alarms[0].enabled, "an edit does not re-enable an alarm");
+
+        assert!(!engine.update(alarm(1, 1)), "unknown id");
+    }
+
+    #[test]
+    fn update_clears_the_once_per_minute_guard() {
+        let mut engine = AlarmEngine::from_defs(vec![alarm(7, 30)]);
+        assert_eq!(engine.due(at(7, 30, 0)).len(), 1);
+
+        // Moved onto the minute that just fired: it must still be able to ring.
+        let mut edited = engine.alarms[0].clone();
+        edited.minute = 31;
+        engine.update(edited);
+        assert_eq!(engine.due(at(7, 31, 0)).len(), 1);
     }
 
     #[test]

@@ -89,6 +89,21 @@ impl TimerEngine {
         self.timers.push(def);
     }
 
+    /// Replace a timer's definition in place, keeping its list position.
+    /// A countdown that was running restarts against the new period: leaving
+    /// the old deadline would ignore an edited `minutes` until the next fire.
+    /// A stopped timer stays stopped. Returns false for an unknown id.
+    pub fn update(&mut self, def: TimerDef, now: DateTime<Local>) -> bool {
+        let Some(slot) = self.timers.iter_mut().find(|t| t.id == def.id) else {
+            return false;
+        };
+        let deadline = self.next_fire.get(&def.id).and_then(|d| *d).map(|_| now + def.period());
+        let id = def.id.clone();
+        *slot = def;
+        self.next_fire.insert(id, deadline);
+        true
+    }
+
     /// Run/toggle a timer. Returns the new active state, or `None` for an
     /// unknown id. Non-repeating timers (re)start their countdown each run.
     pub fn toggle(&mut self, timer_id: &str, now: DateTime<Local>) -> Option<bool> {
@@ -250,6 +265,46 @@ mod tests {
         assert_eq!(engine.toggle(&id, t0()), Some(true));
         assert!(engine.is_active(&id));
         assert_eq!(engine.toggle("nope", t0()), None);
+    }
+
+    #[test]
+    fn update_rewrites_the_def_in_place() {
+        let timer = one_shot(5);
+        let id = timer.id.clone();
+        let mut engine = TimerEngine::from_defs(vec![timer], t0());
+
+        let mut edited = engine.timers[0].clone();
+        edited.title = "coffee".into();
+        edited.minutes = 9;
+        edited.sound = Some("timers/marimba.wav".into());
+        assert!(engine.update(edited, t0()));
+
+        assert_eq!(engine.timers.len(), 1, "the edit replaces, it does not append");
+        assert_eq!(engine.timers[0].id, id, "the id survives an edit");
+        assert_eq!(engine.timers[0].title, "coffee");
+        assert_eq!(engine.timers[0].sound.as_deref(), Some("timers/marimba.wav"));
+    }
+
+    #[test]
+    fn update_reschedules_only_a_running_countdown() {
+        let timer = one_shot(5);
+        let id = timer.id.clone();
+        let mut engine = TimerEngine::from_defs(vec![timer], t0());
+        let mut edited = engine.timers[0].clone();
+        edited.minutes = 9;
+
+        // Stopped stays stopped.
+        assert!(engine.update(edited.clone(), t0()));
+        assert!(!engine.is_active(&id));
+
+        // Running picks up the new period from the moment of the edit.
+        engine.toggle(&id, t0());
+        let later = t0() + Duration::seconds(60);
+        edited.minutes = 2;
+        assert!(engine.update(edited, later));
+        assert_eq!(engine.remaining_seconds(&id, later), Some(120));
+
+        assert!(!engine.update(one_shot(1), t0()), "unknown id");
     }
 
     #[test]

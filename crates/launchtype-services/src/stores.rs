@@ -147,6 +147,16 @@ impl TimerStore {
         self.sync();
     }
 
+    /// Persist an edited definition. The lock is released before `sync` takes
+    /// its own.
+    pub fn update(&self, def: TimerDef, now: DateTime<Local>) -> bool {
+        let updated = self.engine.lock().unwrap().update(def, now);
+        if updated {
+            self.sync();
+        }
+        updated
+    }
+
     /// Live countdown state is memory-only: no sync (parity with Python).
     pub fn toggle(&self, id: &str, now: DateTime<Local>) -> Option<bool> {
         self.engine.lock().unwrap().toggle(id, now)
@@ -182,6 +192,16 @@ impl AlarmStore {
     pub fn remove(&self, id: &str) {
         self.engine.lock().unwrap().remove(id);
         self.sync();
+    }
+
+    /// Persist an edited definition. The lock is released before `sync` takes
+    /// its own.
+    pub fn update(&self, def: AlarmDef) -> bool {
+        let updated = self.engine.lock().unwrap().update(def);
+        if updated {
+            self.sync();
+        }
+        updated
     }
 
     /// The enabled flag persists, so toggling rewrites the file.

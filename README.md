@@ -231,12 +231,14 @@ To go back to commands mode, press the period key (.).
 
 Timer mode can be accessed by pressing `[` (left bracket) in the input field. Timers count down for a number of minutes and then notify you.
 
-Add a timer with the Add button. The Add Timer dialog lets you set:
+Add a timer with the Add button, or change one with the Edit button. The dialog lets you set:
 
 - A **title** and **description** (announced via your screen reader when the timer fires).
 - The number of **minutes** to count down.
 - A **repeating** checkbox.
-- A custom **sound file** (any .wav on your system, chosen via Browse). If no sound is set, the built-in cue is used.
+- A **sound**, picked from the tones bundled in `sounds/timers/`. Choose "Custom file..." to use any .wav on your system via Browse, or "No sound" for the system beep. Each pick plays as you land on it, so you can arrow through the list to audition the tones.
+
+Editing a timer that is counting down restarts the countdown against the new number of minutes.
 
 Timers display in the list with their current state:
 
@@ -249,11 +251,13 @@ To go back to commands mode, press the period key (.).
 
 Alarm mode can be accessed by pressing `]` (right bracket) in the input field. Alarms fire once per day at a specific time of day in 24-hour format.
 
-Add an alarm with the Add button. The Add Alarm dialog lets you set:
+Add an alarm with the Add button, or change one with the Edit button. The dialog lets you set:
 
 - A **title** and **description** (announced via your screen reader when the alarm fires).
 - The **hour** (0-23) and **minute** (0-59).
-- A custom **sound file** (any .wav on your system, chosen via Browse). If no sound is set, the built-in cue is used.
+- A **sound**, picked from the tones bundled in `sounds/alarms/`. Choose "Custom file..." to use any .wav on your system via Browse, or "No sound" for the system beep. Each pick plays as you land on it, so you can arrow through the list to audition the tones.
+
+Editing an alarm keeps it on or off as it was.
 
 Alarms display in the list showing the time and whether they are `on` or `off`. Run an alarm (Enter or Alt+R) to toggle its activation state.
 

@@ -231,12 +231,14 @@ Para volver a comandos, pulsa la tecla punto (.).
 
 El modo de temporizadores se abre escribiendo `[` (corchete izquierdo) en la caja. Los temporizadores cuentan atrás durante unos minutos y luego te avisan.
 
-Añade uno con el botón Añadir. El diálogo permite configurar:
+Añade uno con el botón Añadir, o modifícalo con el botón Editar. El diálogo permite configurar:
 
 - Un **título** y una **descripción** (que se anuncian por el lector de pantalla al dispararse).
 - El número de **minutos** de la cuenta atrás.
 - Una casilla de **repetición**.
-- Un **archivo de sonido** propio (cualquier .wav de tu sistema, elegido con Examinar). Si no se indica ninguno, se usa el sonido integrado.
+- Un **sonido**, elegido entre los tonos incluidos en `sounds/timers/`. Selecciona «Archivo personalizado...» para usar cualquier .wav de tu sistema con Examinar, o «Sin sonido» para el pitido del sistema. Cada opción suena al llegar a ella, así que puedes recorrer la lista con las flechas para escuchar los tonos.
+
+Editar un temporizador que está contando reinicia la cuenta atrás con los nuevos minutos.
 
 Los temporizadores aparecen en la lista con su estado actual:
 
@@ -249,11 +251,13 @@ Para volver a comandos, pulsa la tecla punto (.).
 
 El modo de alarmas se abre escribiendo `]` (corchete derecho) en la caja. Las alarmas se disparan una vez al día a una hora concreta en formato de 24 horas.
 
-Añade una con el botón Añadir. El diálogo permite configurar:
+Añade una con el botón Añadir, o modifícala con el botón Editar. El diálogo permite configurar:
 
 - Un **título** y una **descripción** (que se anuncian por el lector de pantalla al dispararse).
 - La **hora** (0-23) y los **minutos** (0-59).
-- Un **archivo de sonido** propio (cualquier .wav de tu sistema, elegido con Examinar). Si no se indica ninguno, se usa el sonido integrado.
+- Un **sonido**, elegido entre los tonos incluidos en `sounds/alarms/`. Selecciona «Archivo personalizado...» para usar cualquier .wav de tu sistema con Examinar, o «Sin sonido» para el pitido del sistema. Cada opción suena al llegar a ella, así que puedes recorrer la lista con las flechas para escuchar los tonos.
+
+Editar una alarma mantiene su estado de activada o desactivada.
 
 Las alarmas aparecen en la lista con su hora y si están `activada` o `desactivada`. Ejecuta una alarma (Intro o Alt+R) para alternar su estado.
 

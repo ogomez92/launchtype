@@ -1,7 +1,6 @@
 //! Timer/alarm alert firing — port of `helpers/alert_notifier.py`:
 //! speak "{title}: {description}", play the custom sound or beep.
 
-use std::path::Path;
 use std::sync::Arc;
 
 use launchtype_core::speech::Speaker;
@@ -47,7 +46,7 @@ pub fn fire_alert(item: &AlertItem, speaker: &Arc<dyn Speaker>, sounds: &SoundPl
     speaker.speak(&alert_message(item), true);
 
     if let Some(sound) = item.sound.as_deref() {
-        if !sound.is_empty() && sounds.play_alert_file(Path::new(sound)) {
+        if !sound.is_empty() && sounds.play_alert(sound) {
             return;
         }
     }
