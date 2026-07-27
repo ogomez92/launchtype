@@ -3,7 +3,8 @@
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 $target = Join-Path $env:USERPROFILE "stuff\software\launchtype"
-$prismSdk = if ($env:PRISM_SDK_DIR) { $env:PRISM_SDK_DIR } else { "D:\code\libs\prism\prism-sdk-v0.16.7" }
+# Defaults to the vendored slice, same as crates/prism-sys/build.rs.
+$prismSdk = if ($env:PRISM_SDK_DIR) { $env:PRISM_SDK_DIR } else { Join-Path $repo "vendor\prism-sdk" }
 
 Push-Location $repo
 try {
@@ -15,10 +16,9 @@ try {
     New-Item -ItemType Directory -Force $dist | Out-Null
 
     Copy-Item (Join-Path $repo "target\release\launchtype.exe") $dist
-    # Prism runtime DLLs (dynamic linking).
+    # Prism runtime DLL (dynamic linking).
     $prismBin = Join-Path $prismSdk "windows\x64\dynamic\release\bin"
     Copy-Item (Join-Path $prismBin "prism.dll") $dist
-    Copy-Item (Join-Path $prismBin "tolk.dll") $dist
     # Assets.
     foreach ($asset in @("sounds", "locale")) {
         $src = Join-Path $repo "assets\$asset"

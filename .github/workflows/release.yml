@@ -4,22 +4,20 @@ on:
   push:
     tags:
       - "v*"
-  # Lets us verify the build without cutting a release; the publish step below
+  # Lets us verify both builds without cutting a release; the publish job below
   # only runs for tag pushes.
   workflow_dispatch:
 
 permissions:
   contents: write
 
+# Prism is not published anywhere fetchable, so the libraries both targets link
+# are vendored under vendor/prism-sdk and crates/prism-sys/build.rs defaults to
+# them. Nothing here needs to set PRISM_SDK_DIR. See vendor/prism-sdk/README.md.
 jobs:
-  build:
-    name: New Release
+  windows:
+    name: Build Windows x64
     runs-on: windows-latest
-
-    env:
-      # Prism is not published anywhere fetchable, so the Windows x64 slice of
-      # the SDK is vendored. See vendor/prism-sdk/README.md.
-      PRISM_SDK_DIR: ${{ github.workspace }}\vendor\prism-sdk
 
     steps:
       - uses: actions/checkout@v4
@@ -32,30 +30,81 @@ jobs:
       - name: Build
         run: cargo build --release -p launchtype
 
-      # Mirrors scripts/deploy.ps1: exe + Prism runtime DLLs + assets.
+      # Mirrors scripts/deploy.ps1: exe + Prism runtime DLL + assets.
       - name: Stage dist
         shell: pwsh
         run: |
-          $bin = "$env:PRISM_SDK_DIR\windows\x64\dynamic\release\bin"
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item target\release\launchtype.exe dist
-          Copy-Item "$bin\prism.dll" dist
-          Copy-Item "$bin\tolk.dll" dist
+          Copy-Item vendor\prism-sdk\windows\x64\dynamic\release\bin\prism.dll dist
           Copy-Item -Recurse assets\sounds dist\sounds
           Copy-Item -Recurse assets\locale dist\locale
           Get-ChildItem -Recurse dist | Select-Object FullName
 
-      - name: Archive release
+      - name: Archive
         shell: pwsh
-        run: Compress-Archive -Path dist\* -DestinationPath launchtype.zip
+        run: Compress-Archive -Path dist\* -DestinationPath launchtype-windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: launchtype-windows-x64
+          path: launchtype-windows-x64.zip
+          if-no-files-found: error
+
+  macos:
+    name: Build macOS
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Both targets so bundle-mac.sh can lipo a universal app; libprism.a is
+      # already universal.
+      - name: Install Rust
+        run: |
+          rustup show
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Bundle Launchtype.app
+        run: ./scripts/bundle-mac.sh
+
+      # ditto keeps the bundle's symlinks and the ad-hoc signature intact, which
+      # a plain zip of the directory does not guarantee.
+      - name: Archive
+        run: ditto -c -k --sequesterRsrc --keepParent dist/Launchtype.app launchtype-macos.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: launchtype-macos
+          path: launchtype-macos.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: [windows, macos]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
 
       - name: Create release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: launchtype.zip
+          files: |
+            launchtype-windows-x64.zip
+            launchtype-macos.zip
           tag_name: ${{ github.ref_name }}
           body: |
             This is a new release of LaunchType. For the user manual see https://www.oriolgomez.com/software/
+
+            - `launchtype-windows-x64.zip` — portable folder for Windows on x64.
+            - `launchtype-macos.zip` — `Launchtype.app`, ad-hoc signed. macOS will
+              warn on first launch since it is not notarized; open it from the
+              right-click menu once to accept.
           draft: false
           prerelease: false

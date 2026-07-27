@@ -20,7 +20,7 @@ Los comandos se guardan en un fichero commands.json (o el que indiques por líne
 
 ## Instalación
 
-Coge la carpeta que produce una compilación (ver más abajo) y déjala donde quieras — Launchtype es portable. En Windows esa carpeta contiene `launchtype.exe`, `prism.dll`, `tolk.dll`, `sounds/` y `locale/`. En macOS es `Launchtype.app`.
+Coge la carpeta que produce una compilación (ver más abajo) y déjala donde quieras — Launchtype es portable. En Windows esa carpeta contiene `launchtype.exe`, `prism.dll`, `sounds/` y `locale/`. En macOS es `Launchtype.app`.
 
 Todos tus archivos de datos viven **junto al ejecutable** (junto al paquete `.app` en macOS), así que todo el conjunto puede ir en un pendrive o en tu Dropbox:
 
@@ -34,16 +34,15 @@ Necesitas:
 
 1. **Rust estable** (1.92 o posterior). Instálalo con [rustup](https://rustup.rs); la versión fijada está en `rust-toolchain.toml`.
 2. **Un compilador de C++** para wxWidgets: en Windows, las Visual Studio Build Tools con la carga de trabajo "Desarrollo para el escritorio con C++"; en macOS, las herramientas de línea de comandos de Xcode (`xcode-select --install`).
-3. **El SDK de voz Prism** (`prism-sdk-vX.Y.Z`), que se usa para hablar por el lector de pantalla. Apunta `PRISM_SDK_DIR` hacia él si no está en la ruta por defecto que hay en `crates/prism-sys/build.rs`.
+El SDK de voz Prism, que se usa para hablar por el lector de pantalla, no necesita ninguna preparación: las porciones de Windows y macOS con las que se enlaza están incluidas en `vendor/prism-sdk/` (~6 MB) y `crates/prism-sys/build.rs` las usa por defecto. Apunta `PRISM_SDK_DIR` a un `prism-sdk-vX.Y.Z` completo solo si quieres compilar contra otra versión o para Linux.
 
 Después:
 
-```powershell
-$env:PRISM_SDK_DIR = "C:\ruta\a\prism-sdk-v0.16.7"
+```bash
 cargo build --release -p launchtype
 ```
 
-El ejecutable queda en `target/release/launchtype.exe`. Durante el desarrollo también funciona `cargo run -p launchtype` — el script de compilación copia las DLL de Prism junto al binario para que arranque sin más.
+El ejecutable queda en `target/release/launchtype` (`.exe` en Windows). Durante el desarrollo también funciona `cargo run -p launchtype` — en Windows el script de compilación copia las DLL de Prism junto al binario para que arranque sin más.
 
 Las pruebas se ejecutan con `cargo test`.
 
@@ -58,10 +57,12 @@ Compila en modo release, monta `dist/` (ejecutable + DLL de Prism + `sounds/` + 
 ### macOS: generar el paquete .app
 
 ```bash
-PRISM_SDK_DIR=/ruta/a/prism-sdk-v0.16.7 ./scripts/bundle-mac.sh
+./scripts/bundle-mac.sh
 ```
 
 Produce `dist/Launchtype.app`, firmado ad-hoc y con `LSUIElement` activado para que viva en segundo plano y se invoque con el atajo global en lugar de aparecer en el Dock. La primera captura de pantalla pedirá el permiso de Grabación de Pantalla.
+
+El paquete se compila solo para la arquitectura de la máquina. `libprism.a` es universal, así que se puede generar una app universal compilando `aarch64-apple-darwin` y `x86_64-apple-darwin` y uniendo los dos binarios con `lipo`; el script no lo hace todavía.
 
 ### Organización del código
 

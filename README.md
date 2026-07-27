@@ -20,7 +20,7 @@ The commands are stored in a commands.json file (or any other file you specify i
 
 ## Installing
 
-Grab the folder produced by a build (see below) and drop it wherever you like — Launchtype is portable. On Windows that folder holds `launchtype.exe`, `prism.dll`, `tolk.dll`, `sounds/` and `locale/`. On macOS it is `Launchtype.app`.
+Grab the folder produced by a build (see below) and drop it wherever you like — Launchtype is portable. On Windows that folder holds `launchtype.exe`, `prism.dll`, `sounds/` and `locale/`. On macOS it is `Launchtype.app`.
 
 All your data files live **next to the executable** (next to the `.app` bundle on macOS), so the whole thing can sit on a USB stick or in your Dropbox:
 
@@ -34,16 +34,15 @@ You need:
 
 1. **Rust stable** (1.92 or newer). Install it with [rustup](https://rustup.rs); the pinned toolchain is in `rust-toolchain.toml`.
 2. **A C++ toolchain** for wxWidgets: on Windows, the Visual Studio Build Tools with the "Desktop development with C++" workload; on macOS, the Xcode command line tools (`xcode-select --install`).
-3. **The Prism speech SDK** (`prism-sdk-vX.Y.Z`), used for screen reader output. Point `PRISM_SDK_DIR` at it if it is not at the default path baked into `crates/prism-sys/build.rs`.
+The Prism speech SDK, used for screen reader output, needs no setup: the Windows and macOS slices the build links are committed under `vendor/prism-sdk/` (~6 MB) and `crates/prism-sys/build.rs` defaults to them. Set `PRISM_SDK_DIR` to a full `prism-sdk-vX.Y.Z` only to build against a different version or a Linux target.
 
 Then:
 
-```powershell
-$env:PRISM_SDK_DIR = "C:\path\to\prism-sdk-v0.16.7"
+```bash
 cargo build --release -p launchtype
 ```
 
-The binary lands in `target/release/launchtype.exe`. During development `cargo run -p launchtype` works too — the build script copies the Prism DLLs next to the binary so it just runs.
+The binary lands in `target/release/launchtype` (`.exe` on Windows). During development `cargo run -p launchtype` works too — on Windows the build script copies the Prism DLLs next to the binary so it just runs.
 
 Run the tests with `cargo test`.
 
@@ -58,10 +57,12 @@ This builds in release mode, assembles `dist/` (exe + Prism DLLs + `sounds/` + `
 ### macOS: build the .app bundle
 
 ```bash
-PRISM_SDK_DIR=/path/to/prism-sdk-v0.16.7 ./scripts/bundle-mac.sh
+./scripts/bundle-mac.sh
 ```
 
 This produces `dist/Launchtype.app`, ad-hoc signed, with `LSUIElement` set so it lives in the background and is summoned by the hotkey rather than showing a Dock icon. The first screenshot will ask for the Screen Recording permission.
+
+The bundle is built for the host architecture only. `libprism.a` is universal, so a universal app is possible by building both `aarch64-apple-darwin` and `x86_64-apple-darwin` and `lipo`-ing the two binaries together; the script does not do this today.
 
 ### Layout of the code
 
