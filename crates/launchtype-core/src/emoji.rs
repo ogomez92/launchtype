@@ -11,6 +11,8 @@
 
 use std::sync::OnceLock;
 
+use crate::i18n::fold;
+
 /// One tab-separated row per emoji, in the order emoji keyboards list them
 /// (smileys first): `emoji`, then a name and its keywords per language.
 const TABLE: &str = include_str!("../data/emoji.txt");
@@ -104,24 +106,6 @@ fn rank(emoji: &Emoji, query: &str) -> Option<u8> {
 /// "red heart" and "laugh" finds "rolling on the floor laughing".
 fn starts_a_word(text: &str, prefix: &str) -> bool {
     text.split(' ').any(|word| word.starts_with(prefix))
-}
-
-/// Lowercase, and strip the diacritics a Spanish speaker will not type: the
-/// table says "corazón" and "cañón", people search "corazon" and "canon".
-fn fold(text: &str) -> String {
-    text.to_lowercase()
-        .chars()
-        .map(|c| match c {
-            'á' | 'à' | 'ä' | 'â' | 'ã' | 'å' => 'a',
-            'é' | 'è' | 'ë' | 'ê' => 'e',
-            'í' | 'ì' | 'ï' | 'î' => 'i',
-            'ó' | 'ò' | 'ö' | 'ô' | 'õ' => 'o',
-            'ú' | 'ù' | 'ü' | 'û' => 'u',
-            'ñ' => 'n',
-            'ç' => 'c',
-            other => other,
-        })
-        .collect()
 }
 
 fn parse(language: usize) -> Vec<Emoji> {

@@ -41,6 +41,26 @@ pub fn tr(msgid: &str) -> String {
     }
 }
 
+/// Lowercase, and strip the diacritics a Spanish speaker will not type: a
+/// table says "corazón" and "centímetros", people search "corazon" and
+/// "centimetros". Used by every table that is searched by name rather than
+/// through the catalog (emoji, units).
+pub fn fold(text: &str) -> String {
+    text.to_lowercase()
+        .chars()
+        .map(|c| match c {
+            'á' | 'à' | 'ä' | 'â' | 'ã' | 'å' => 'a',
+            'é' | 'è' | 'ë' | 'ê' => 'e',
+            'í' | 'ì' | 'ï' | 'î' => 'i',
+            'ó' | 'ò' | 'ö' | 'ô' | 'õ' => 'o',
+            'ú' | 'ù' | 'ü' | 'û' => 'u',
+            'ñ' => 'n',
+            'ç' => 'c',
+            other => other,
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Arg<'a> {
     Str(&'a str),

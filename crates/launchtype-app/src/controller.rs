@@ -13,6 +13,7 @@ use launchtype_core::i18n::tr;
 use launchtype_core::mode::UiMode;
 use launchtype_core::search::{exact_shortcut_match, fuzzy_search};
 use launchtype_core::stats::stats_labels;
+use launchtype_core::units;
 use launchtype_services::snippets::{load_snippets, Snippet};
 use launchtype_services::sounds::SoundPlayer;
 use launchtype_services::steam::scan_games;
@@ -47,6 +48,10 @@ pub enum ItemKind {
     Realtime { key: String },
     /// The characters to copy; the item's name is the emoji's spoken name.
     Emoji { emoji: &'static str },
+    /// One unit conversion; the item's name is the whole sentence the list
+    /// shows and `result` is the number alone, which is what Enter copies.
+    /// `None` until a number has been typed.
+    Conversion { result: Option<String> },
     Stat,
     Region { r#box: [f64; 4] },
     /// One line of SSH command output (or of the echoed command line).
@@ -118,6 +123,7 @@ impl ModeController {
             UiMode::Notebrook => Vec::new(),
             UiMode::Realtime => self.realtime_items(search),
             UiMode::Emoji => self.emoji_items(search),
+            UiMode::Units => self.conversion_items(search),
             UiMode::Stats => self.stats_items(),
             // The input field holds the command being typed, so it must not
             // filter the transcript away (same reasoning as screenshots mode).
@@ -334,6 +340,26 @@ impl ModeController {
                 shortcut: String::new(),
                 id: String::new(),
                 kind: ItemKind::Emoji { emoji: e.emoji },
+            })
+            .collect()
+    }
+
+    /// Unit conversions for the number (and the units) typed so far.
+    ///
+    /// The typed text is not a filter over a fixed list the way it is
+    /// everywhere else: the number in front of it is what every row converts,
+    /// and only the words after it narrow the list down.
+    fn conversion_items(&self, search: &str) -> Vec<Item> {
+        if !search.is_empty() {
+            self.sounds.play("type");
+        }
+        units::rows(search)
+            .into_iter()
+            .map(|row| Item {
+                name: row.label,
+                shortcut: String::new(),
+                id: row.id,
+                kind: ItemKind::Conversion { result: row.result },
             })
             .collect()
     }

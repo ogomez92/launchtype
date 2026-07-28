@@ -238,6 +238,8 @@ Add a timer with the Add button, or change one with the Edit button. The dialog 
 - A **repeating** checkbox.
 - A **sound**, picked from the tones bundled in `sounds/timers/`. Choose "Custom file..." to use any .wav on your system via Browse, or "No sound" for the system beep. Each pick plays as you land on it, so you can arrow through the list to audition the tones.
 
+When a timer fires it speaks its title and description, then keeps playing its sound — or beeping — until you press Ctrl+Alt+Space (Ctrl+Cmd+Space on Mac). One that goes off while you are away from the keyboard is still sounding when you get back, and the hotkey silences it even if a dialog is open.
+
 Editing a timer that is counting down restarts the countdown against the new number of minutes.
 
 Timers display in the list with their current state:
@@ -256,6 +258,8 @@ Add an alarm with the Add button, or change one with the Edit button. The dialog
 - A **title** and **description** (announced via your screen reader when the alarm fires).
 - The **hour** (0-23) and **minute** (0-59).
 - A **sound**, picked from the tones bundled in `sounds/alarms/`. Choose "Custom file..." to use any .wav on your system via Browse, or "No sound" for the system beep. Each pick plays as you land on it, so you can arrow through the list to audition the tones.
+
+As with timers, a firing alarm speaks its title and description and then keeps playing its sound — or beeping — until you press Ctrl+Alt+Space (Ctrl+Cmd+Space on Mac).
 
 Editing an alarm keeps it on or off as it was.
 
@@ -358,6 +362,26 @@ Names and keywords follow the app language — in Spanish you search "fuego", "c
 
 The whole table is compiled into the app: nothing is downloaded, and Windows and macOS give identical results. There are close to two thousand emoji and the list shows the best 200 matches at a time, so add a word if what you want is not there yet. Skin-tone variants are left out.
 
+## Unit conversion mode
+
+Press `=` (equals) in the input field and type a number. The list becomes that number converted every way there is — `100` gives "100 degrees Celsius = 212 degrees Fahrenheit", then "100 feet = 3048 centimeters", "100 kilograms = 220.4623 pounds" and on down, everyday conversions first. Press Enter on the one you want and the number alone goes to the clipboard, ready to paste. The window stays open, because one conversion is usually followed by another.
+
+The number is not a search: it is what gets converted. Words typed after it are the search. `100 ft cm` goes straight to "100 feet = 3048 centimeters" and `70 kg lb` to "70 kilograms = 154.3236 pounds". The first unit you name is the one you are converting from, so `100 cm ft` is the other direction. Joining words are optional and understood either way — `100 cm to inches` and `100 cm in inches` both work, and so does `5 in cm`, where "in" is inches. Name a single unit, as in `2 kg`, and the list converts it into everything else first, then everything else into it.
+
+Units answer to their symbol as readily as to their name, and every row tells you what that symbol is by putting it in brackets: "100 centimeters (cm) = 39.3701 inches (in)", "10 miles per hour (mph) = 16.0934 kilometers per hour (km/h)". So you learn what to type by arrowing through the list rather than by reading this page. A symbol with a slash works typed either way, `km/h` or `kmh`. The brackets are left off where the name already says it — "1 psi", "42 men's EU shoe size" — since repeating it would only be read out twice.
+
+Longer words match in the middle too, so `gallon` reaches both the US and the imperial one, while a one- or two-letter symbol only matches where a word begins: typing `l` finds liters and pounds (through "lb") without dragging in every calorie and kelvin that happens to contain an l.
+
+A comma is a decimal point (`1,5 kg lb`), the number can be negative (`-40 c f`, which is the one temperature both scales agree on), and the space after it is optional (`100ft cm`).
+
+What is in there: length, mass, temperature, volume (metric, US and imperial, down to teaspoons and cups), area, speed, pressure, energy, power, data — both the gigabyte a disk is sold by and the gibibyte your operating system reports it as — time, angles, torque, and fuel economy, the one that runs backwards, where more miles per gallon is fewer liters per 100 km. A month is the average Gregorian one and a year is 365.2425 days, so "how many hours in a month" has an answer too.
+
+Shoe sizes are in there as well, for men and for women, between EU, UK, US, Japan, China, Korea, Mexico, Brazil, Russia, Australia and India. `42 eu us shoe men` reads across the chart and gives "42 men's EU shoe size = 8.5 men's US shoe size"; sizes that fall between two printed rows are interpolated, so half sizes have an answer. These come from published conversion tables and are as approximate as those tables are — several countries genuinely sell in another country's sizes (Australia and India in UK sizes, China and Korea in Mondopoint millimeters), which is why those rows agree.
+
+Every conversion is a formula compiled into the app, so the mode needs no network and gives the same answer forever. That is also why there are no currencies: an exchange rate is news rather than arithmetic, and `+` mode already fetches the ones worth having.
+
+Names and search words follow the app language, so in Spanish you type `100 pies cm` or `70 kg libras`. The list shows the best 300 rows at a time — with only a number typed those are the everyday conversions first — so add a word if what you want is not among them yet.
+
 ## Run as administrator
 
 When adding or editing a command you can tick the "Run as administrator" checkbox. The command will be launched with elevated privileges (a UAC prompt will appear on launch).
@@ -384,6 +408,7 @@ The app has several modes, each accessed by typing a special character in the in
 | `!` | Stats | Most and least used commands |
 | `$` | SSH | Run commands on a remote server and read the output |
 | `:` | Emoji | Find an emoji by its description and copy it |
+| `=` | Unit conversion | Convert a typed number between units, shoe sizes included |
 | `.` | (any mode) | Return to Commands mode |
 
 ## Audio Feedback

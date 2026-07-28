@@ -1517,3 +1517,959 @@ msgstr "modo emoji, escribe una descripción y pulsa intro para copiar"
 #: crates/launchtype-app/src/shell.rs
 msgid "Emoji"
 msgstr "Emojis"
+
+#: crates/launchtype-core/src/units.rs
+msgid "millimeter|millimeters"
+msgstr "milímetro|milímetros"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mm millimetre millimetres"
+msgstr "mm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "centimeter|centimeters"
+msgstr "centímetro|centímetros"
+
+#: crates/launchtype-core/src/units.rs
+msgid "cm centimetre centimetres"
+msgstr "cm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "meter|meters"
+msgstr "metro|metros"
+
+#: crates/launchtype-core/src/units.rs
+msgid "m metre metres"
+msgstr "m"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kilometer|kilometers"
+msgstr "kilómetro|kilómetros"
+
+#: crates/launchtype-core/src/units.rs
+msgid "km kilometre kilometres"
+msgstr "km"
+
+#: crates/launchtype-core/src/units.rs
+msgid "inch|inches"
+msgstr "pulgada|pulgadas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "in inches"
+msgstr "in pulg"
+
+#: crates/launchtype-core/src/units.rs
+msgid "foot|feet"
+msgstr "pie|pies"
+
+#: crates/launchtype-core/src/units.rs
+msgid "ft feet"
+msgstr "ft"
+
+#: crates/launchtype-core/src/units.rs
+msgid "yard|yards"
+msgstr "yarda|yardas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "yd"
+msgstr "yd"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mile|miles"
+msgstr "milla|millas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mi"
+msgstr "mi"
+
+#: crates/launchtype-core/src/units.rs
+msgid "nautical mile|nautical miles"
+msgstr "milla náutica|millas náuticas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "nmi"
+msgstr "nmi"
+
+#: crates/launchtype-core/src/units.rs
+msgid "milligram|milligrams"
+msgstr "miligramo|miligramos"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mg milligramme"
+msgstr "mg"
+
+#: crates/launchtype-core/src/units.rs
+msgid "gram|grams"
+msgstr "gramo|gramos"
+
+#: crates/launchtype-core/src/units.rs
+msgid "g gramme grammes"
+msgstr "g"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kilogram|kilograms"
+msgstr "kilogramo|kilogramos"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kg kilo kilos kilogramme"
+msgstr "kg kilo kilos"
+
+#: crates/launchtype-core/src/units.rs
+msgid "metric ton|metric tons"
+msgstr "tonelada métrica|toneladas métricas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "t tonne tonnes"
+msgstr "t"
+
+#: crates/launchtype-core/src/units.rs
+msgid "ounce|ounces"
+msgstr "onza|onzas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "oz"
+msgstr "oz"
+
+#: crates/launchtype-core/src/units.rs
+msgid "pound|pounds"
+msgstr "libra|libras"
+
+#: crates/launchtype-core/src/units.rs
+msgid "lb lbs"
+msgstr "lb lbs"
+
+#: crates/launchtype-core/src/units.rs
+msgid "stone|stones"
+msgstr "stone|stones"
+
+#: crates/launchtype-core/src/units.rs
+msgid "st"
+msgstr "st"
+
+#: crates/launchtype-core/src/units.rs
+msgid "short ton|short tons"
+msgstr "tonelada corta|toneladas cortas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "us ton"
+msgstr "ton us"
+
+#: crates/launchtype-core/src/units.rs
+msgid "long ton|long tons"
+msgstr "tonelada larga|toneladas largas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "uk ton imperial ton"
+msgstr "ton uk imperial"
+
+#: crates/launchtype-core/src/units.rs
+msgid "degree Celsius|degrees Celsius"
+msgstr "grado Celsius|grados Celsius"
+
+#: crates/launchtype-core/src/units.rs
+msgid "c celsius centigrade"
+msgstr "c celsius centígrados"
+
+#: crates/launchtype-core/src/units.rs
+msgid "degree Fahrenheit|degrees Fahrenheit"
+msgstr "grado Fahrenheit|grados Fahrenheit"
+
+#: crates/launchtype-core/src/units.rs
+msgid "f fahrenheit"
+msgstr "f fahrenheit"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kelvin"
+msgstr "kelvin"
+
+#: crates/launchtype-core/src/units.rs
+msgid "k"
+msgstr "k"
+
+#: crates/launchtype-core/src/units.rs
+msgid "milliliter|milliliters"
+msgstr "mililitro|mililitros"
+
+#: crates/launchtype-core/src/units.rs
+msgid "ml millilitre cc"
+msgstr "ml cc"
+
+#: crates/launchtype-core/src/units.rs
+msgid "centiliter|centiliters"
+msgstr "centilitro|centilitros"
+
+#: crates/launchtype-core/src/units.rs
+msgid "cl centilitre"
+msgstr "cl"
+
+#: crates/launchtype-core/src/units.rs
+msgid "liter|liters"
+msgstr "litro|litros"
+
+#: crates/launchtype-core/src/units.rs
+msgid "l litre litres"
+msgstr "l"
+
+#: crates/launchtype-core/src/units.rs
+msgid "cubic meter|cubic meters"
+msgstr "metro cúbico|metros cúbicos"
+
+#: crates/launchtype-core/src/units.rs
+msgid "m3 cubic metre"
+msgstr "m3"
+
+#: crates/launchtype-core/src/units.rs
+msgid "teaspoon|teaspoons"
+msgstr "cucharadita|cucharaditas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "tsp"
+msgstr "tsp cdta"
+
+#: crates/launchtype-core/src/units.rs
+msgid "tablespoon|tablespoons"
+msgstr "cucharada|cucharadas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "tbsp"
+msgstr "tbsp cda"
+
+#: crates/launchtype-core/src/units.rs
+msgid "US fluid ounce|US fluid ounces"
+msgstr "onza líquida estadounidense|onzas líquidas estadounidenses"
+
+#: crates/launchtype-core/src/units.rs
+msgid "floz fl oz"
+msgstr "floz oz"
+
+#: crates/launchtype-core/src/units.rs
+msgid "cup|cups"
+msgstr "taza|tazas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "cup"
+msgstr "cup"
+
+#: crates/launchtype-core/src/units.rs
+msgid "US pint|US pints"
+msgstr "pinta estadounidense|pintas estadounidenses"
+
+#: crates/launchtype-core/src/units.rs
+msgid "pt"
+msgstr "pt"
+
+#: crates/launchtype-core/src/units.rs
+msgid "US quart|US quarts"
+msgstr "cuarto de galón estadounidense|cuartos de galón estadounidenses"
+
+#: crates/launchtype-core/src/units.rs
+msgid "qt"
+msgstr "qt"
+
+#: crates/launchtype-core/src/units.rs
+msgid "US gallon|US gallons"
+msgstr "galón estadounidense|galones estadounidenses"
+
+#: crates/launchtype-core/src/units.rs
+msgid "gal"
+msgstr "gal"
+
+#: crates/launchtype-core/src/units.rs
+msgid "imperial fluid ounce|imperial fluid ounces"
+msgstr "onza líquida imperial|onzas líquidas imperiales"
+
+#: crates/launchtype-core/src/units.rs
+msgid "uk fluid ounce"
+msgstr "uk onza"
+
+#: crates/launchtype-core/src/units.rs
+msgid "imperial pint|imperial pints"
+msgstr "pinta imperial|pintas imperiales"
+
+#: crates/launchtype-core/src/units.rs
+msgid "uk pint"
+msgstr "uk pinta"
+
+#: crates/launchtype-core/src/units.rs
+msgid "imperial gallon|imperial gallons"
+msgstr "galón imperial|galones imperiales"
+
+#: crates/launchtype-core/src/units.rs
+msgid "uk gallon"
+msgstr "uk galón"
+
+#: crates/launchtype-core/src/units.rs
+msgid "square millimeter|square millimeters"
+msgstr "milímetro cuadrado|milímetros cuadrados"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mm2 mm²"
+msgstr "mm2 mm²"
+
+#: crates/launchtype-core/src/units.rs
+msgid "square centimeter|square centimeters"
+msgstr "centímetro cuadrado|centímetros cuadrados"
+
+#: crates/launchtype-core/src/units.rs
+msgid "cm2 cm²"
+msgstr "cm2 cm²"
+
+#: crates/launchtype-core/src/units.rs
+msgid "square meter|square meters"
+msgstr "metro cuadrado|metros cuadrados"
+
+#: crates/launchtype-core/src/units.rs
+msgid "m2 m²"
+msgstr "m2 m²"
+
+#: crates/launchtype-core/src/units.rs
+msgid "square kilometer|square kilometers"
+msgstr "kilómetro cuadrado|kilómetros cuadrados"
+
+#: crates/launchtype-core/src/units.rs
+msgid "km2 km²"
+msgstr "km2 km²"
+
+#: crates/launchtype-core/src/units.rs
+msgid "hectare|hectares"
+msgstr "hectárea|hectáreas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "ha"
+msgstr "ha"
+
+#: crates/launchtype-core/src/units.rs
+msgid "acre|acres"
+msgstr "acre|acres"
+
+#: crates/launchtype-core/src/units.rs
+msgid "ac"
+msgstr "ac"
+
+#: crates/launchtype-core/src/units.rs
+msgid "square foot|square feet"
+msgstr "pie cuadrado|pies cuadrados"
+
+#: crates/launchtype-core/src/units.rs
+msgid "ft2 sqft"
+msgstr "ft2"
+
+#: crates/launchtype-core/src/units.rs
+msgid "square yard|square yards"
+msgstr "yarda cuadrada|yardas cuadradas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "yd2 sqyd"
+msgstr "yd2"
+
+#: crates/launchtype-core/src/units.rs
+msgid "square mile|square miles"
+msgstr "milla cuadrada|millas cuadradas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mi2 sqmi"
+msgstr "mi2"
+
+#: crates/launchtype-core/src/units.rs
+msgid "meter per second|meters per second"
+msgstr "metro por segundo|metros por segundo"
+
+#: crates/launchtype-core/src/units.rs
+msgid "m/s mps"
+msgstr "m/s"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kilometer per hour|kilometers per hour"
+msgstr "kilómetro por hora|kilómetros por hora"
+
+#: crates/launchtype-core/src/units.rs
+msgid "km/h kph kmh"
+msgstr "km/h kph kmh"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mile per hour|miles per hour"
+msgstr "milla por hora|millas por hora"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mph"
+msgstr "mph"
+
+#: crates/launchtype-core/src/units.rs
+msgid "knot|knots"
+msgstr "nudo|nudos"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kn kt"
+msgstr "kn kt"
+
+#: crates/launchtype-core/src/units.rs
+msgid "foot per second|feet per second"
+msgstr "pie por segundo|pies por segundo"
+
+#: crates/launchtype-core/src/units.rs
+msgid "ft/s fps"
+msgstr "ft/s fps"
+
+#: crates/launchtype-core/src/units.rs
+msgid "pascal|pascals"
+msgstr "pascal|pascales"
+
+#: crates/launchtype-core/src/units.rs
+msgid "pa"
+msgstr "pa"
+
+#: crates/launchtype-core/src/units.rs
+msgid "hectopascal|hectopascals"
+msgstr "hectopascal|hectopascales"
+
+#: crates/launchtype-core/src/units.rs
+msgid "hpa mbar millibar"
+msgstr "hpa mbar milibar"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kilopascal|kilopascals"
+msgstr "kilopascal|kilopascales"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kpa"
+msgstr "kpa"
+
+#: crates/launchtype-core/src/units.rs
+msgid "bar|bars"
+msgstr "bar|bares"
+
+#: crates/launchtype-core/src/units.rs
+msgid "bar"
+msgstr "bar"
+
+#: crates/launchtype-core/src/units.rs
+msgid "psi"
+msgstr "psi"
+
+#: crates/launchtype-core/src/units.rs
+msgid "psi pound per square inch"
+msgstr "psi libras por pulgada cuadrada"
+
+#: crates/launchtype-core/src/units.rs
+msgid "atmosphere|atmospheres"
+msgstr "atmósfera|atmósferas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "atm"
+msgstr "atm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "millimeter of mercury|millimeters of mercury"
+msgstr "milímetro de mercurio|milímetros de mercurio"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mmhg torr"
+msgstr "mmhg torr"
+
+#: crates/launchtype-core/src/units.rs
+msgid "inch of mercury|inches of mercury"
+msgstr "pulgada de mercurio|pulgadas de mercurio"
+
+#: crates/launchtype-core/src/units.rs
+msgid "inhg"
+msgstr "inhg"
+
+#: crates/launchtype-core/src/units.rs
+msgid "joule|joules"
+msgstr "julio|julios"
+
+#: crates/launchtype-core/src/units.rs
+msgid "j"
+msgstr "j"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kilojoule|kilojoules"
+msgstr "kilojulio|kilojulios"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kj"
+msgstr "kj"
+
+#: crates/launchtype-core/src/units.rs
+msgid "calorie|calories"
+msgstr "caloría|calorías"
+
+#: crates/launchtype-core/src/units.rs
+msgid "cal"
+msgstr "cal"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kilocalorie|kilocalories"
+msgstr "kilocaloría|kilocalorías"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kcal food calorie"
+msgstr "kcal caloría alimentaria"
+
+#: crates/launchtype-core/src/units.rs
+msgid "watt hour|watt hours"
+msgstr "vatio hora|vatios hora"
+
+#: crates/launchtype-core/src/units.rs
+msgid "wh"
+msgstr "wh"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kilowatt hour|kilowatt hours"
+msgstr "kilovatio hora|kilovatios hora"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kwh"
+msgstr "kwh"
+
+#: crates/launchtype-core/src/units.rs
+msgid "BTU"
+msgstr "BTU"
+
+#: crates/launchtype-core/src/units.rs
+msgid "btu british thermal unit"
+msgstr "btu unidad térmica británica"
+
+#: crates/launchtype-core/src/units.rs
+msgid "foot pound|foot pounds"
+msgstr "pie libra|pies libra"
+
+#: crates/launchtype-core/src/units.rs
+msgid "ftlb"
+msgstr "ftlb"
+
+#: crates/launchtype-core/src/units.rs
+msgid "watt|watts"
+msgstr "vatio|vatios"
+
+#: crates/launchtype-core/src/units.rs
+msgid "w"
+msgstr "w"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kilowatt|kilowatts"
+msgstr "kilovatio|kilovatios"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kw"
+msgstr "kw"
+
+#: crates/launchtype-core/src/units.rs
+msgid "megawatt|megawatts"
+msgstr "megavatio|megavatios"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mw"
+msgstr "mw"
+
+#: crates/launchtype-core/src/units.rs
+msgid "metric horsepower"
+msgstr "caballo de vapor"
+
+#: crates/launchtype-core/src/units.rs
+msgid "hp cv ps"
+msgstr "hp cv ps"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mechanical horsepower"
+msgstr "caballo de potencia mecánico"
+
+#: crates/launchtype-core/src/units.rs
+msgid "bhp"
+msgstr "bhp"
+
+#: crates/launchtype-core/src/units.rs
+msgid "BTU per hour"
+msgstr "BTU por hora"
+
+#: crates/launchtype-core/src/units.rs
+msgid "btu/h"
+msgstr "btu/h"
+
+#: crates/launchtype-core/src/units.rs
+msgid "bit|bits"
+msgstr "bit|bits"
+
+#: crates/launchtype-core/src/units.rs
+msgid "bit"
+msgstr "bit"
+
+#: crates/launchtype-core/src/units.rs
+msgid "byte|bytes"
+msgstr "byte|bytes"
+
+#: crates/launchtype-core/src/units.rs
+msgid "byte"
+msgstr "byte"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kilobyte|kilobytes"
+msgstr "kilobyte|kilobytes"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kb"
+msgstr "kb"
+
+#: crates/launchtype-core/src/units.rs
+msgid "megabyte|megabytes"
+msgstr "megabyte|megabytes"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mb"
+msgstr "mb"
+
+#: crates/launchtype-core/src/units.rs
+msgid "gigabyte|gigabytes"
+msgstr "gigabyte|gigabytes"
+
+#: crates/launchtype-core/src/units.rs
+msgid "gb"
+msgstr "gb"
+
+#: crates/launchtype-core/src/units.rs
+msgid "terabyte|terabytes"
+msgstr "terabyte|terabytes"
+
+#: crates/launchtype-core/src/units.rs
+msgid "tb"
+msgstr "tb"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kibibyte|kibibytes"
+msgstr "kibibyte|kibibytes"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kib"
+msgstr "kib"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mebibyte|mebibytes"
+msgstr "mebibyte|mebibytes"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mib"
+msgstr "mib"
+
+#: crates/launchtype-core/src/units.rs
+msgid "gibibyte|gibibytes"
+msgstr "gibibyte|gibibytes"
+
+#: crates/launchtype-core/src/units.rs
+msgid "gib"
+msgstr "gib"
+
+#: crates/launchtype-core/src/units.rs
+msgid "tebibyte|tebibytes"
+msgstr "tebibyte|tebibytes"
+
+#: crates/launchtype-core/src/units.rs
+msgid "tib"
+msgstr "tib"
+
+#: crates/launchtype-core/src/units.rs
+msgid "millisecond|milliseconds"
+msgstr "milisegundo|milisegundos"
+
+#: crates/launchtype-core/src/units.rs
+msgid "ms"
+msgstr "ms"
+
+#: crates/launchtype-core/src/units.rs
+msgid "second|seconds"
+msgstr "segundo|segundos"
+
+#: crates/launchtype-core/src/units.rs
+msgid "s sec"
+msgstr "s seg"
+
+#: crates/launchtype-core/src/units.rs
+msgid "minute|minutes"
+msgstr "minuto|minutos"
+
+#: crates/launchtype-core/src/units.rs
+msgid "min"
+msgstr "min"
+
+#: crates/launchtype-core/src/units.rs
+msgid "hour|hours"
+msgstr "hora|horas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "h hr"
+msgstr "h"
+
+#: crates/launchtype-core/src/units.rs
+msgid "day|days"
+msgstr "día|días"
+
+#: crates/launchtype-core/src/units.rs
+msgid "d"
+msgstr "d"
+
+#: crates/launchtype-core/src/units.rs
+msgid "week|weeks"
+msgstr "semana|semanas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "wk"
+msgstr "sem"
+
+#: crates/launchtype-core/src/units.rs
+msgid "month|months"
+msgstr "mes|meses"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mo"
+msgstr "mo"
+
+#: crates/launchtype-core/src/units.rs
+msgid "year|years"
+msgstr "año|años"
+
+#: crates/launchtype-core/src/units.rs
+msgid "yr"
+msgstr "yr"
+
+#: crates/launchtype-core/src/units.rs
+msgid "degree|degrees"
+msgstr "grado|grados"
+
+#: crates/launchtype-core/src/units.rs
+msgid "deg"
+msgstr "deg"
+
+#: crates/launchtype-core/src/units.rs
+msgid "radian|radians"
+msgstr "radián|radianes"
+
+#: crates/launchtype-core/src/units.rs
+msgid "rad"
+msgstr "rad"
+
+#: crates/launchtype-core/src/units.rs
+msgid "gradian|gradians"
+msgstr "gradián|gradianes"
+
+#: crates/launchtype-core/src/units.rs
+msgid "grad gon"
+msgstr "grad gon"
+
+#: crates/launchtype-core/src/units.rs
+msgid "turn|turns"
+msgstr "vuelta|vueltas"
+
+#: crates/launchtype-core/src/units.rs
+msgid "rev revolution"
+msgstr "rev revolución"
+
+#: crates/launchtype-core/src/units.rs
+msgid "liter per 100 kilometers|liters per 100 kilometers"
+msgstr "litro por 100 kilómetros|litros por 100 kilómetros"
+
+#: crates/launchtype-core/src/units.rs
+msgid "l/100km"
+msgstr "l/100km"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mile per US gallon|miles per US gallon"
+msgstr "milla por galón estadounidense|millas por galón estadounidense"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mpg"
+msgstr "mpg"
+
+#: crates/launchtype-core/src/units.rs
+msgid "mile per imperial gallon|miles per imperial gallon"
+msgstr "milla por galón imperial|millas por galón imperial"
+
+#: crates/launchtype-core/src/units.rs
+msgid "uk mpg"
+msgstr "uk mpg"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kilometer per liter|kilometers per liter"
+msgstr "kilómetro por litro|kilómetros por litro"
+
+#: crates/launchtype-core/src/units.rs
+msgid "km/l kmpl"
+msgstr "km/l kmpl"
+
+#: crates/launchtype-core/src/units.rs
+msgid "newton meter|newton meters"
+msgstr "newton metro|newton metros"
+
+#: crates/launchtype-core/src/units.rs
+msgid "nm"
+msgstr "nm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "pound foot|pound feet"
+msgstr "libra pie|libras pie"
+
+#: crates/launchtype-core/src/units.rs
+msgid "lbft lb ft"
+msgstr "lbft lb ft"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kilogram force meter|kilogram force meters"
+msgstr "kilográmetro|kilográmetros"
+
+#: crates/launchtype-core/src/units.rs
+msgid "kgfm kgm"
+msgstr "kgfm kgm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "men's EU shoe size"
+msgstr "talla de calzado europea de hombre"
+
+#: crates/launchtype-core/src/units.rs
+msgid "shoe eu europe european"
+msgstr "zapato calzado talla eu europa europea"
+
+#: crates/launchtype-core/src/units.rs
+msgid "men's UK shoe size"
+msgstr "talla de calzado británica de hombre"
+
+#: crates/launchtype-core/src/units.rs
+msgid "shoe uk british"
+msgstr "zapato calzado talla uk británica"
+
+#: crates/launchtype-core/src/units.rs
+msgid "men's US shoe size"
+msgstr "talla de calzado estadounidense de hombre"
+
+#: crates/launchtype-core/src/units.rs
+msgid "shoe us usa american"
+msgstr "zapato calzado talla us eeuu americana"
+
+#: crates/launchtype-core/src/units.rs
+msgid "men's Japanese shoe size in cm"
+msgstr "talla de calzado japonesa de hombre en cm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "shoe jp japan"
+msgstr "zapato calzado talla jp japón"
+
+#: crates/launchtype-core/src/units.rs
+msgid "men's Mexican shoe size in cm"
+msgstr "talla de calzado mexicana de hombre en cm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "shoe mx mexico"
+msgstr "zapato calzado talla mx méxico"
+
+#: crates/launchtype-core/src/units.rs
+msgid "men's Chinese shoe size in mm"
+msgstr "talla de calzado china de hombre en mm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "shoe cn china"
+msgstr "zapato calzado talla cn china"
+
+#: crates/launchtype-core/src/units.rs
+msgid "men's Korean shoe size in mm"
+msgstr "talla de calzado coreana de hombre en mm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "shoe kr korea"
+msgstr "zapato calzado talla kr corea"
+
+#: crates/launchtype-core/src/units.rs
+msgid "men's Brazilian shoe size"
+msgstr "talla de calzado brasileña de hombre"
+
+#: crates/launchtype-core/src/units.rs
+msgid "shoe br brazil"
+msgstr "zapato calzado talla br brasil"
+
+#: crates/launchtype-core/src/units.rs
+msgid "men's Russian shoe size"
+msgstr "talla de calzado rusa de hombre"
+
+#: crates/launchtype-core/src/units.rs
+msgid "shoe ru russia"
+msgstr "zapato calzado talla ru rusia"
+
+#: crates/launchtype-core/src/units.rs
+msgid "men's Australian shoe size"
+msgstr "talla de calzado australiana de hombre"
+
+#: crates/launchtype-core/src/units.rs
+msgid "shoe au australia"
+msgstr "zapato calzado talla au australia"
+
+#: crates/launchtype-core/src/units.rs
+msgid "men's Indian shoe size"
+msgstr "talla de calzado india de hombre"
+
+#: crates/launchtype-core/src/units.rs
+msgid "shoe india"
+msgstr "zapato calzado talla india"
+
+#: crates/launchtype-core/src/units.rs
+msgid "women's EU shoe size"
+msgstr "talla de calzado europea de mujer"
+
+#: crates/launchtype-core/src/units.rs
+msgid "women's UK shoe size"
+msgstr "talla de calzado británica de mujer"
+
+#: crates/launchtype-core/src/units.rs
+msgid "women's US shoe size"
+msgstr "talla de calzado estadounidense de mujer"
+
+#: crates/launchtype-core/src/units.rs
+msgid "women's Japanese shoe size in cm"
+msgstr "talla de calzado japonesa de mujer en cm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "women's Mexican shoe size in cm"
+msgstr "talla de calzado mexicana de mujer en cm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "women's Chinese shoe size in mm"
+msgstr "talla de calzado china de mujer en mm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "women's Korean shoe size in mm"
+msgstr "talla de calzado coreana de mujer en mm"
+
+#: crates/launchtype-core/src/units.rs
+msgid "women's Brazilian shoe size"
+msgstr "talla de calzado brasileña de mujer"
+
+#: crates/launchtype-core/src/units.rs
+msgid "women's Russian shoe size"
+msgstr "talla de calzado rusa de mujer"
+
+#: crates/launchtype-core/src/units.rs
+msgid "women's Australian shoe size"
+msgstr "talla de calzado australiana de mujer"
+
+#: crates/launchtype-core/src/units.rs
+msgid "women's Indian shoe size"
+msgstr "talla de calzado india de mujer"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Unit conversion"
+msgstr "Conversión de unidades"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "unit conversion mode, type a number and choose a conversion"
+msgstr "modo conversión de unidades, escribe un número y elige una conversión"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "{value} copied"
+msgstr "{value} copiado"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Type a number to convert first"
+msgstr "Escribe primero un número para convertir"
+
+#: crates/launchtype-core/src/units.rs
+msgid "{value} {from} = {result} {to}"
+msgstr "{value} {from} = {result} {to}"
+
+#: crates/launchtype-core/src/units.rs
+msgid "{from} to {to}"
+msgstr "{from} a {to}"

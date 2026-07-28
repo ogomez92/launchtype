@@ -1,5 +1,9 @@
 //! Timer/alarm alert firing — port of `helpers/alert_notifier.py`:
 //! speak "{title}: {description}", play the custom sound or beep.
+//!
+//! The sound repeats until the user brings the window up with the hotkey; the
+//! announcement is spoken once, since a screen reader repeating itself would
+//! bury whatever the user is listening to.
 
 use std::sync::Arc;
 
@@ -46,12 +50,13 @@ pub fn fire_alert(item: &AlertItem, speaker: &Arc<dyn Speaker>, sounds: &SoundPl
     speaker.speak(&alert_message(item), true);
 
     if let Some(sound) = item.sound.as_deref() {
-        if !sound.is_empty() && sounds.play_alert(sound) {
+        if !sound.is_empty() && sounds.play_alert_repeating(sound) {
             return;
         }
     }
-    // No custom sound (or it failed to play): fall back to the system beep.
-    sounds.beep();
+    // No custom sound (or it failed to play): fall back to the system beep,
+    // repeating on the same terms the tone would have.
+    sounds.beep_repeating();
 }
 
 #[cfg(test)]

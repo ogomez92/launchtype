@@ -17,6 +17,15 @@ PO_PATH = ROOT / "assets" / "locale" / "es" / "LC_MESSAGES" / "launchtype.po"
 # skipped — exactly the ones most likely to be missing a translation.
 TR_RE = re.compile(r'\btr\(\s*"((?:[^"\\]|\\.)*)"\s*,?\s*\)', re.DOTALL)
 
+# The unit catalog names its units in a table and translates them at lookup
+# time, so its msgids never appear inside a tr("...") literal. Each row is
+# (key, name, search words, scale); the middle two strings are the msgids.
+UNITS_PATH = ROOT / "crates" / "launchtype-core" / "src" / "units.rs"
+UNIT_RE = re.compile(
+    r'\(\s*"(?:[^"\\]|\\.)*"\s*,\s*"((?:[^"\\]|\\.)*)"\s*,\s*"((?:[^"\\]|\\.)*)"\s*,',
+    re.DOTALL,
+)
+
 
 def unescape(rust_literal: str) -> str:
     # A backslash at end of line continues a Rust string literal: the newline
@@ -47,6 +56,19 @@ def po_msgids(path: Path) -> set:
     return msgids
 
 
+def unit_msgids() -> list:
+    """Every name and search-word msgid in the unit catalog, in table order.
+
+    Stops at the test module: its assertions are full of two-string tuples that
+    are not catalog entries.
+    """
+    text = UNITS_PATH.read_text(encoding="utf-8").split("#[cfg(test)]")[0]
+    found = []
+    for match in UNIT_RE.finditer(text):
+        found.extend(unescape(group) for group in match.groups())
+    return found
+
+
 def main() -> int:
     msgids = po_msgids(PO_PATH)
     missing = {}
@@ -58,6 +80,10 @@ def main() -> int:
             total += 1
             if literal not in msgids:
                 missing.setdefault(literal, []).append(rs.relative_to(ROOT))
+    for literal in unit_msgids():
+        total += 1
+        if literal not in msgids:
+            missing.setdefault(literal, []).append(UNITS_PATH.relative_to(ROOT))
     print(f"{total} tr() literals checked against {len(msgids)} catalog msgids")
     if missing:
         print(f"\n{len(missing)} literals NOT in the Spanish catalog:")

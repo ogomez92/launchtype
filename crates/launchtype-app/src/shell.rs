@@ -589,10 +589,12 @@ pub fn update_list(shell: &SharedShell) {
     s.items = s.controller.items_for(&search, mode);
     s.list.clear();
     for item in &s.items {
-        // Stats and region lines are full sentences; don't clip them so the
-        // screen reader announces the whole thing.
+        // Stats, region and conversion lines are full sentences; don't clip
+        // them so the screen reader announces the whole thing.
         let mut label: String = match item.kind {
-            ItemKind::Stat | ItemKind::Region { .. } => item.name.clone(),
+            ItemKind::Stat | ItemKind::Region { .. } | ItemKind::Conversion { .. } => {
+                item.name.clone()
+            }
             _ => item.name.chars().take(40).collect(),
         };
         if !item.shortcut.is_empty() {
@@ -677,6 +679,7 @@ fn mode_announcement(mode: UiMode) -> String {
         UiMode::Stats => tr("statistics mode"),
         UiMode::Ssh => tr("SSH mode, type a command and press enter"),
         UiMode::Emoji => tr("emoji mode, type a description and press enter to copy"),
+        UiMode::Units => tr("unit conversion mode, type a number and choose a conversion"),
         UiMode::Regions => unreachable!("no trigger char"),
     }
 }
@@ -696,6 +699,7 @@ fn mode_name(mode: UiMode) -> String {
         UiMode::Stats => tr("Statistics"),
         UiMode::Ssh => tr("SSH"),
         UiMode::Emoji => tr("Emoji"),
+        UiMode::Units => tr("Unit conversion"),
         UiMode::Regions => tr("Regions"),
     }
 }
@@ -792,6 +796,21 @@ pub fn run_clicked(shell: &SharedShell) {
         }
         // Stats lines are informational; re-speak on enter, keep the window.
         ItemKind::Stat => speak_now(&item.name, true),
+        // A conversion copies the number on its own — the sentence around it
+        // has already been read out — and keeps the window open, because one
+        // conversion is usually followed by another.
+        ItemKind::Conversion { result } => match result {
+            Some(result) => {
+                let s = shell.borrow();
+                clipboard::set_text(&result);
+                s.sounds.play("copy");
+                speak_now(
+                    &format_args(&tr("{value} copied"), &[("value", Arg::Str(&result))]),
+                    true,
+                );
+            }
+            None => speak_now(&tr("Type a number to convert first"), true),
+        },
         // A region: crop it out of the last screenshot, copy the crop, and
         // describe it. Keep the window open so more regions can be chosen.
         ItemKind::Region { r#box } => crate::ai_flows::crop_and_describe_region(shell, r#box),

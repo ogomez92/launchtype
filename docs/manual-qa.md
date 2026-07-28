@@ -16,7 +16,7 @@ behavioral reference: when in doubt, compare side by side on the same data.
 ## Screen reader
 - [ ] Typing into the input field echoes normally
 - [ ] The results list is announced as "Results" (not "Sort commands by:")
-- [ ] Every mode trigger speaks its announcement (- ? . , ' [ ] # + ! : $)
+- [ ] Every mode trigger speaks its announcement (- ? . , ' [ ] # + ! : $ =)
 - [ ] Typing a search speaks the first result; multiple results speak
       "{first}, {n} search results shown, use tab and down arrow..."
 - [ ] Exact shortcut match plays the "match" sound and shows a single result
@@ -34,6 +34,12 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Alarms: add, toggle (on/off persists), fires at the right minute
 - [ ] Alarms: Edit reopens the alarm with its saved values and leaves it on or
       off as it was
+- [ ] A fired timer/alarm keeps its sound repeating until Ctrl+Alt+Space
+      (Ctrl+Cmd+Space on macOS) — including with "No sound", which repeats the
+      beep — and the hotkey silences it even while a dialog is open
+- [ ] A second timer coming due while one is sounding takes the sound over
+      instead of playing on top of it; typing in the window does not cut the
+      repeating alert short
 - [ ] Sound dropdown lists the .wav files in sounds/alarms (alarm dialog) and
       sounds/timers (timer dialog)
 - [ ] Arrowing through the sound dropdown plays each tone and cuts off the one
@@ -50,6 +56,20 @@ behavioral reference: when in doubt, compare side by side on the same data.
       announcement ("grinning face", not "grinning face grinning face")
 - [ ] Emoji: in Spanish the names are Spanish ("cara sonriendo") and "corazon"
       without the accent finds ❤️
+- [ ] Units: `=` then `100` lists conversions of that number, spoken in full
+      (no 40-char clip), "100 degrees Celsius = 212 degrees Fahrenheit" first
+- [ ] Units: the typed number does NOT filter the list; words after it do
+      (`100 ft cm` reaches "100 feet (ft) = 3048 centimeters (cm)" first)
+- [ ] Units: each row names the symbol to type in brackets, and typing it
+      works (arrow to a row, type its symbol, that row comes back); no
+      brackets where the name already says it ("1 psi", not "1 psi (psi)")
+- [ ] Units: Enter copies the number alone ("3048", not the sentence) with the
+      "copy" sound and leaves the window open for the next conversion
+- [ ] Units: Enter with no number typed says "Type a number to convert first"
+- [ ] Units: `42 eu us shoe men` gives the men's chart row, and `-40 c f`
+      gives -40 back
+- [ ] Units: in Spanish the names are Spanish ("100 pies = 3048 centímetros")
+      and `1,5 kg lb` reads the comma as a decimal point
 - [ ] Screenshots: capture copies a pasteable FILE to the clipboard
       (paste into Explorer/Finder); describe/regions/grab flows speak results
 - [ ] UAC: run_as_admin command shows the elevation prompt

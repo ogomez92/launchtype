@@ -238,6 +238,8 @@ Añade uno con el botón Añadir, o modifícalo con el botón Editar. El diálog
 - Una casilla de **repetición**.
 - Un **sonido**, elegido entre los tonos incluidos en `sounds/timers/`. Selecciona «Archivo personalizado...» para usar cualquier .wav de tu sistema con Examinar, o «Sin sonido» para el pitido del sistema. Cada opción suena al llegar a ella, así que puedes recorrer la lista con las flechas para escuchar los tonos.
 
+Cuando salta un temporizador se anuncian su título y su descripción, y su sonido —o el pitido— se repite hasta que pulsas Ctrl+Alt+Espacio (Ctrl+Cmd+Espacio en Mac). Uno que salte mientras estás lejos del teclado sigue sonando cuando vuelves, y el atajo lo calla aunque haya un diálogo abierto.
+
 Editar un temporizador que está contando reinicia la cuenta atrás con los nuevos minutos.
 
 Los temporizadores aparecen en la lista con su estado actual:
@@ -256,6 +258,8 @@ Añade una con el botón Añadir, o modifícala con el botón Editar. El diálog
 - Un **título** y una **descripción** (que se anuncian por el lector de pantalla al dispararse).
 - La **hora** (0-23) y los **minutos** (0-59).
 - Un **sonido**, elegido entre los tonos incluidos en `sounds/alarms/`. Selecciona «Archivo personalizado...» para usar cualquier .wav de tu sistema con Examinar, o «Sin sonido» para el pitido del sistema. Cada opción suena al llegar a ella, así que puedes recorrer la lista con las flechas para escuchar los tonos.
+
+Igual que con los temporizadores, al saltar una alarma se anuncian su título y su descripción, y su sonido —o el pitido— se repite hasta que pulsas Ctrl+Alt+Espacio (Ctrl+Cmd+Espacio en Mac).
 
 Editar una alarma mantiene su estado de activada o desactivada.
 
@@ -358,6 +362,26 @@ Los nombres y las palabras clave siguen el idioma de la aplicación, y las tilde
 
 Toda la tabla va compilada dentro del programa: no se descarga nada, y Windows y macOS dan resultados idénticos. Hay casi dos mil emojis y la lista enseña las 200 mejores coincidencias a la vez, así que añade una palabra si lo que buscas todavía no aparece. Las variantes de tono de piel no se incluyen.
 
+## Modo conversión de unidades
+
+Pulsa `=` (igual) en la caja y escribe un número. La lista se convierte en ese número convertido de todas las formas posibles: `100` da "100 grados Celsius = 212 grados Fahrenheit", luego "100 pies = 3048 centímetros", "100 kilogramos = 220.4623 libras" y así hacia abajo, con las conversiones de todos los días primero. Pulsa intro en la que quieras y el número solo se copia al portapapeles, listo para pegar. La ventana se queda abierta, porque después de una conversión suele venir otra.
+
+El número no es una búsqueda: es lo que se convierte. Lo que buscas son las palabras que escribas después. `100 pies cm` va directo a "100 pies = 3048 centímetros", y `70 kg libras` a "70 kilogramos = 154.3236 libras". La primera unidad que nombras es desde la que conviertes, así que `100 cm pies` es el sentido contrario. Las palabras de enlace son opcionales y se entienden en ambos sentidos: `100 cm a pulgadas` funciona igual que `100 cm pulgadas`. Si nombras una sola unidad, como en `2 kg`, la lista primero la convierte a todo lo demás y después convierte todo lo demás a ella.
+
+Las unidades responden tanto a su símbolo como a su nombre, y cada fila te dice cuál es ese símbolo poniéndolo entre paréntesis: "100 centímetros (cm) = 39.3701 pulgadas (in)", "10 millas por hora (mph) = 16.0934 kilómetros por hora (km/h)". Así te enteras de qué escribir recorriendo la lista y no leyendo esta página. Un símbolo con barra funciona de las dos formas, `km/h` o `kmh`. Los paréntesis se omiten cuando el nombre ya lo dice —"1 psi", "42 talla de calzado europea de hombre (eu)" sí lo lleva porque el nombre no dice "eu"—, porque si no se leería dos veces.
+
+Las palabras largas también coinciden por dentro, así que `galón` llega al estadounidense y al imperial; en cambio un símbolo de una o dos letras solo coincide donde empieza una palabra, así que escribir `l` encuentra litros y libras (por "lb") y no arrastra todas las calorías y kelvin que llevan una l en medio.
+
+La coma es un separador decimal (`1,5 kg libras`), el número puede ser negativo (`-40 c f`, la única temperatura en la que las dos escalas coinciden) y el espacio tras el número es opcional (`100pies cm`).
+
+Lo que hay dentro: longitud, masa, temperatura, volumen (métrico, estadounidense e imperial, hasta cucharaditas y tazas), superficie, velocidad, presión, energía, potencia, datos —tanto el gigabyte con el que se vende un disco como el gibibyte con el que lo cuenta el sistema operativo—, tiempo, ángulos, par motor y consumo de combustible, el que va al revés: más millas por galón son menos litros a los 100 km. El mes es el mes gregoriano medio y el año son 365.2425 días, así que "cuántas horas tiene un mes" también tiene respuesta.
+
+También están las tallas de calzado, de hombre y de mujer, entre Europa, Reino Unido, Estados Unidos, Japón, China, Corea, México, Brasil, Rusia, Australia y la India. `42 eu us zapato hombre` lee la fila de la tabla y da "42 talla de calzado europea de hombre = 8.5 talla de calzado estadounidense de hombre"; las tallas que caen entre dos filas de la tabla se interpolan, así que las medias tallas también tienen respuesta. Salen de tablas de equivalencias publicadas y son tan aproximadas como esas tablas: hay países que venden de verdad con las tallas de otro (Australia y la India con las británicas, China y Corea en milímetros Mondopoint), y por eso esas filas coinciden.
+
+Cada conversión es una fórmula compilada dentro del programa, así que el modo no necesita red y da siempre la misma respuesta. Por eso mismo no hay monedas: un tipo de cambio son noticias y no aritmética, y el modo `+` ya trae las que merecen la pena.
+
+Los nombres y las palabras de búsqueda siguen el idioma de la aplicación, así que también puedes escribir `100 ft cm` o `70 kg lb`. La lista enseña las 300 mejores filas a la vez —con solo un número escrito, las conversiones de todos los días primero—, así que añade una palabra si lo que buscas todavía no aparece.
+
 ## Ejecutar como administrador
 
 Al añadir o editar un comando puedes marcar la casilla "Ejecutar como administrador". El comando se lanzará con privilegios elevados (aparecerá el cuadro de UAC al ejecutarlo).
@@ -384,6 +408,7 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `!` | Estadísticas | Comandos más y menos usados |
 | `$` | SSH | Ejecuta comandos en un servidor remoto y lee la salida |
 | `:` | Emojis | Buscar un emoji por su descripción y copiarlo |
+| `=` | Conversión de unidades | Convertir un número entre unidades, tallas de calzado incluidas |
 | `.` | (cualquier modo) | Volver al modo Comandos |
 
 ## Retroalimentación de audio
