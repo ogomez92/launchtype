@@ -2048,7 +2048,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "launchtype"
-version = "7.0.0"
+version = "9.0.0"
 dependencies = [
  "chrono",
  "embed-manifest",
@@ -2070,7 +2070,7 @@ dependencies = [
 
 [[package]]
 name = "launchtype-core"
-version = "7.0.0"
+version = "9.0.0"
 dependencies = [
  "base64",
  "chrono",
@@ -2086,7 +2086,7 @@ dependencies = [
 
 [[package]]
 name = "launchtype-services"
-version = "7.0.0"
+version = "9.0.0"
 dependencies = [
  "base64",
  "chrono",
@@ -3138,7 +3138,7 @@ dependencies = [
 
 [[package]]
 name = "prism"
-version = "7.0.0"
+version = "9.0.0"
 dependencies = [
  "prism-sys",
  "thiserror",
@@ -3146,7 +3146,7 @@ dependencies = [
 
 [[package]]
 name = "prism-sys"
-version = "7.0.0"
+version = "9.0.0"
 
 [[package]]
 name = "proc-macro-crate"
