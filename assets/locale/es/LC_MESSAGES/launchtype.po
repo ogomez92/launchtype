@@ -91,8 +91,8 @@ msgid "Steam games mode"
 msgstr "modo juegos de Steam"
 
 #: src/managers/ui_manager.py:221
-msgid "{}, {} search results shown, use tab and down arrow to access more results"
-msgstr "{}, {} resultados de búsqueda mostrados, usa tab y flecha abajo para acceder a más resultados"
+msgid "{}, {} search results shown, use down arrow to access more results"
+msgstr "{}, {} resultados de búsqueda mostrados, usa flecha abajo para acceder a más resultados"
 
 #: src/managers/ui_manager.py:264
 msgid "information"
@@ -259,7 +259,7 @@ msgid "Disable all sounds"
 msgstr "Desactiva todos los sonidos"
 
 #: src/managers/ui_manager.py
-msgid "Se&ttings..."
+msgid "Sett&ings..."
 msgstr "Aj&ustes..."
 
 #: src/managers/ui_manager.py
@@ -1391,14 +1391,6 @@ msgid "{from} becomes {to} ({count} used)"
 msgstr "{from} pasa a ser {to} ({count} en uso)"
 
 #: crates/launchtype-app/src/dialogs.rs
-msgid "These paths cannot be reached on this machine and no variable can fix them; edit or delete those commands yourself:"
-msgstr "No se puede acceder a estas rutas en este equipo y ninguna variable puede arreglarlas; edita o elimina esos comandos tú mismo:"
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "\nand {count} more."
-msgstr "\ny {count} más."
-
-#: crates/launchtype-app/src/dialogs.rs
 msgid "&Fix selected"
 msgstr "&Corregir seleccionados"
 
@@ -2473,3 +2465,15 @@ msgstr "{value} {from} = {result} {to}"
 #: crates/launchtype-core/src/units.rs
 msgid "{from} to {to}"
 msgstr "{from} a {to}"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Open in &Terminal (Alt+T)"
+msgstr "Abrir en &Terminal (Alt+T)"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "No folder in this command's arguments"
+msgstr "No hay ninguna carpeta en los argumentos de este comando"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Cannot open terminal"
+msgstr "No se puede abrir el terminal"

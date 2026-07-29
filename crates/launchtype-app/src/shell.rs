@@ -30,6 +30,9 @@ pub struct Shell {
     pub edit: TextCtrl,
     sort_label: StaticText,
     sort_choice: Choice,
+    /// Commands-mode only, like the sort control: opens a terminal at the
+    /// folder the focused command's arguments point at.
+    terminal_button: Button,
     pub list: ListBox,
     pub mode: UiMode,
     pub items: Vec<Item>,
@@ -131,18 +134,21 @@ pub fn build_shell(
     let copy_button = Button::builder(&panel).with_label(&tr("&COPY...")).build();
     let delete_button = Button::builder(&panel).with_label(&tr("&Delete")).build();
     let copy_args_button = Button::builder(&panel).with_label(&tr("C&opy Args (Alt+O)")).build();
+    let terminal_button =
+        Button::builder(&panel).with_label(&tr("Open in &Terminal (Alt+T)")).build();
     let snippets_button = Button::builder(&panel).with_label(&tr("Open &Snippets folder")).build();
     let new_snippet_button = Button::builder(&panel).with_label(&tr("&New snipet")).build();
     let run_button = Button::builder(&panel).with_label(&tr("&Run")).build();
     let modes_button = Button::builder(&panel).with_label(&tr("&Modes (Alt+M)")).build();
     let help_button = Button::builder(&panel).with_label(&tr("&Help")).build();
-    let settings_button = Button::builder(&panel).with_label(&tr("Se&ttings...")).build();
+    // "Sett&ings", not "Se&ttings": Alt+T belongs to the terminal button.
+    let settings_button = Button::builder(&panel).with_label(&tr("Sett&ings...")).build();
     let merge_button = Button::builder(&panel).with_label(&tr("Mer&ge in...")).build();
     let exit_button = Button::builder(&panel).with_label(&tr("E&xit")).build();
     for b in [
         &add_button, &edit_button, &copy_button, &delete_button, &copy_args_button,
-        &snippets_button, &new_snippet_button, &run_button, &modes_button, &help_button,
-        &settings_button, &merge_button, &exit_button,
+        &terminal_button, &snippets_button, &new_snippet_button, &run_button, &modes_button,
+        &help_button, &settings_button, &merge_button, &exit_button,
     ] {
         button_sizer.add(b, 0, SizerFlag::All, 0);
     }
@@ -157,6 +163,7 @@ pub fn build_shell(
         edit,
         sort_label,
         sort_choice,
+        terminal_button,
         list,
         mode: UiMode::Commands,
         items: Vec::new(),
@@ -178,15 +185,15 @@ pub fn build_shell(
         &shell,
         [
             add_button, edit_button, copy_button, delete_button, copy_args_button,
-            snippets_button, new_snippet_button, run_button, modes_button, help_button,
-            settings_button, merge_button, exit_button,
+            terminal_button, snippets_button, new_snippet_button, run_button, modes_button,
+            help_button, settings_button, merge_button, exit_button,
         ],
     );
     shell
 }
 
-fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
-    let [add_button, edit_button, copy_button, delete_button, copy_args_button, snippets_button, new_snippet_button, run_button, modes_button, help_button, settings_button, merge_button, exit_button] =
+fn bind_events(shell: &SharedShell, buttons: [Button; 14]) {
+    let [add_button, edit_button, copy_button, delete_button, copy_args_button, terminal_button, snippets_button, new_snippet_button, run_button, modes_button, help_button, settings_button, merge_button, exit_button] =
         buttons;
     let (frame, edit, list, panel, sort_choice) = {
         let s = shell.borrow();
@@ -196,6 +203,35 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
     {
         let shell = shell.clone();
         edit.on_text_changed(move |_| update_list(&shell));
+    }
+    // Down/Up in the input field jump straight into the results: focus the
+    // list on the entry after (Down) or before (Up) the selected one, so the
+    // second result is one keystroke away instead of Tab-then-arrow.
+    {
+        let shell = shell.clone();
+        edit.on_key_down(move |event| {
+            let key = match &event {
+                WindowEventData::Keyboard(key_event) => key_event.get_key_code(),
+                _ => None,
+            };
+            let step: i64 = match key {
+                Some(WXK_UP) => -1,
+                Some(WXK_DOWN) => 1,
+                _ => {
+                    event.skip(true);
+                    return;
+                }
+            };
+            let s = shell.borrow();
+            let count = s.list.get_count() as i64;
+            if count == 0 {
+                return;
+            }
+            let current = s.list.get_selection().map_or(-1, |index| index as i64);
+            let target = (current + step).clamp(0, count - 1);
+            s.list.set_selection(target as u32, true);
+            s.list.set_focus();
+        });
     }
     {
         let shell = shell.clone();
@@ -417,6 +453,10 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
     }
     {
         let shell = shell.clone();
+        terminal_button.on_click(move |_| open_in_terminal(&shell));
+    }
+    {
+        let shell = shell.clone();
         snippets_button.on_click(move |_| {
             toggle_visibility(&shell);
             let _ = open::that_detached(std::env::current_dir().unwrap_or_default().join("snippets"));
@@ -471,8 +511,8 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
     bind_hide_on_escape(shell, &sort_choice);
     for button in [
         &add_button, &edit_button, &copy_button, &delete_button, &copy_args_button,
-        &snippets_button, &new_snippet_button, &run_button, &modes_button, &help_button,
-        &settings_button, &merge_button, &exit_button,
+        &terminal_button, &snippets_button, &new_snippet_button, &run_button, &modes_button,
+        &help_button, &settings_button, &merge_button, &exit_button,
     ] {
         bind_hide_on_escape(shell, button);
     }
@@ -526,6 +566,10 @@ fn is_escape(event: &WindowEventData) -> bool {
     }
 }
 
+/// wxWidgets key codes (wxdragon exposes none): WXK_UP / WXK_DOWN.
+const WXK_UP: i32 = 315;
+const WXK_DOWN: i32 = 317;
+
 pub fn toggle_visibility(shell: &SharedShell) {
     let visible = {
         let s = shell.borrow();
@@ -575,11 +619,13 @@ pub fn update_list(shell: &SharedShell) {
         }
     }
 
-    // The sort control only applies to commands mode; hide it elsewhere.
-    let show_sort = s.mode == UiMode::Commands;
-    if s.sort_choice.is_shown() != show_sort {
-        s.sort_label.show(show_sort);
-        s.sort_choice.show(show_sort);
+    // The sort control and the terminal button only apply to commands mode;
+    // hide them elsewhere (a hidden button also gives its Alt+T mnemonic back).
+    let show_commands_only = s.mode == UiMode::Commands;
+    if s.sort_choice.is_shown() != show_commands_only {
+        s.sort_label.show(show_commands_only);
+        s.sort_choice.show(show_commands_only);
+        s.terminal_button.show(show_commands_only);
         s.panel.layout();
     }
 
@@ -614,7 +660,7 @@ pub fn update_list(shell: &SharedShell) {
             if count == 1 {
                 speak_now(&first, true);
             } else {
-                let msg = tr("{}, {} search results shown, use tab and down arrow to access more results")
+                let msg = tr("{}, {} search results shown, use down arrow to access more results")
                     .replacen("{}", &first, 1)
                     .replacen("{}", &count.to_string(), 1);
                 speak_now(&msg, true);
@@ -876,6 +922,49 @@ fn run_hidden_action(shell: &SharedShell, item: &Item, kind: ItemKind) -> Result
     Ok(())
 }
 
+/// Open a terminal window at the folder the focused command's arguments point
+/// at: a folder argument opens itself, a file argument opens its containing
+/// folder. The command's `path` (the executable) is deliberately ignored —
+/// the folder worth a shell is the one the command acts on, not the one the
+/// program is installed in.
+fn open_in_terminal(shell: &SharedShell) {
+    let folder = {
+        let s = shell.borrow();
+        let Some(index) = s.list.get_selection() else { return };
+        let Some(item) = s.items.get(index as usize) else { return };
+        let ItemKind::Command { args, .. } = &item.kind else { return };
+        let vars = launchtype_services::portable::vars();
+        launchtype_core::portable::arg_segments(args)
+            .iter()
+            .map(|segment| launchtype_core::portable::expand(segment, vars))
+            .find_map(|expanded| {
+                let path = std::path::Path::new(&expanded);
+                if path.is_dir() {
+                    Some(path.to_path_buf())
+                } else if path.is_file() {
+                    path.parent().map(|parent| parent.to_path_buf())
+                } else {
+                    None
+                }
+            })
+    };
+    let Some(folder) = folder else {
+        speak_now(&tr("No folder in this command's arguments"), true);
+        return;
+    };
+    match launchtype_services::runner::open_terminal_at(&folder) {
+        Ok(()) => {
+            let s = shell.borrow();
+            s.sounds.play("run");
+            s.frame.show(false);
+        }
+        Err(error) => {
+            let frame = shell.borrow().frame;
+            show_error(&frame, &tr("Cannot open terminal"), &error.to_string());
+        }
+    }
+}
+
 fn send_notebrook_note(shell: &SharedShell) {
     let (note, mut url, mut token, frame) = {
         let s = shell.borrow();
@@ -1074,28 +1163,25 @@ pub fn warn_shortcut_conflicts(shell: &SharedShell) {
 
 /// On startup, offer to replace machine-specific paths (a hardcoded user
 /// folder, a browser executable) with placeholders that each machine resolves
-/// for itself, and report paths that are simply unreachable here.
+/// for itself.
 ///
 /// Runs after the shortcut-conflict warning so the two never stack up, and is
-/// skipped once the user answers "never ask again".
+/// skipped once the user answers "never ask again". The scan is pure string
+/// matching against this machine's placeholder values — it must never touch
+/// the filesystem, because it runs before the event loop starts and one probe
+/// of an offline network share once held startup hostage for seconds.
 pub fn check_portability(shell: &SharedShell) {
     let report = {
         let s = shell.borrow();
         if !s.settings.settings.portability_check {
             return;
         }
-        let vars = launchtype_services::portable::vars();
         launchtype_core::portable::scan(
             &s.controller.commands.file,
             &s.settings.settings.machine_specific_paths(),
-            vars,
-            &|path| std::path::Path::new(path).exists(),
+            launchtype_services::portable::vars(),
         )
     };
-    // Only ask when there is something to accept. Unreachable paths ride along
-    // in that dialog as information, but they are never a reason to open it:
-    // nothing can fix them, so a machine that keeps a few dead drive letters
-    // would otherwise show this same dialog on every single start.
     if report.fixes.is_empty() {
         return;
     }

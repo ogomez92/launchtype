@@ -43,6 +43,37 @@ pub fn run_command(
     }
 }
 
+/// Open the system terminal in `folder`: Windows Terminal on Windows,
+/// Terminal.app (in /Applications/Utilities) on macOS.
+#[cfg(windows)]
+pub fn open_terminal_at(folder: &Path) -> Result<(), RunError> {
+    // `wt.exe` is the per-user execution alias Windows Terminal installs on
+    // PATH; there is no stable absolute install location for a Store app.
+    std::process::Command::new("wt.exe")
+        .arg("-d")
+        .arg(folder)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| RunError(e.to_string()))
+}
+
+#[cfg(not(windows))]
+pub fn open_terminal_at(folder: &Path) -> Result<(), RunError> {
+    // `open -a Terminal <folder>` starts (or reuses) Terminal.app with a
+    // window whose working directory is the folder.
+    let status = std::process::Command::new("/usr/bin/open")
+        .arg("-a")
+        .arg("Terminal")
+        .arg(folder)
+        .status()
+        .map_err(|e| RunError(e.to_string()))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(RunError(format!("open failed for {} ({status})", folder.display())))
+    }
+}
+
 /// Hand the first argument to whatever the OS uses for it — the default
 /// browser for a URL. Used by `{{browser}}` and by a specific browser
 /// placeholder on a machine where that browser is not installed.

@@ -18,12 +18,18 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] The results list is announced as "Results" (not "Sort commands by:")
 - [ ] Every mode trigger speaks its announcement (- ? . , ' [ ] # + ! : $ =)
 - [ ] Typing a search speaks the first result; multiple results speak
-      "{first}, {n} search results shown, use tab and down arrow..."
+      "{first}, {n} search results shown, use down arrow..."
+- [ ] Down arrow in the input field focuses the result after the selected one
+      (first → second); Up arrow the one before; both clamp at the ends
 - [ ] Exact shortcut match plays the "match" sound and shows a single result
 
 ## Modes
 - [ ] Commands: run (window hides), run_count increments, stats mode reflects it
 - [ ] Sort combobox appears only in commands mode; choice persists across restarts
+- [ ] "Open in Terminal (Alt+T)" appears only in commands mode; on a command
+      whose argument is a folder it opens the terminal there, on a file
+      argument its containing folder, and with neither it speaks
+      "No folder in this command's arguments" (Windows Terminal / Terminal.app)
 - [ ] Snippets: copy to clipboard with "copy" sound; apple_snippets.plist entries present
 - [ ] Clipboard history: items numbered 1-50, re-copying moves to front
 - [ ] Steam: games listed, launch works (steam:// URL)
@@ -155,8 +161,6 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] "Never ask again" changes nothing and does not ask again; the Settings
       checkbox turns it back on
 - [ ] Restarting after a fix does NOT show the dialog again
-- [ ] A file whose only problem is unreachable drive letters never opens the
-      dialog on its own
 - [ ] Elevated (run_as_admin) command with a quoted, spaced argument still
       receives it as one argument
 

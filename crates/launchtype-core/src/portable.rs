@@ -453,42 +453,24 @@ pub struct Fix {
     pub count: usize,
 }
 
-/// A path this machine cannot reach and no placeholder can rescue — a drive
-/// letter or network share that only exists on the machine it was added on.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Unreachable {
-    pub path: String,
-    pub count: usize,
-}
-
 /// What a portability scan found.
+///
+/// Deliberately nothing about paths that are unreachable here: the scan once
+/// probed every absolute path with `exists()` to report dead ones, but there
+/// was nothing the user could do with that list, and probing an offline
+/// network share stalls for seconds per path while SMB times out.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Report {
     /// Rewrites the user can accept, most-used first.
     pub fixes: Vec<Fix>,
-    /// Broken paths reported for information; nothing here is auto-fixable.
-    pub unreachable: Vec<Unreachable>,
-}
-
-impl Report {
-    pub fn is_empty(&self) -> bool {
-        self.fixes.is_empty() && self.unreachable.is_empty()
-    }
 }
 
 /// Scan every command's `path` and arguments, plus any `extra_fields` the
-/// caller wants covered (settings hold machine-specific paths too).
-///
-/// `exists` answers whether an expanded path is reachable here; it is a
-/// parameter so the rules stay testable without touching a filesystem.
-pub fn scan(
-    file: &CommandsFile,
-    extra_fields: &[String],
-    vars: &Vars,
-    exists: &dyn Fn(&str) -> bool,
-) -> Report {
+/// caller wants covered (settings hold machine-specific paths too), for
+/// literal paths a placeholder could stand in for. Pure string matching —
+/// the filesystem is never touched.
+pub fn scan(file: &CommandsFile, extra_fields: &[String], vars: &Vars) -> Report {
     let mut fixes: Vec<Fix> = Vec::new();
-    let mut unreachable: Vec<Unreachable> = Vec::new();
 
     let mut record = |value: &str| {
         let value = value.trim();
@@ -500,20 +482,6 @@ pub fn scan(
                 Some(fix) => fix.count += 1,
                 None => fixes.push(Fix { from, to, count: 1 }),
             }
-            return;
-        }
-        // Nothing to rewrite. Flag it only when it is an absolute location
-        // that is genuinely missing here — a relative path or a URL is fine.
-        if !is_absolute_location(value) || looks_like_url(value) {
-            return;
-        }
-        let resolved = expand(value, vars);
-        if exists(&resolved) {
-            return;
-        }
-        match unreachable.iter_mut().find(|u| u.path == value) {
-            Some(entry) => entry.count += 1,
-            None => unreachable.push(Unreachable { path: value.to_string(), count: 1 }),
         }
     };
 
@@ -528,8 +496,7 @@ pub fn scan(
     }
 
     fixes.sort_by(|a, b| b.count.cmp(&a.count).then(a.from.cmp(&b.from)));
-    unreachable.sort_by(|a, b| b.count.cmp(&a.count).then(a.path.cmp(&b.path)));
-    Report { fixes, unreachable }
+    Report { fixes }
 }
 
 /// Whether `value` names an absolute location: a drive letter, a UNC share, or
@@ -758,7 +725,7 @@ mod tests {
         )
         .unwrap();
 
-        let report = scan(&file, &[], &vars, &|_| true);
+        let report = scan(&file, &[], &vars);
         assert_eq!(
             report.fixes,
             vec![Fix { from: r"C:\Users\nitropc".into(), to: "{{home}}".into(), count: 3 }]
@@ -874,7 +841,7 @@ mod tests {
     #[test]
     fn scan_groups_by_rule_not_by_command() {
         let vars = windows_vars();
-        let report = scan(&sample_file(), &[], &vars, &|_| false);
+        let report = scan(&sample_file(), &[], &vars);
 
         assert_eq!(
             report.fixes,
@@ -893,19 +860,7 @@ mod tests {
                 },
             ]
         );
-        // URLs are not paths; the missing D: drive is reported, not "fixed".
-        assert_eq!(
-            report.unreachable,
-            vec![Unreachable { path: r"D:\games\gone\missing.exe".into(), count: 1 }]
-        );
-    }
-
-    #[test]
-    fn reachable_paths_are_not_reported_as_broken() {
-        let vars = windows_vars();
-        let report = scan(&sample_file(), &[], &vars, &|_| true);
-        assert!(report.unreachable.is_empty());
-        assert_eq!(report.fixes.len(), 2, "fixes do not depend on what exists");
+        // URLs and the D:\ path no placeholder covers produce no rule at all.
     }
 
     #[test]
@@ -915,7 +870,6 @@ mod tests {
             &CommandsFile::default(),
             &[r"C:\Users\Nitropc\.ssh\linode".to_string()],
             &vars,
-            &|_| true,
         );
         assert_eq!(report.fixes.len(), 1);
         assert_eq!(report.fixes[0].to, "{{home}}");
@@ -1018,11 +972,11 @@ mod tests {
     fn migrating_twice_is_a_no_op() {
         let vars = windows_vars();
         let mut file = sample_file();
-        let first = scan(&file, &[], &vars, &|_| true);
+        let first = scan(&file, &[], &vars);
         assert!(!first.fixes.is_empty());
         apply(&mut file, &first.fixes, &vars);
 
-        let second = scan(&file, &[], &vars, &|_| true);
+        let second = scan(&file, &[], &vars);
         assert!(second.fixes.is_empty(), "still offering: {:?}", second.fixes);
 
         let before = file.clone();
@@ -1060,7 +1014,7 @@ mod tests {
     fn a_migrated_command_survives_the_trip_to_another_machine() {
         let mut file = sample_file();
         let windows = windows_vars();
-        let report = scan(&file, &[], &windows, &|_| true);
+        let report = scan(&file, &[], &windows);
         apply(&mut file, &report.fixes, &windows);
 
         let mac = mac_vars();

@@ -470,9 +470,7 @@ pub enum PortabilityChoice {
 ///
 /// Fixes are listed one row per *rule*, not per command: the real file has 389
 /// commands but only about a dozen distinct rules, and a 389-row list would be
-/// unusable with a screen reader. Paths that no placeholder can rescue (a
-/// drive letter or a network share that only exists on the machine they were
-/// added on) are reported below for information — there is nothing to tick.
+/// unusable with a screen reader.
 pub fn portability_dialog(
     parent: &Frame,
     report: &portable::Report,
@@ -509,24 +507,6 @@ pub fn portability_dialog(
     }
     sizer.add(&list, 1, SizerFlag::Expand, 5);
 
-    if !report.unreachable.is_empty() {
-        let mut text = tr(
-            "These paths cannot be reached on this machine and no variable can fix them; edit or delete those commands yourself:",
-        );
-        text.push('\n');
-        for entry in report.unreachable.iter().take(15) {
-            text.push_str(&format!("\n{}", entry.path));
-        }
-        if report.unreachable.len() > 15 {
-            text.push_str(&format_args(
-                &tr("\nand {count} more."),
-                &[("count", Arg::Int((report.unreachable.len() - 15) as i64))],
-            ));
-        }
-        let unreachable_label = StaticText::builder(&dialog).with_label(&text).build();
-        sizer.add(&unreachable_label, 0, SizerFlag::All, 5);
-    }
-
     let button_row = BoxSizer::builder(Orientation::Horizontal).build();
     let fix = Button::builder(&dialog).with_id(ID_OK).with_label(&tr("&Fix selected")).build();
     let not_now = Button::builder(&dialog)
@@ -535,11 +515,6 @@ pub fn portability_dialog(
         .build();
     let never = Button::builder(&dialog).with_label(&tr("Ne&ver ask again")).build();
     fix.set_default();
-    // Nothing to tick means nothing to fix; the list is informational only.
-    if report.fixes.is_empty() {
-        fix.enable(false);
-        not_now.set_default();
-    }
     for button in [&fix, &not_now, &never] {
         button_row.add(button, 0, SizerFlag::All, 0);
     }
