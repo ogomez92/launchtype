@@ -100,19 +100,17 @@ pub fn build_shell(
     let edit_label = StaticText::builder(&panel).with_label(&tr("Input Field")).build();
     let edit = TextCtrl::builder(&panel).build();
     // wxUSE_ACCESSIBILITY makes the generic accessible report the control's type
-    // name ("text") instead of this label, so name it explicitly (as the results
-    // ListBox below already does).
+    // name ("text") instead of this label, so name it explicitly.
     edit.set_name(&tr("Input Field"));
     edit_sizer.add(&edit_label, 0, SizerFlag::All, 0);
     edit_sizer.add(&edit, 0, SizerFlag::All, 0);
     sizer.add_sizer(&edit_sizer, 0, SizerFlag::All, 0);
 
-    // Give the results list its own label so screen readers don't fall back
-    // to the nearest preceding control (e.g. the input field's label).
-    let results_label = StaticText::builder(&panel).with_label(&tr("Results")).build();
-    sizer.add(&results_label, 0, SizerFlag::All, 0);
+    // Deliberately unlabelled: a name here only made the screen reader say
+    // "Results" before every item, which slows down arrowing through the list.
+    // wxUSE_ACCESSIBILITY falls back to the control's type name, not to a
+    // neighbouring static text, so dropping the label is safe.
     let list = ListBox::builder(&panel).build();
-    list.set_name(&tr("Results"));
     sizer.add(&list, 0, SizerFlag::All, 0);
 
     // Commands-mode sort order, placed after the list. Only shown in commands
@@ -860,6 +858,14 @@ pub fn run_clicked(shell: &SharedShell) {
         // A region: crop it out of the last screenshot, copy the crop, and
         // describe it. Keep the window open so more regions can be chosen.
         ItemKind::Region { r#box } => crate::ai_flows::crop_and_describe_region(shell, r#box),
+        // Screenshot actions hide the window themselves rather than being
+        // hidden by the arm below: "grab specific region" asks what to crop
+        // first, and a modal parented to an already-hidden frame never comes
+        // to the foreground. They report their own failures too, because they
+        // finish long after this call returns.
+        ItemKind::Screenshot { action } => {
+            crate::ai_flows::handle_screenshot_action(shell, action)
+        }
         other => {
             shell.borrow().frame.show(false);
             let result = run_hidden_action(shell, &item, other);
@@ -913,9 +919,6 @@ fn run_hidden_action(shell: &SharedShell, item: &Item, kind: ItemKind) -> Result
         ItemKind::Steam { appid } => {
             open::that_detached(steam::rungameid_url(&appid)).map_err(|e| e.to_string())?;
             shell.borrow().sounds.play("run");
-        }
-        ItemKind::Screenshot { action } => {
-            crate::ai_flows::handle_screenshot_action(shell, action)?;
         }
         _ => {}
     }
@@ -1107,17 +1110,19 @@ pub fn exit_app(shell: &SharedShell) {
     s.frame.close(true);
 }
 
-/// Ask a startup question against the main window, making sure it is on screen
-/// first.
+/// Put a dialog up against the main window, making sure that window is on
+/// screen first.
 ///
-/// With `start_minimized` (or `-m`) the frame is created but never shown, and
-/// a modal dialog parented to a window that has never been shown does not come
-/// to the foreground on Windows — the app just looks like it ignored you. Show
-/// the frame for as long as the question is up, then put it back as it was.
+/// A modal parented to a frame that is hidden does not come to the foreground
+/// on Windows — the app just looks like it ignored you. That happens both at
+/// startup with `start_minimized` (or `-m`), where the frame is created but
+/// never shown, and after any action that hides the window while it works (the
+/// screenshot flows). Show the frame for as long as the dialog is up, then put
+/// it back the way it was.
 ///
 /// Deliberately quiet: no "show" sound and no focus move, because this is the
 /// app interrupting the user, not the user invoking the app.
-fn asking_at_startup<T>(shell: &SharedShell, ask: impl FnOnce(&Frame) -> T) -> T {
+fn with_window_up<T>(shell: &SharedShell, ask: impl FnOnce(&Frame) -> T) -> T {
     let (frame, was_hidden) = {
         let s = shell.borrow();
         (s.frame, !s.frame.is_shown())
@@ -1135,10 +1140,11 @@ fn asking_at_startup<T>(shell: &SharedShell, ask: impl FnOnce(&Frame) -> T) -> T
     answer
 }
 
-/// Report a startup failure, surfacing the main window first so the message
-/// can take the foreground even when the app started minimized.
-pub fn show_startup_error(shell: &SharedShell, title: &str, text: &str) {
-    asking_at_startup(shell, |frame| show_error(frame, title, text));
+/// Report a failure, surfacing the main window first so the message can take
+/// the foreground even when that window is down — the app started minimized,
+/// or an action hid it to get out of the way (the screenshot flows).
+pub fn report_error(shell: &SharedShell, title: &str, text: &str) {
+    with_window_up(shell, |frame| show_error(frame, title, text));
 }
 
 /// On startup, warn once when a keyboard shortcut is shared by two or more
@@ -1156,7 +1162,7 @@ pub fn warn_shortcut_conflicts(shell: &SharedShell) {
     for (shortcut, names) in &conflicts {
         body.push_str(&format!("{}: {}\n", shortcut, names.join(", ")));
     }
-    asking_at_startup(shell, |frame| {
+    with_window_up(shell, |frame| {
         show_alert(frame, &tr("Shortcut conflicts"), body.trim_end())
     });
 }
@@ -1187,7 +1193,7 @@ pub fn check_portability(shell: &SharedShell) {
     }
 
     let choice =
-        asking_at_startup(shell, |frame| crate::dialogs::portability_dialog(frame, &report));
+        with_window_up(shell, |frame| crate::dialogs::portability_dialog(frame, &report));
     match choice {
         crate::dialogs::PortabilityChoice::NotNow => {}
         crate::dialogs::PortabilityChoice::NeverAsk => {

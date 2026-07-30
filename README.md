@@ -221,9 +221,11 @@ The first two just copy the resulting JPEG file to your clipboard so you can pas
 
 **Explore regions** asks the AI for up to 8 interesting areas of the capture (dialogs, toolbars, text areas, button groups...) and puts them in a list. Selecting one crops the image to that region and copies the crop to your clipboard.
 
-**Grab specific region** uses whatever you typed in the input field as the thing to find — for example type `the ok button` and pick action 7. If the AI finds it, the crop lands on your clipboard; if not, it says why.
+**Grab specific region** asks what to look for in a dialog with a single field — type something like `the ok button` and press OK, or press Cancel to call the whole thing off. If the AI finds it, the crop lands on your clipboard; if not, it says why.
 
 The AI features use **your existing Claude or ChatGPT login**, not an API key: the Claude Code OAuth token from `~/.claude/.credentials.json` first, falling back to the Codex CLI token in `~/.codex/auth.json`. If neither is present, the app tells you so. The model used for Claude is chosen in the Settings dialog.
+
+Nothing here fails quietly. Whenever a capture, a save or an AI call goes wrong — no login, an expired session, no network, a full disk, an element the AI could not find — the reason is spoken *and* shown in an error dialog, which brings the window back up so the message cannot be missed.
 
 To go back to commands mode, press the period key (.).
 

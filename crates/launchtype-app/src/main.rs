@@ -217,7 +217,7 @@ fn main() {
                 // Keep the manager + polling timer alive for the app lifetime.
                 std::mem::forget(hotkey);
             }
-            Err(e) => shell::show_startup_error(
+            Err(e) => shell::report_error(
                 &shell,
                 "error",
                 &format!("{}{e}", tr("There was an error registering the hotkey for the program: ")),

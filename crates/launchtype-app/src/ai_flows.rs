@@ -32,21 +32,75 @@ fn locate_prompt(query: &str) -> String {
     format!("{request}\n\n{instructions}")
 }
 
-fn speak_ai_error(reason: &str) {
-    speak_now(
-        &format_args(&tr("Could not analyze the screenshot: {reason}"), &[("reason", Arg::Str(reason))]),
-        true,
-    );
+/// The single exit for every screenshot failure: logged, spoken, *and* shown
+/// in a dialog. Runs on the UI thread — background workers marshal back with
+/// `wxdragon::call_after` first.
+///
+/// Speaking alone was not enough. These flows hide the window before they
+/// capture and then work for seconds, so a failure that is only spoken is
+/// invisible whenever the speech backend is not running: the action simply
+/// looked like it did nothing at all. The dialog is what makes that
+/// impossible, and it brings the window back up on its way in.
+fn report_failure(message: &str) {
+    log::warn!("screenshot action failed: {message}");
+    with_shell(|shell| {
+        // No error.wav ships in sounds/ yet, so this is a no-op until one is
+        // dropped in — the same arrangement as the "type" keystroke sound.
+        shell.borrow().sounds.play("error");
+        speak_now(message, true);
+    });
+    // The dialog itself waits for the next turn of the event loop. Some of
+    // these failures are reported straight out of the Run handler, and Run is
+    // the frame's default button: a modal opened from a default button's own
+    // handler eats the very keypress that opened it, so the user has to press
+    // Enter twice. Deferring is the same fix the Python code used.
+    let message = message.to_string();
+    wxdragon::call_after(Box::new(move || {
+        with_shell(|shell| crate::shell::report_error(shell, &tr("Screenshots"), &message));
+    }));
 }
 
-fn speak_crop_failed(reason: &str) {
-    speak_now(
-        &format_args(
-            &tr("The screenshot could not be cropped because {reason}"),
-            &[("reason", Arg::Str(reason))],
-        ),
-        true,
-    );
+fn report_capture_failed(reason: &str) {
+    report_failure(&format_args(
+        &tr("The screenshot could not be taken: {reason}"),
+        &[("reason", Arg::Str(reason))],
+    ));
+}
+
+fn report_ai_error(reason: &str) {
+    report_failure(&format_args(
+        &tr("Could not analyze the screenshot: {reason}"),
+        &[("reason", Arg::Str(reason))],
+    ));
+}
+
+fn report_crop_failed(reason: &str) {
+    report_failure(&format_args(
+        &tr("The screenshot could not be cropped because {reason}"),
+        &[("reason", Arg::Str(reason))],
+    ));
+}
+
+/// Save the image under `screenshots/` and put the FILE on the clipboard,
+/// playing the "copy" cue. Returns whether it got there.
+///
+/// The failure is reported rather than swallowed: every caller goes on to
+/// announce that something was copied, and a full disk or a read-only folder
+/// used to make that announcement a lie.
+fn save_and_copy(image: &RgbaImage, prefix: &str, sounds: &SoundPlayer) -> bool {
+    match screenshot::save_and_copy(image, prefix) {
+        Ok(_) => {
+            sounds.play("copy");
+            true
+        }
+        Err(e) => {
+            report_failure(&format_args(
+                &tr("The screenshot could not be saved: {reason}"),
+                &[("reason", Arg::Str(&e.to_string()))],
+            ));
+            false
+        }
+    }
 }
 
 fn announce_description(sounds: &SoundPlayer, description: &str) {
@@ -56,31 +110,54 @@ fn announce_description(sounds: &SoundPlayer, description: &str) {
     speak_now(description, true);
 }
 
-/// Run one screenshot menu item. The window is already hidden by the caller,
-/// so captures never include Launchtype itself.
-pub fn handle_screenshot_action(shell: &SharedShell, action: &str) -> Result<(), String> {
+/// Run one screenshot menu item: ask for whatever the action needs, hide the
+/// window so the capture never includes Launchtype itself, then start it.
+///
+/// Hiding happens here rather than in the caller because "grab specific
+/// region" has a question to ask first, and a modal parented to a hidden frame
+/// does not come to the foreground (see `shell::with_window_up`).
+pub fn handle_screenshot_action(shell: &SharedShell, action: &str) {
     let capture_window = action.ends_with("window");
+
+    if action.starts_with("grab") {
+        // Asked on the next turn of the event loop, not from this handler:
+        // Run is the frame's default button, so the Enter that got here would
+        // otherwise be delivered to the dialog as well and dismiss it before
+        // it could be typed into (see [`report_failure`]).
+        wxdragon::call_after(Box::new(move || {
+            with_shell(|shell| {
+                let frame = shell.borrow().frame;
+                // Cancel means cancel: no capture, and the launcher is left
+                // exactly as it was, still on the screenshots list.
+                let Some(query) = crate::dialogs::grab_region_dialog(&frame) else {
+                    return;
+                };
+                hide_window(shell);
+                grab_specific_region(shell, capture_window, query);
+            });
+        }));
+        return;
+    }
+
+    hide_window(shell);
     match action {
         "window" | "screen" => {
             let sounds = shell.borrow().sounds.clone();
-            screenshot::take_screenshot(capture_window).map_err(|e| e.to_string())?;
-            sounds.play("copy");
-            Ok(())
+            match screenshot::take_screenshot(capture_window) {
+                Ok(_) => sounds.play("copy"),
+                Err(e) => report_capture_failed(&e.to_string()),
+            }
         }
-        a if a.starts_with("describe") => {
-            describe_screenshot(shell, capture_window);
-            Ok(())
-        }
-        a if a.starts_with("regions") => {
-            explore_regions(shell, capture_window);
-            Ok(())
-        }
-        a if a.starts_with("grab") => {
-            grab_specific_region(shell, capture_window);
-            Ok(())
-        }
-        _ => Ok(()),
+        a if a.starts_with("describe") => describe_screenshot(shell, capture_window),
+        a if a.starts_with("regions") => explore_regions(shell, capture_window),
+        _ => {}
     }
+}
+
+/// Get the launcher out of the shot. Captures wait 300ms (see
+/// `screenshot::capture_image`), which is what gives the window time to go.
+fn hide_window(shell: &SharedShell) {
+    shell.borrow().frame.show(false);
 }
 
 fn ai_model(shell: &SharedShell) -> String {
@@ -99,7 +176,7 @@ fn describe_screenshot(shell: &SharedShell, capture_window: bool) {
             Ok(image) => image,
             Err(e) => {
                 let reason = e.to_string();
-                wxdragon::call_after(Box::new(move || speak_ai_error(&reason)));
+                wxdragon::call_after(Box::new(move || report_capture_failed(&reason)));
                 return;
             }
         };
@@ -107,16 +184,17 @@ fn describe_screenshot(shell: &SharedShell, capture_window: bool) {
             Ok(encoded) => encoded,
             Err(e) => {
                 let reason = e.to_string();
-                wxdragon::call_after(Box::new(move || speak_ai_error(&reason)));
+                wxdragon::call_after(Box::new(move || report_ai_error(&reason)));
                 return;
             }
         };
         // Put the actual screenshot on the clipboard (on the UI thread), then
-        // describe it; only the text is spoken.
+        // describe it; only the text is spoken. A failed save is reported but
+        // does not cancel the description — that description is the whole
+        // point of this action, the clipboard copy comes along for the ride.
         let copy_sounds = sounds.clone();
         wxdragon::call_after(Box::new(move || {
-            let _ = screenshot::save_and_copy(&image, "screenshot");
-            copy_sounds.play("copy");
+            save_and_copy(&image, "screenshot", &copy_sounds);
         }));
         match launchtype_services::ai::describe_image(&image_bytes, &prompt, &model) {
             Ok(description) => wxdragon::call_after(Box::new(move || {
@@ -124,7 +202,7 @@ fn describe_screenshot(shell: &SharedShell, capture_window: bool) {
             })),
             Err(e) => {
                 let reason = e.0;
-                wxdragon::call_after(Box::new(move || speak_ai_error(&reason)));
+                wxdragon::call_after(Box::new(move || report_ai_error(&reason)));
             }
         }
     });
@@ -151,7 +229,7 @@ fn explore_regions(shell: &SharedShell, capture_window: bool) {
                     with_shell(|shell| show_regions(shell, image.clone(), sent_size, &regions));
                 }));
             }
-            Err(reason) => wxdragon::call_after(Box::new(move || speak_ai_error(&reason))),
+            Err(reason) => wxdragon::call_after(Box::new(move || report_ai_error(&reason))),
         }
     });
 }
@@ -196,16 +274,18 @@ pub fn crop_and_describe_region(shell: &SharedShell, r#box: [f64; 4]) {
         (s.screenshot_image.clone(), s.screenshot_sent_size, s.sounds.clone())
     };
     let (Some(image), Some(sent_size)) = (image, sent_size) else {
-        speak_now(&tr("No screenshot is available"), true);
+        report_failure(&tr("No screenshot is available"));
         return;
     };
     let Some(crop) = screenshot::crop_region(&image, r#box, sent_size) else {
-        speak_now(&tr("That region could not be cropped"), true);
+        report_failure(&tr("That region could not be cropped"));
         return;
     };
-    let _ = screenshot::save_and_copy(&crop, "region");
-    sounds.play("copy");
-    speak_now(&tr("Region copied. Describing it, please wait"), true);
+    // Announce the copy only when it happened; the description follows either
+    // way, because the crop is already in hand.
+    if save_and_copy(&crop, "region", &sounds) {
+        speak_now(&tr("Region copied. Describing it, please wait"), true);
+    }
     describe_crop_async(shell, crop);
 }
 
@@ -220,7 +300,7 @@ fn describe_crop_async(shell: &SharedShell, crop: RgbaImage) {
             Ok((bytes, _)) => bytes,
             Err(e) => {
                 let reason = e.to_string();
-                wxdragon::call_after(Box::new(move || speak_ai_error(&reason)));
+                wxdragon::call_after(Box::new(move || report_ai_error(&reason)));
                 return;
             }
         };
@@ -230,22 +310,16 @@ fn describe_crop_async(shell: &SharedShell, crop: RgbaImage) {
             })),
             Err(e) => {
                 let reason = e.0;
-                wxdragon::call_after(Box::new(move || speak_ai_error(&reason)));
+                wxdragon::call_after(Box::new(move || report_ai_error(&reason)));
             }
         }
     });
 }
 
-/// Crop the element named in the input field out of a fresh screenshot.
-fn grab_specific_region(shell: &SharedShell, capture_window: bool) {
-    let (query, sounds) = {
-        let s = shell.borrow();
-        (s.edit.get_value().trim().to_string(), s.sounds.clone())
-    };
-    if query.is_empty() {
-        speak_now(&tr("Type what to grab in the input field first"), true);
-        return;
-    }
+/// Crop the element the user described out of a fresh screenshot. `query` is
+/// what they typed in the "grab a specific region" dialog.
+fn grab_specific_region(shell: &SharedShell, capture_window: bool, query: String) {
+    let sounds = shell.borrow().sounds.clone();
     sounds.play("run");
     speak_now(
         &format_args(&tr("Looking for {query}, please wait"), &[("query", Arg::Str(&query))]),
@@ -266,26 +340,27 @@ fn grab_specific_region(shell: &SharedShell, capture_window: bool) {
             Ok((image, sent_size, r#box)) => {
                 let Some(crop) = screenshot::crop_region(&image, r#box, sent_size) else {
                     wxdragon::call_after(Box::new(move || {
-                        speak_crop_failed(&tr("the returned area was empty"));
+                        report_crop_failed(&tr("the returned area was empty"));
                     }));
                     return;
                 };
                 wxdragon::call_after(Box::new(move || {
-                    let _ = screenshot::save_and_copy(&crop, "crop");
                     with_shell(|shell| {
-                        shell.borrow().sounds.play("copy");
-                        speak_now(
-                            &format_args(
-                                &tr("Cropped {query} and copied it. Describing it, please wait"),
-                                &[("query", Arg::Str(&query))],
-                            ),
-                            true,
-                        );
+                        let sounds = shell.borrow().sounds.clone();
+                        if save_and_copy(&crop, "crop", &sounds) {
+                            speak_now(
+                                &format_args(
+                                    &tr("Cropped {query} and copied it. Describing it, please wait"),
+                                    &[("query", Arg::Str(&query))],
+                                ),
+                                true,
+                            );
+                        }
                         describe_crop_async(shell, crop.clone());
                     });
                 }));
             }
-            Err(reason) => wxdragon::call_after(Box::new(move || speak_crop_failed(&reason))),
+            Err(reason) => wxdragon::call_after(Box::new(move || report_crop_failed(&reason))),
         }
     });
 }

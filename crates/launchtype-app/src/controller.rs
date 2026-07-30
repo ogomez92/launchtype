@@ -255,14 +255,12 @@ impl ModeController {
                 kind: ItemKind::Screenshot { action },
             })
             .collect();
-        // A number key jumps straight to that action; any other text keeps
-        // the full list because "grab specific region" reads the input field
-        // as the element to find — typed text must not filter these away.
-        if let Some(index) = exact_shortcut_match(search, &items, |i| i.shortcut.clone()) {
-            self.sounds.play("match");
-            return vec![items[index].clone()];
-        }
-        items
+        // A number key jumps straight to that action, and anything else is an
+        // ordinary search. "Grab specific region" used to read the input field
+        // as the element to find, so typed text could not be allowed to filter
+        // the list; it asks in a dialog now, and this mode behaves like the
+        // rest.
+        self.shortcut_then_fuzzy(search, items, true)
     }
 
     fn timer_items(&self, search: &str) -> Vec<Item> {

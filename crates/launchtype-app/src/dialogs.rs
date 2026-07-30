@@ -1246,6 +1246,46 @@ pub fn snippet_dialog(parent: &Frame, existing: Option<(String, String)>) -> boo
     true
 }
 
+/// Ask what to crop out of the next screenshot; `None` when the user cancels.
+///
+/// The request used to be typed into the launcher's own input field, so the
+/// same box both filtered the action list and carried the sentence sent to the
+/// AI — every character typed reshuffled the list under the user. A dialog
+/// keeps the two apart and gives the request a label that says what it is for.
+pub fn grab_region_dialog(parent: &Frame) -> Option<String> {
+    let dialog = Dialog::builder(parent, &tr("Grab a specific region")).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    let help = StaticText::builder(&dialog)
+        .with_label(&tr(
+            "Describe the part of the screen you want cropped out, for example \"the OK button\" or \"the error message\".",
+        ))
+        .build();
+    sizer.add(&help, 0, SizerFlag::All, 5);
+    let entry = labeled_row(&dialog, &sizer, &tr("&What to grab:"));
+    let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
+    dialog.set_sizer(sizer, true);
+
+    {
+        let dialog = dialog;
+        ok.on_click(move |_| {
+            if entry.get_value().trim().is_empty() {
+                error_box(&dialog, &tr("Please describe what you want to grab."), &tr("Error"));
+                return;
+            }
+            dialog.end_modal(ID_OK);
+        });
+    }
+    {
+        let dialog = dialog;
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+    }
+
+    if dialog.show_modal() != ID_OK {
+        return None;
+    }
+    Some(entry.get_value().trim().to_string())
+}
+
 /// Prompt for Notebrook credentials; returns Some((url, token)) on OK.
 pub fn notebrook_credentials_dialog(
     parent: &Frame,

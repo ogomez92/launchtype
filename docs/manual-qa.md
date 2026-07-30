@@ -15,7 +15,8 @@ behavioral reference: when in doubt, compare side by side on the same data.
 
 ## Screen reader
 - [ ] Typing into the input field echoes normally
-- [ ] The results list is announced as "Results" (not "Sort commands by:")
+- [ ] The results list has no label of its own: arrowing through it speaks only
+      the items, never a "Results" prefix (and never "Sort commands by:")
 - [ ] Every mode trigger speaks its announcement (- ? . , ' [ ] # + ! : $ =)
 - [ ] Typing a search speaks the first result; multiple results speak
       "{first}, {n} search results shown, use down arrow..."
@@ -78,6 +79,18 @@ behavioral reference: when in doubt, compare side by side on the same data.
       and `1,5 kg lb` reads the comma as a decimal point
 - [ ] Screenshots: capture copies a pasteable FILE to the clipboard
       (paste into Explorer/Finder); describe/regions/grab flows speak results
+- [ ] Screenshots: typing filters the eight actions like any other mode, and a
+      number still jumps straight to that action
+- [ ] Screenshots: "grab specific region" opens a one-field dialog on the FIRST
+      Enter (not the second), with the field focused and ready to type
+- [ ] Screenshots: Cancel in that dialog captures nothing and leaves the
+      launcher open on the list; OK hides it and starts the search
+- [ ] Screenshots: OK with an empty field says so instead of running
+- [ ] Screenshots: with no AI login at all (rename ~/.claude and ~/.codex),
+      every AI action brings the window back up with an error dialog naming
+      both reasons — it never just goes quiet
+- [ ] Screenshots: a failure is spoken as well as shown, and dismissing the
+      dialog leaves the window hidden again (it was hidden before the capture)
 - [ ] UAC: run_as_admin command shows the elevation prompt
 - [ ] SSH: $ with nothing configured shows the "not configured" error and
       drops back to commands mode

@@ -953,10 +953,6 @@ msgid "AI model for screenshot descriptions:"
 msgstr "Modelo de IA para las descripciones de capturas:"
 
 #: launchtype
-msgid "Results"
-msgstr "Resultados"
-
-#: launchtype
 msgid "grab specific region of active window"
 msgstr "recortar una región concreta de la ventana activa"
 
@@ -985,8 +981,32 @@ msgid "You are helping a blind person crop a screenshot. Reply with ONLY a JSON 
 msgstr "Estás ayudando a una persona ciega a recortar una captura de pantalla. Responde ÚNICAMENTE con un objeto JSON y ningún otro texto. Si encuentras el elemento solicitado, responde {\"found\": true, \"box\": [x1, y1, x2, y2] en píxeles de esta imagen}. Si no lo encuentras, responde {\"found\": false, \"reason\": una breve explicación del motivo, normalmente que el elemento no está visible}. Escribe el motivo en español."
 
 #: launchtype
-msgid "Type what to grab in the input field first"
-msgstr "Escribe primero en el campo de texto lo que quieres recortar"
+msgid "Grab a specific region"
+msgstr "Recortar una región concreta"
+
+#: launchtype
+msgid ""
+"Describe the part of the screen you want cropped out, for example \"the OK "
+"button\" or \"the error message\"."
+msgstr ""
+"Describe la parte de la pantalla que quieres recortar, por ejemplo «el botón "
+"Aceptar» o «el mensaje de error»."
+
+#: launchtype
+msgid "&What to grab:"
+msgstr "&Qué recortar:"
+
+#: launchtype
+msgid "Please describe what you want to grab."
+msgstr "Describe lo que quieres recortar."
+
+#: launchtype
+msgid "The screenshot could not be taken: {reason}"
+msgstr "No se pudo hacer la captura: {reason}"
+
+#: launchtype
+msgid "The screenshot could not be saved: {reason}"
+msgstr "No se pudo guardar la captura: {reason}"
 
 #: launchtype
 msgid "Looking for {query}, please wait"

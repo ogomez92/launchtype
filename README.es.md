@@ -221,9 +221,11 @@ Las dos primeras simplemente copian el archivo JPEG resultante al portapapeles p
 
 **Explorar regiones** pide a la IA hasta 8 zonas interesantes de la captura (diálogos, barras de herramientas, áreas de texto, grupos de botones...) y las pone en una lista. Al seleccionar una, la imagen se recorta a esa región y el recorte se copia al portapapeles.
 
-**Recortar una región concreta** usa lo que hayas escrito en la caja de texto como el elemento a buscar — por ejemplo escribe `el botón aceptar` y elige la acción 7. Si la IA lo encuentra, el recorte acaba en el portapapeles; si no, te dice por qué.
+**Recortar una región concreta** pregunta qué buscar en un diálogo con un único campo — escribe algo como `el botón aceptar` y pulsa Aceptar, o pulsa Cancelar para dejarlo. Si la IA lo encuentra, el recorte acaba en el portapapeles; si no, te dice por qué.
 
 Las funciones de IA usan **tu sesión existente de Claude o de ChatGPT**, no una clave de API: primero el token OAuth de Claude Code de `~/.claude/.credentials.json`, y como alternativa el token de la CLI de Codex en `~/.codex/auth.json`. Si no hay ninguno, la aplicación te lo dice. El modelo que se usa con Claude se elige en el diálogo de Ajustes.
+
+Aquí nada falla en silencio. Cuando algo sale mal en la captura, al guardarla o en la llamada a la IA — no hay sesión iniciada, ha caducado, no hay red, el disco está lleno, la IA no encuentra el elemento — el motivo se lee en voz alta *y* se muestra en un diálogo de error, que vuelve a sacar la ventana para que el mensaje no pase desapercibido.
 
 Para volver a comandos, pulsa la tecla punto (.).
 
