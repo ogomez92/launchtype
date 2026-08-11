@@ -14,6 +14,7 @@ use launchtype_core::mode::UiMode;
 use launchtype_core::search::{exact_shortcut_match, fuzzy_search};
 use launchtype_core::stats::stats_labels;
 use launchtype_core::units;
+use launchtype_core::vault::VaultSession;
 use launchtype_services::snippets::{load_snippets, Snippet};
 use launchtype_services::sounds::SoundPlayer;
 use launchtype_services::steam::scan_games;
@@ -24,6 +25,10 @@ use launchtype_services::stores::{AlarmStore, CommandsStore, TimerStore};
 /// rows the list is neither navigable nor quick to redraw on every keystroke,
 /// and the best matches are at the top anyway.
 const EMOJI_LIMIT: usize = 200;
+
+fn vault_action_item(name: String, action: &'static str) -> Item {
+    Item { name, shortcut: String::new(), id: String::new(), kind: ItemKind::VaultAction { action } }
+}
 
 /// One row of the results list, carrying everything Run needs.
 #[derive(Debug, Clone)]
@@ -56,6 +61,13 @@ pub enum ItemKind {
     Region { r#box: [f64; 4] },
     /// One line of SSH command output (or of the echoed command line).
     SshOutput,
+    /// One entry of the encrypted vault, identified by `Item::id`. The secret
+    /// is deliberately absent: rows are rebuilt on every keystroke and read
+    /// out loud, so the secret is decrypted only when Enter copies it.
+    VaultEntry,
+    /// A vault row that does something rather than holding a secret: set up,
+    /// unlock, lock, add, or change the master password.
+    VaultAction { action: &'static str },
 }
 
 pub struct ModeController {
@@ -63,6 +75,8 @@ pub struct ModeController {
     pub sort_by_uses: bool,
     pub snippets: Vec<Snippet>,
     pub clipboard: Arc<Mutex<ClipboardHistory>>,
+    /// Shared with the auto-lock thread, which wipes the key on idle.
+    pub vault: Arc<Mutex<VaultSession>>,
     pub timers: TimerStore,
     pub alarms: AlarmStore,
     pub steam_library: PathBuf,
@@ -77,10 +91,12 @@ pub struct ModeController {
 }
 
 impl ModeController {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         commands: CommandsStore,
         sort_by_uses: bool,
         clipboard: Arc<Mutex<ClipboardHistory>>,
+        vault: Arc<Mutex<VaultSession>>,
         timers: TimerStore,
         alarms: AlarmStore,
         steam_library: PathBuf,
@@ -91,6 +107,7 @@ impl ModeController {
             sort_by_uses,
             snippets: Vec::new(),
             clipboard,
+            vault,
             timers,
             alarms,
             steam_library,
@@ -124,6 +141,7 @@ impl ModeController {
             UiMode::Realtime => self.realtime_items(search),
             UiMode::Emoji => self.emoji_items(search),
             UiMode::Units => self.conversion_items(search),
+            UiMode::Vault => self.vault_items(search),
             UiMode::Stats => self.stats_items(),
             // The input field holds the command being typed, so it must not
             // filter the transcript away (same reasoning as screenshots mode).
@@ -360,6 +378,52 @@ impl ModeController {
                 kind: ItemKind::Conversion { result: row.result },
             })
             .collect()
+    }
+
+    /// The encrypted vault: a single "unlock" row while locked, the entry
+    /// names once open.
+    ///
+    /// Entry rows carry names and shortcuts only — never a secret. Searching
+    /// behaves like every other mode (exact shortcut wins, then fuzzy), and
+    /// the action rows are appended only when nothing is typed so they never
+    /// come between the user and the entry they are looking for.
+    fn vault_items(&self, search: &str) -> Vec<Item> {
+        let vault = self.vault.lock().unwrap();
+        if !vault.is_unlocked() {
+            // Nothing to search until the key is in memory, so the typed text
+            // is ignored rather than filtering the one row away.
+            let (name, action) = if vault.is_new() {
+                (tr("Set up the vault: choose a master password"), "create")
+            } else {
+                (tr("Unlock the vault"), "unlock")
+            };
+            return vec![vault_action_item(name, action)];
+        }
+        let items: Vec<Item> = vault
+            .entries()
+            .iter()
+            .map(|entry| Item {
+                name: entry.name.clone(),
+                shortcut: entry.shortcut.clone(),
+                id: entry.id.clone(),
+                kind: ItemKind::VaultEntry,
+            })
+            .collect();
+        let empty = items.is_empty();
+        drop(vault);
+
+        let mut items = self.shortcut_then_fuzzy(search, items, true);
+        if search.is_empty() {
+            if empty {
+                items.push(vault_action_item(
+                    tr("The vault is empty. Press Enter to put a secret in it."),
+                    "add",
+                ));
+            }
+            items.push(vault_action_item(tr("Lock the vault now"), "lock"));
+            items.push(vault_action_item(tr("Change the master password"), "password"));
+        }
+        items
     }
 
     fn stats_items(&self) -> Vec<Item> {

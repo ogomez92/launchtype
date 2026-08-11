@@ -702,6 +702,35 @@ pub fn settings_dialog(
     portability_cb.set_value(settings.settings.portability_check);
     sizer.add(&portability_cb, 0, SizerFlag::All, 5);
 
+    // How long the encrypted vault stays open, and how long a secret it copied
+    // is allowed to sit on the clipboard.
+    let vault_lock_title = tr("Lock the &vault after this many idle minutes (0 = after every copy):");
+    let vault_lock_label = StaticText::builder(&dialog).with_label(&vault_lock_title).build();
+    let vault_lock_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let vault_lock_spin = SpinCtrl::builder(&dialog)
+        .with_min_value(0)
+        .with_max_value(1440)
+        .with_initial_value(settings.settings.vault_lock_minutes.min(1440) as i32)
+        .build();
+    ax_name(&vault_lock_spin, &vault_lock_title);
+    vault_lock_row.add(&vault_lock_label, 0, SizerFlag::All, 0);
+    vault_lock_row.add(&vault_lock_spin, 0, SizerFlag::All, 0);
+    sizer.add_sizer(&vault_lock_row, 0, SizerFlag::All, 5);
+
+    let vault_clip_title =
+        tr("Clear the clipboard of a copied secre&t after this many seconds (0 = never):");
+    let vault_clip_label = StaticText::builder(&dialog).with_label(&vault_clip_title).build();
+    let vault_clip_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let vault_clip_spin = SpinCtrl::builder(&dialog)
+        .with_min_value(0)
+        .with_max_value(3600)
+        .with_initial_value(settings.settings.vault_clipboard_seconds.min(3600) as i32)
+        .build();
+    ax_name(&vault_clip_spin, &vault_clip_title);
+    vault_clip_row.add(&vault_clip_label, 0, SizerFlag::All, 0);
+    vault_clip_row.add(&vault_clip_spin, 0, SizerFlag::All, 0);
+    sizer.add_sizer(&vault_clip_row, 0, SizerFlag::All, 5);
+
     let steam_label = StaticText::builder(&dialog).with_label(&tr("Steam &library path:")).build();
     sizer.add(&steam_label, 0, SizerFlag::All, 5);
     let steam_row = BoxSizer::builder(Orientation::Horizontal).build();
@@ -858,6 +887,8 @@ pub fn settings_dialog(
     settings.settings.start_minimized = minimized_cb.get_value();
     settings.settings.snippets_on_invoke = snippets_cb.get_value();
     settings.settings.portability_check = portability_cb.get_value();
+    settings.settings.vault_lock_minutes = vault_lock_spin.value().clamp(0, 1440) as u32;
+    settings.settings.vault_clipboard_seconds = vault_clip_spin.value().clamp(0, 3600) as u32;
     settings.settings.steam_library = steam_entry.get_value();
     let ai_index = ai_choice.get_selection().unwrap_or(0) as usize;
     settings.settings.ai_model = AI_MODEL_IDS[ai_index.min(AI_MODEL_IDS.len() - 1)].to_string();
@@ -1244,6 +1275,201 @@ pub fn snippet_dialog(parent: &Frame, existing: Option<(String, String)>) -> boo
         log::warn!("snippet save failed: {e}");
     }
     true
+}
+
+/// Ask for the master password to open the vault. `None` when cancelled.
+pub fn vault_unlock_dialog(parent: &Frame) -> Option<String> {
+    let dialog = Dialog::builder(parent, &tr("Unlock the vault")).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    let entry = labeled_password_row(&dialog, &sizer, &tr("&Master password:"));
+    let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
+    dialog.set_sizer(sizer, true);
+
+    {
+        let dialog = dialog;
+        ok.on_click(move |_| {
+            if entry.get_value().is_empty() {
+                error_box(&dialog, &tr("Please enter your master password."), &tr("Error"));
+                return;
+            }
+            dialog.end_modal(ID_OK);
+        });
+    }
+    {
+        let dialog = dialog;
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+    }
+
+    if dialog.show_modal() != ID_OK {
+        return None;
+    }
+    Some(entry.get_value())
+}
+
+/// The master password the user chose, plus the current one when they were
+/// asked to prove they knew it.
+pub struct VaultPasswords {
+    pub current: String,
+    pub new: String,
+}
+
+/// Choose a master password: for a vault that does not exist yet
+/// (`changing` = false), or to replace the one it has.
+///
+/// The confirmation field is not ceremony here — there is no reset link and no
+/// recovery, so a password typed wrong once is a vault nobody can open again.
+pub fn vault_password_dialog(parent: &Frame, changing: bool) -> Option<VaultPasswords> {
+    let title = if changing { tr("Change the master password") } else { tr("Set up the vault") };
+    let help = if changing {
+        tr("The entries themselves are not re-encrypted, so this is instant. Everything in the vault will need the new password from now on.")
+    } else {
+        tr("This password encrypts everything you put in the vault, and it is the only way back in: it is not stored anywhere and cannot be recovered or reset. Keep the whole vault folder together when you back it up or move Launchtype elsewhere.")
+    };
+    let dialog = Dialog::builder(parent, &title).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    let help_label = StaticText::builder(&dialog).with_label(&help).build();
+    sizer.add(&help_label, 0, SizerFlag::All, 5);
+
+    let current_entry = changing
+        .then(|| labeled_password_row(&dialog, &sizer, &tr("C&urrent master password:")));
+    let new_entry = labeled_password_row(&dialog, &sizer, &tr("&New master password:"));
+    let confirm_entry = labeled_password_row(&dialog, &sizer, &tr("&Type it again:"));
+    let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
+    dialog.set_sizer(sizer, true);
+
+    {
+        let dialog = dialog;
+        ok.on_click(move |_| {
+            if current_entry.is_some_and(|entry| entry.get_value().is_empty()) {
+                error_box(&dialog, &tr("Please enter your current master password."), &tr("Error"));
+                return;
+            }
+            let new = new_entry.get_value();
+            if new.chars().count() < launchtype_core::vault::MIN_PASSWORD_LEN {
+                error_box(
+                    &dialog,
+                    &format_args(
+                        &tr("The master password must be at least {count} characters long."),
+                        &[("count", Arg::Int(launchtype_core::vault::MIN_PASSWORD_LEN as i64))],
+                    ),
+                    &tr("Error"),
+                );
+                return;
+            }
+            if new != confirm_entry.get_value() {
+                error_box(&dialog, &tr("The two passwords do not match."), &tr("Error"));
+                return;
+            }
+            dialog.end_modal(ID_OK);
+        });
+    }
+    {
+        let dialog = dialog;
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+    }
+
+    if dialog.show_modal() != ID_OK {
+        return None;
+    }
+    Some(VaultPasswords {
+        current: current_entry.map(|entry| entry.get_value()).unwrap_or_default(),
+        new: new_entry.get_value(),
+    })
+}
+
+/// What one vault entry holds, as the dialog reads and writes it.
+#[derive(Default, Clone)]
+pub struct VaultEntryFields {
+    pub name: String,
+    pub shortcut: String,
+    pub secret: String,
+}
+
+/// Add or edit a vault entry. `existing` seeds the fields when editing.
+///
+/// The secret is shown in the clear rather than masked. A masked field is read
+/// out by a screen reader as nothing at all, which would leave no way to check
+/// what was typed or what is stored — and the vault is already open by the
+/// time this dialog is up, so masking here would buy shoulder-surfing cover
+/// and nothing else. It is multi-line so recovery codes and keys fit.
+pub fn vault_entry_dialog(parent: &Frame, existing: Option<VaultEntryFields>) -> Option<VaultEntryFields> {
+    let title = if existing.is_some() { tr("Edit vault entry") } else { tr("Add to the vault") };
+    let dialog = Dialog::builder(parent, &title).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    let name_entry = labeled_row(&dialog, &sizer, &tr("&Name:"));
+    let shortcut_entry = labeled_row(&dialog, &sizer, &tr("&Shortcut (optional):"));
+    let secret_title = tr("Sec&ret (shown here, never written to disk unencrypted):");
+    let secret_label = StaticText::builder(&dialog).with_label(&secret_title).build();
+    sizer.add(&secret_label, 0, SizerFlag::All, 0);
+    let secret_entry = TextCtrl::builder(&dialog)
+        .with_style(wxdragon::widgets::textctrl::TextCtrlStyle::MultiLine)
+        .build();
+    ax_name(&secret_entry, &secret_title);
+    sizer.add(&secret_entry, 1, SizerFlag::Expand, 0);
+    let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
+    dialog.set_sizer(sizer, true);
+
+    if let Some(seed) = &existing {
+        name_entry.set_value(&seed.name);
+        shortcut_entry.set_value(&seed.shortcut);
+        secret_entry.set_value(&seed.secret);
+    }
+
+    {
+        let dialog = dialog;
+        ok.on_click(move |_| {
+            if name_entry.get_value().trim().is_empty() || secret_entry.get_value().is_empty() {
+                error_box(
+                    &dialog,
+                    &tr("Please enter a name and a secret for this entry."),
+                    &tr("Error"),
+                );
+                return;
+            }
+            dialog.end_modal(ID_OK);
+        });
+    }
+    {
+        let dialog = dialog;
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+    }
+
+    if dialog.show_modal() != ID_OK {
+        return None;
+    }
+    Some(VaultEntryFields {
+        name: name_entry.get_value().trim().to_string(),
+        shortcut: shortcut_entry.get_value().trim().to_lowercase(),
+        secret: secret_entry.get_value(),
+    })
+}
+
+/// Warn before setting up a vault on top of encrypted files whose key file is
+/// missing. No password opens those any more, and a new vault would leave them
+/// sitting there unreadable — which is worth saying out loud before it happens
+/// rather than after.
+pub fn confirm_vault_orphans(parent: &Frame, count: usize) -> bool {
+    question_box(
+        parent,
+        &format_args(
+            &tr("The vault folder holds {count} encrypted files, but the key file that goes with them is missing, so nothing can open them any more. Set up a new, empty vault anyway?"),
+            &[("count", Arg::Int(count as i64))],
+        ),
+        &tr("Vault key file missing"),
+    )
+}
+
+/// Confirm a deletion that cannot be undone: the entry is the only copy of
+/// whatever it holds, and nothing about it is recoverable once the file is gone.
+pub fn confirm_vault_delete(parent: &Frame, name: &str) -> bool {
+    question_box(
+        parent,
+        &format_args(
+            &tr("Delete {name} from the vault? The secret in it cannot be recovered afterwards."),
+            &[("name", Arg::Str(name))],
+        ),
+        &tr("Delete vault entry"),
+    )
 }
 
 /// Ask what to crop out of the next screenshot; `None` when the user cancels.

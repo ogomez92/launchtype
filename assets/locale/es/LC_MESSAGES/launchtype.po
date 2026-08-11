@@ -2497,3 +2497,179 @@ msgstr "No hay ninguna carpeta en los argumentos de este comando"
 #: crates/launchtype-app/src/shell.rs
 msgid "Cannot open terminal"
 msgstr "No se puede abrir el terminal"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Encrypted vault"
+msgstr "Caja fuerte cifrada"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "encrypted vault mode"
+msgstr "modo caja fuerte cifrada"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Set up the vault: choose a master password"
+msgstr "Configurar la caja fuerte: elige una contraseña maestra"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Unlock the vault"
+msgstr "Desbloquear la caja fuerte"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "The vault is empty. Press Enter to put a secret in it."
+msgstr "La caja fuerte está vacía. Pulsa Intro para guardar un secreto en ella."
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Lock the vault now"
+msgstr "Bloquear la caja fuerte ahora"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Change the master password"
+msgstr "Cambiar la contraseña maestra"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Master password:"
+msgstr "Contraseña &maestra:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "C&urrent master password:"
+msgstr "Contraseña maestra act&ual:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&New master password:"
+msgstr "&Nueva contraseña maestra:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Type it again:"
+msgstr "&Escríbela otra vez:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Please enter your master password."
+msgstr "Introduce tu contraseña maestra."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Please enter your current master password."
+msgstr "Introduce tu contraseña maestra actual."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "The master password must be at least {count} characters long."
+msgstr "La contraseña maestra debe tener al menos {count} caracteres."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "The two passwords do not match."
+msgstr "Las dos contraseñas no coinciden."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Set up the vault"
+msgstr "Configurar la caja fuerte"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "This password encrypts everything you put in the vault, and it is the only way back in: it is not stored anywhere and cannot be recovered or reset. Keep the whole vault folder together when you back it up or move Launchtype elsewhere."
+msgstr "Esta contraseña cifra todo lo que guardes en la caja fuerte, y es la única forma de volver a entrar: no se guarda en ningún sitio y no se puede recuperar ni restablecer. Conserva entera la carpeta vault cuando hagas una copia de seguridad o muevas Launchtype a otro sitio."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "The entries themselves are not re-encrypted, so this is instant. Everything in the vault will need the new password from now on."
+msgstr "Las entradas no se vuelven a cifrar, así que esto es instantáneo. A partir de ahora todo lo que hay en la caja fuerte necesitará la nueva contraseña."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Add to the vault"
+msgstr "Añadir a la caja fuerte"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Edit vault entry"
+msgstr "Editar entrada de la caja fuerte"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Name:"
+msgstr "&Nombre:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Sec&ret (shown here, never written to disk unencrypted):"
+msgstr "Sec&reto (se muestra aquí, nunca se guarda en disco sin cifrar):"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Please enter a name and a secret for this entry."
+msgstr "Introduce un nombre y un secreto para esta entrada."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Vault key file missing"
+msgstr "Falta el archivo de clave de la caja fuerte"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "The vault folder holds {count} encrypted files, but the key file that goes with them is missing, so nothing can open them any more. Set up a new, empty vault anyway?"
+msgstr "La carpeta de la caja fuerte contiene {count} archivos cifrados, pero falta el archivo de clave que los acompaña, así que ya no hay forma de abrirlos. ¿Quieres crear igualmente una caja fuerte nueva y vacía?"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Delete vault entry"
+msgstr "Eliminar entrada de la caja fuerte"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Delete {name} from the vault? The secret in it cannot be recovered afterwards."
+msgstr "¿Eliminar {name} de la caja fuerte? El secreto que contiene no se podrá recuperar después."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Lock the &vault after this many idle minutes (0 = after every copy):"
+msgstr "Blo&quear la caja fuerte tras estos minutos sin usarla (0 = después de cada copia):"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Clear the clipboard of a copied secre&t after this many seconds (0 = never):"
+msgstr "Borrar del portapapeles un secre&to copiado tras estos segundos (0 = nunca):"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Vault"
+msgstr "Caja fuerte"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "That is not the master password."
+msgstr "Esa no es la contraseña maestra."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "That vault file is damaged, or is not a vault file."
+msgstr "Ese archivo de la caja fuerte está dañado, o no es un archivo de la caja fuerte."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "The vault is locked."
+msgstr "La caja fuerte está bloqueada."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "That entry is no longer in the vault."
+msgstr "Esa entrada ya no está en la caja fuerte."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "That master password is too short."
+msgstr "Esa contraseña maestra es demasiado corta."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "The vault is ready and unlocked."
+msgstr "La caja fuerte está lista y desbloqueada."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Vault unlocked, {count} entries"
+msgstr "Caja fuerte desbloqueada, {count} entradas"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Vault locked"
+msgstr "Caja fuerte bloqueada"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Master password changed"
+msgstr "Contraseña maestra cambiada"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Added to the vault"
+msgstr "Añadido a la caja fuerte"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Vault entry saved"
+msgstr "Entrada de la caja fuerte guardada"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Deleted from the vault"
+msgstr "Eliminado de la caja fuerte"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "{name} copied"
+msgstr "{name} copiado"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "There is already a vault in that folder."
+msgstr "Ya hay una caja fuerte en esa carpeta."

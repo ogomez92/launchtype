@@ -21,6 +21,9 @@ pub enum UiMode {
     /// Convert a typed number between units: feet to centimeters, Celsius to
     /// Fahrenheit, shoe sizes between countries.
     Units,
+    /// Passwords and other secrets, encrypted at rest behind a master
+    /// password and only ever decrypted into memory.
+    Vault,
     /// Entered programmatically after "explore regions" analysis, not by a
     /// trigger character: lists the AI-detected regions of the last screenshot.
     Regions,
@@ -44,6 +47,7 @@ impl UiMode {
             '$' => UiMode::Ssh,
             ':' => UiMode::Emoji,
             '=' => UiMode::Units,
+            '*' => UiMode::Vault,
             _ => return None,
         })
     }
@@ -65,13 +69,14 @@ impl UiMode {
             UiMode::Ssh => '$',
             UiMode::Emoji => ':',
             UiMode::Units => '=',
+            UiMode::Vault => '*',
             UiMode::Regions => return None,
         })
     }
 
     /// Every user-selectable mode, in the order shown by the modes menu. Kept
     /// in sync with [`from_trigger_char`]; Regions is excluded (no trigger).
-    pub const MENU_MODES: [UiMode; 13] = [
+    pub const MENU_MODES: [UiMode; 14] = [
         UiMode::Commands,
         UiMode::Snippets,
         UiMode::Clipboard,
@@ -85,6 +90,7 @@ impl UiMode {
         UiMode::Ssh,
         UiMode::Emoji,
         UiMode::Units,
+        UiMode::Vault,
     ];
 }
 
@@ -107,6 +113,7 @@ mod tests {
         assert_eq!(UiMode::from_trigger_char('$'), Some(UiMode::Ssh));
         assert_eq!(UiMode::from_trigger_char(':'), Some(UiMode::Emoji));
         assert_eq!(UiMode::from_trigger_char('='), Some(UiMode::Units));
+        assert_eq!(UiMode::from_trigger_char('*'), Some(UiMode::Vault));
         assert_eq!(UiMode::from_trigger_char('a'), None);
         assert_eq!(UiMode::from_trigger_char(' '), None);
     }

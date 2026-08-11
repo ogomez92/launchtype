@@ -16,6 +16,15 @@ pub fn set_text(text: &str) -> bool {
     ctx.set_text(text.to_string()).is_ok()
 }
 
+/// Empty the clipboard — how a copied vault secret is taken back off it once
+/// it has had long enough to be pasted.
+pub fn clear() -> bool {
+    let Ok(ctx) = ClipboardContext::new() else {
+        return false;
+    };
+    ctx.clear().is_ok()
+}
+
 /// Put actual files on the clipboard (CF_HDROP on Windows, file URLs on
 /// macOS) — what "screenshot to clipboard" pastes into Explorer/Finder.
 pub fn set_files(paths: &[String]) -> bool {

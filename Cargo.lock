@@ -139,6 +139,7 @@ dependencies = [
  "blake2",
  "cpufeatures",
  "password-hash",
+ "zeroize",
 ]
 
 [[package]]
@@ -2072,6 +2073,8 @@ dependencies = [
 name = "launchtype-core"
 version = "9.0.0"
 dependencies = [
+ "aes-gcm",
+ "argon2",
  "base64",
  "chrono",
  "gettext",
@@ -2079,9 +2082,11 @@ dependencies = [
  "quick-xml 0.36.2",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]

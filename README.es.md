@@ -149,6 +149,7 @@ El botón Ajustes de la interfaz abre un diálogo donde puedes guardar estas pre
 - Idioma de la interfaz (el mismo del sistema, inglés o español); se aplica al reiniciar la aplicación
 - Archivo de comandos: una lista desplegable con todos los `.json` con forma de comandos que hay junto a la aplicación, para mantener conjuntos separados (trabajo, casa, un juego) y cambiar entre ellos sin reiniciar. También puedes escribir un nombre nuevo para empezar uno desde cero.
 - Servidor, puerto, usuario, archivo de clave privada y contraseña de SSH, que usa el modo SSH
+- Minutos sin usar tras los que se bloquea la caja fuerte, y segundos que un secreto copiado puede quedarse en el portapapeles (ver [Caja fuerte cifrada](#caja-fuerte-cifrada))
 
 Los parámetros de línea de comandos tienen prioridad sobre estos ajustes durante la ejecución actual (por ejemplo, pasando `-q` se desactivan los sonidos aunque el ajuste esté habilitado, y pasando `-m` se arranca minimizado aunque el ajuste esté desactivado).
 
@@ -384,6 +385,33 @@ Cada conversión es una fórmula compilada dentro del programa, así que el modo
 
 Los nombres y las palabras de búsqueda siguen el idioma de la aplicación, así que también puedes escribir `100 ft cm` o `70 kg lb`. La lista enseña las 300 mejores filas a la vez —con solo un número escrito, las conversiones de todos los días primero—, así que añade una palabra si lo que buscas todavía no aparece.
 
+## Caja fuerte cifrada
+
+Pulsa `*` (asterisco) en el campo de entrada para abrir la caja fuerte: contraseñas, códigos de recuperación, claves de licencia y cualquier otra cosa que no debería estar en una sustitución. Funciona igual que el modo sustituciones —escribes, te mueves a la entrada, pulsas Intro y ya está en el portapapeles—, salvo que nada se puede leer hasta que hayas dado la contraseña maestra, y nada se escribe nunca en el disco sin cifrar.
+
+La primera vez que pulses `*` se te pedirá que elijas una contraseña maestra. Esa contraseña no se guarda en ningún sitio, no se puede recuperar y no se puede restablecer: si la pierdes, pierdes la caja fuerte con ella. Todo vive en una carpeta `vault` junto a la aplicación, al lado de `snippets` y las demás, así que viaja con una instalación portable; eso sí, haz la copia de seguridad de la carpeta entera, porque `vault.meta` y las entradas no sirven de nada por separado.
+
+Añadir, Editar y Eliminar funcionan como en el resto de la aplicación. Cada entrada tiene un nombre, un acceso abreviado opcional (una coincidencia exacta te lleva directamente a ella, como en los otros modos) y el secreto en sí, que puede ocupar varias líneas para un bloque de códigos de recuperación o una clave. Eliminar pregunta antes, porque no hay deshacer ni una segunda copia.
+
+Una vez abierta, la caja fuerte se vuelve a bloquear sola tras cinco minutos sin usarla, y la clave se borra de la memoria —no simplemente se ignora— gracias a un temporizador en segundo plano, así que alejarte del ordenador la cierra. Pon el tiempo a 0 en los Ajustes y te pedirá la contraseña maestra en cada copia. "Bloquear la caja fuerte ahora" y "Cambiar la contraseña maestra" están al final de la lista; cambiar la contraseña es instantáneo, porque las entradas no están cifradas con la contraseña en sí (ver más abajo).
+
+### Copiar, y el portapapeles
+
+Darte una contraseña significa ponerla en el portapapeles, que es un sitio realmente expuesto donde dejarla. Alrededor de cada copia pasan dos cosas:
+
+- **Nunca llega al historial del portapapeles.** Se le dice al vigilante del portapapeles que rechace ese valor exacto *antes* de escribirlo, así que el modo `?` nunca lo lista y nunca acaba en `clipboard_history.json`. Sin esto, cada contraseña que consultaras terminaría en un JSON en texto plano junto a la aplicación.
+- **Se retira del portapapeles.** Treinta segundos después (configurable en los Ajustes, 0 para desactivarlo) se vacía el portapapeles, pero solo si el secreto sigue siendo lo que hay en él, así que lo que hayas copiado mientras tanto no se toca.
+
+### Cómo está cifrada
+
+Merece la pena decirlo claramente, porque "cifrado" por sí solo significa muy poco:
+
+- La contraseña maestra se estira con **Argon2id** a 256 MiB y cuatro pasadas: alrededor de medio segundo por desbloqueo en un equipo normal, y la razón por la que adivinarla sale caro con el hardware que alguien traería para ello. Cada caja fuerte guarda el coste con el que se creó, así que subirlo más adelante no deja inservible una caja fuerte ya existente.
+- Eso da una clave maestra que no hace más que desenvolver una **clave de la caja fuerte** aleatoria de 32 bytes; las entradas se sellan con esa. Por eso cambiar la contraseña maestra reescribe un archivo pequeño en vez de volver a cifrarlo todo.
+- Cada entrada es un archivo aparte sellado con **AES-256-GCM** bajo un nonce aleatorio nuevo, así que manipular uno se detecta en vez de darlo por bueno.
+- **Los nombres de las entradas también están dentro del cifrado.** Los archivos se llaman como un uuid aleatorio, no como la entrada, porque un listado de carpeta lleno de `amazon.enc` y `vpn-trabajo.enc` revela casi todo lo que vale una lista de contraseñas. Quien consiga la carpeta sabrá cuántas entradas hay y más o menos cuánto ocupa cada una; nada más. El uuid se autentica junto con el contenido, así que tampoco se pueden intercambiar los archivos entre sí.
+- El texto descifrado solo existe en memoria, en búferes que se borran solos al liberarse, y solo se descifra un secreto cada vez: al desbloquear se leen los nombres, no los secretos.
+
 ## Ejecutar como administrador
 
 Al añadir o editar un comando puedes marcar la casilla "Ejecutar como administrador". El comando se lanzará con privilegios elevados (aparecerá el cuadro de UAC al ejecutarlo).
@@ -411,6 +439,7 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `$` | SSH | Ejecuta comandos en un servidor remoto y lee la salida |
 | `:` | Emojis | Buscar un emoji por su descripción y copiarlo |
 | `=` | Conversión de unidades | Convertir un número entre unidades, tallas de calzado incluidas |
+| `*` | Caja fuerte cifrada | Contraseñas y otros secretos, cifrados tras una contraseña maestra |
 | `.` | (cualquier modo) | Volver al modo Comandos |
 
 ## Retroalimentación de audio

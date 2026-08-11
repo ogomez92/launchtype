@@ -17,7 +17,7 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Typing into the input field echoes normally
 - [ ] The results list has no label of its own: arrowing through it speaks only
       the items, never a "Results" prefix (and never "Sort commands by:")
-- [ ] Every mode trigger speaks its announcement (- ? . , ' [ ] # + ! : $ =)
+- [ ] Every mode trigger speaks its announcement (- ? . , ' [ ] # + ! : $ = *)
 - [ ] Typing a search speaks the first result; multiple results speak
       "{first}, {n} search results shown, use down arrow..."
 - [ ] Down arrow in the input field focuses the result after the selected one
@@ -109,6 +109,43 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] SSH: `exit` as a command shows the error alert, and the next command
       reconnects
 
+## Encrypted vault (`*`)
+- [ ] First `*` on a machine with no `vault/` folder opens "Set up the vault",
+      reads the warning that the password cannot be recovered, and refuses a
+      password under 8 characters or one that does not match the confirmation
+- [ ] Cancelling the setup or the unlock dialog leaves the list showing its one
+      row, and Enter on that row opens the same dialog again (never a dead end)
+- [ ] After setup: Add stores an entry, the list shows its NAME (never the
+      secret), and Enter copies the secret, plays "copy", says "{name} copied"
+      and hides the window; paste to confirm the secret landed
+- [ ] The secret is NOT in clipboard history: `?` does not list it, and
+      `clipboard_history.json` does not contain it — check the file on disk,
+      including after copying something else afterwards
+- [ ] With the clipboard-clear setting at 30s, the clipboard is empty ~30s after
+      the copy; copying something else in the meantime is left alone
+- [ ] Shortcuts work like the other modes: an exact shortcut match plays "match"
+      and shows the single entry
+- [ ] Edit reopens an entry with its name, shortcut and secret; renaming keeps
+      the same entry rather than making a second one
+- [ ] Delete asks first, and the entry and its `.enc` file are both gone
+- [ ] `vault/` holds only `vault.meta` plus one `<uuid>.enc` per entry, and
+      neither the entry names nor the secrets are readable in any of them
+- [ ] Wrong master password: "error" sound, spoken "That is not the master
+      password.", no dialog, and the row is still there to try again
+- [ ] "Lock the vault now" locks it; going back into `*` asks for the password
+- [ ] "Change the master password" wants the current one, then the new one
+      twice; afterwards the old password is refused and every entry still opens
+- [ ] Auto-lock: with the timeout at 1 minute, leaving the app alone for a
+      minute and coming back to `*` asks for the password again
+- [ ] With the timeout at 0, the vault asks for the password on every single
+      copy
+- [ ] Restarting the app leaves the vault locked (nothing is remembered)
+- [ ] Deleting `vault/vault.meta` by hand and pressing `*` warns that N
+      encrypted files can no longer be opened before offering a fresh vault
+- [ ] Copying the whole `vault/` folder to another machine's Launchtype opens
+      with the same password
+- [ ] Unlocking takes about half a second (Argon2id) and does not feel hung
+
 ## Dialogs
 - [ ] Add/Edit/Copy command dialogs; OK on default button needs ONE click
 - [ ] Delete removes commands, timers, and alarms
@@ -118,6 +155,8 @@ behavioral reference: when in doubt, compare side by side on the same data.
       switching reloads the list without a restart; a typed new name works
 - [ ] Settings: changing the SSH server drops the live connection
 - [ ] Settings: SSH password field is masked
+- [ ] Settings: shortening the vault timeout applies to the vault that is
+      already unlocked, not just to the next one
 
 ## Merging another commands file
 - [ ] "Merge in..." sits just before Exit and is reached by Tab like the rest

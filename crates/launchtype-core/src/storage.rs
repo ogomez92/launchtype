@@ -25,12 +25,18 @@ pub fn atomic_write_json<T: Serialize>(
     indent: Option<usize>,
 ) -> io::Result<()> {
     let json = to_python_json(value, indent).map_err(io::Error::other)?;
+    atomic_write(path, json.as_bytes())
+}
+
+/// The same temp-file + rename swap for content that is not JSON (the vault's
+/// encrypted entry files).
+pub fn atomic_write(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(".tmp");
     let tmp = Path::new(&tmp);
     {
         let mut f = std::fs::File::create(tmp)?;
-        f.write_all(json.as_bytes())?;
+        f.write_all(bytes)?;
     }
     // fs::rename replaces an existing destination on Windows (MOVEFILE_REPLACE_EXISTING),
     // matching Python's os.replace.

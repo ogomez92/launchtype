@@ -5,6 +5,13 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+# Encrypted vault (`*` mode): Argon2id stretches the master password, AES-256-GCM
+# seals each entry, SHA-256 fingerprints a copied secret so the clipboard history
+# can recognise and refuse it, and zeroize wipes keys and plaintext on drop.
+aes-gcm = { version = "0.11", features = ["zeroize"] }
+argon2 = { version = "0.6.0-rc.8", default-features = false, features = ["alloc", "zeroize"] }
+sha2 = "0.11"
+zeroize = { version = "1", features = ["alloc"] }
 base64 = "0.22"
 gettext = "0.4"
 quick-xml = "0.36"

@@ -149,6 +149,7 @@ The Settings button in the UI opens a dialog where you can persist the following
 - Interface language (same as the system, English or Spanish) — applied the next time the app starts
 - Commands file — a dropdown of every commands-shaped `.json` sitting next to the app, so you can keep separate sets (work, home, a game) and switch between them without restarting. You can also type a new name to start a fresh one.
 - SSH server, port, user name, private key file and password, used by SSH mode
+- Vault lock timeout in idle minutes, and how many seconds a copied vault secret may sit on the clipboard (see [Encrypted vault](#encrypted-vault))
 
 Command line flags override these persisted settings for the current run (for example, passing `-q` disables sounds even if the setting is enabled, and passing `-m` starts minimized even if the setting is off).
 
@@ -384,6 +385,33 @@ Every conversion is a formula compiled into the app, so the mode needs no networ
 
 Names and search words follow the app language, so in Spanish you type `100 pies cm` or `70 kg libras`. The list shows the best 300 rows at a time — with only a number typed those are the everyday conversions first — so add a word if what you want is not among them yet.
 
+## Encrypted vault
+
+Press `*` (asterisk) in the input field for the vault: passwords, recovery codes, licence keys and anything else that should not be sitting in a snippet. It works like snippets mode — type, arrow to the entry, press Enter and it is on the clipboard — except that nothing is readable until you have given it the master password, and nothing is ever written to disk in the clear.
+
+The first time you press `*` it asks you to choose a master password. That password is not stored anywhere, cannot be recovered and cannot be reset: if you lose it, the vault is lost with it. Everything lives in a `vault` folder next to the app, alongside `snippets` and the rest, so it travels with a portable install — but back the folder up as a whole, because `vault.meta` and the entries are useless without each other.
+
+Add, Edit and Delete work the way they do everywhere else in the app. Each entry has a name, an optional shortcut (an exact shortcut match jumps straight to it, as in the other modes) and the secret itself, which can run to several lines for a recovery-code block or a key. Deleting asks first, since there is no undo and no second copy.
+
+Once open, the vault relocks by itself after five idle minutes and the key is wiped from memory — not merely ignored — by a background timer, so walking away from the machine closes it. Set the timeout to 0 in Settings and it will ask for the master password on every single copy. "Lock the vault now" and "Change the master password" sit at the bottom of the list; changing the password is instant, because the entries are not encrypted with the password itself (see below).
+
+### Copying, and the clipboard
+
+Handing a password over means putting it on the clipboard, and that is a genuinely exposed place to leave one. Two things happen around each copy:
+
+- **It never reaches clipboard history.** The history poller is told to refuse that exact value before the clipboard is written, so `?` mode never lists it and it never lands in `clipboard_history.json`. Without this, every password you looked up would end up in a plain JSON file next to the app.
+- **It comes back off the clipboard.** Thirty seconds later (configurable in Settings, 0 to switch it off) the clipboard is cleared — but only if the secret is still what is on it, so anything you copied in the meantime is left alone.
+
+### How it is encrypted
+
+Worth stating plainly, since "encrypted" on its own means very little:
+
+- The master password is stretched with **Argon2id** at 256 MiB and four passes — about half a second per unlock on a normal machine, and the reason guessing it is expensive on the hardware someone would bring to the job. Each vault records the cost it was made with, so raising it later does not orphan an existing vault.
+- That gives a master key which does nothing but unwrap a random 32-byte **vault key**; the entries are sealed with that one. This is why changing the master password rewrites one small file instead of re-encrypting everything.
+- Each entry is a separate file sealed with **AES-256-GCM** under a fresh random nonce, so tampering with one is detected rather than trusted.
+- **Entry names are inside the ciphertext too.** Files are named after a random uuid, not after the entry, because a folder listing full of `amazon.enc` and `work-vpn.enc` gives away most of what a password list is worth. Someone who gets the folder learns how many entries there are and roughly how long each one is — nothing else. The uuid is authenticated alongside the contents, so entry files cannot be swapped around either.
+- Decrypted text exists only in memory, in buffers that wipe themselves when dropped, and only one secret is decrypted at a time — unlocking reads the names, not the secrets.
+
 ## Run as administrator
 
 When adding or editing a command you can tick the "Run as administrator" checkbox. The command will be launched with elevated privileges (a UAC prompt will appear on launch).
@@ -411,6 +439,7 @@ The app has several modes, each accessed by typing a special character in the in
 | `$` | SSH | Run commands on a remote server and read the output |
 | `:` | Emoji | Find an emoji by its description and copy it |
 | `=` | Unit conversion | Convert a typed number between units, shoe sizes included |
+| `*` | Encrypted vault | Passwords and other secrets, encrypted behind a master password |
 | `.` | (any mode) | Return to Commands mode |
 
 ## Audio Feedback

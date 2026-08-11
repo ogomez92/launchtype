@@ -17,6 +17,7 @@ pub mod sounds;
 pub mod ssh;
 pub mod steam;
 pub mod stores;
+pub mod vault;
 
 /// Shared User-Agent for every outbound HTTP request (same string as the
 /// Python realtime service).

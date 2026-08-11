@@ -14,6 +14,7 @@ use launchtype_services::runner::run_command;
 use launchtype_services::scheduler::Scheduler;
 use launchtype_services::sounds::SoundPlayer;
 use launchtype_services::ssh::SshSession;
+use launchtype_services::vault::VaultLocker;
 use launchtype_services::{clipboard, notebrook, steam};
 use wxdragon::dialogs::file_dialog::{FileDialog, FileDialogStyle};
 use wxdragon::prelude::*;
@@ -50,6 +51,8 @@ pub struct Shell {
     pub ssh_busy: bool,
     pub poller: Option<ClipboardPoller>,
     pub scheduler: Option<Scheduler>,
+    /// Wipes the vault key once it has gone unused for the configured time.
+    pub vault_locker: Option<VaultLocker>,
     /// Transient "explore regions" state: the full-resolution capture and
     /// the size it was sent to the AI at (region boxes are in that space).
     pub screenshot_image: Option<launchtype_services::screenshot::RgbaImage>,
@@ -175,6 +178,7 @@ pub fn build_shell(
         ssh_busy: false,
         poller: None,
         scheduler: None,
+        vault_locker: None,
         screenshot_image: None,
         screenshot_sent_size: None,
     }));
@@ -251,6 +255,14 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 14]) {
     {
         let shell = shell.clone();
         add_button.on_click(move |_| {
+            // The vault's dialogs borrow the shell for themselves, so that
+            // branch has to run before the borrow below is taken.
+            if shell.borrow().mode == UiMode::Vault {
+                shell.borrow().edit.change_value("");
+                crate::vault_flows::add_entry(&shell);
+                update_list(&shell);
+                return;
+            }
             {
                 let mut s = shell.borrow_mut();
                 let frame = s.frame;
@@ -273,10 +285,21 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 14]) {
     {
         let shell = shell.clone();
         edit_button.on_click(move |_| {
+            let selected = {
+                let s = shell.borrow();
+                s.list.get_selection().and_then(|index| s.items.get(index as usize).cloned())
+            };
+            let Some(item) = selected else { return };
+            // As with Add: the vault opens its own dialogs and borrows the
+            // shell to do it.
+            if matches!(item.kind, ItemKind::VaultEntry) {
+                shell.borrow().edit.change_value("");
+                crate::vault_flows::edit_entry(&shell, &item.id);
+                update_list(&shell);
+                return;
+            }
             {
                 let mut s = shell.borrow_mut();
-                let Some(index) = s.list.get_selection() else { return };
-                let Some(item) = s.items.get(index as usize).cloned() else { return };
                 let frame = s.frame;
                 match &item.kind {
                     ItemKind::Snippet => {
@@ -393,6 +416,13 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 14]) {
                 }
                 let after = s.settings.settings.clone();
                 s.sounds.set_enabled(after.enable_sounds && !s.cli_quiet);
+                // A shorter vault timeout has to bind to a session that is
+                // already unlocked, not just to the next one.
+                s.controller
+                    .vault
+                    .lock()
+                    .unwrap()
+                    .set_lock_after_minutes(after.vault_lock_minutes);
                 // A different commands file takes effect immediately, unless
                 // -c pinned one for this run.
                 if after.commands_file != before.commands_file && !s.commands_file_from_cli {
@@ -419,10 +449,19 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 14]) {
     {
         let shell = shell.clone();
         delete_button.on_click(move |_| {
+            let selected = {
+                let s = shell.borrow();
+                s.list.get_selection().and_then(|index| s.items.get(index as usize).cloned())
+            };
+            let Some(item) = selected else { return };
+            // Deleting a secret is the one deletion here that asks first, and
+            // it opens a dialog to do it.
+            if matches!(item.kind, ItemKind::VaultEntry) {
+                crate::vault_flows::delete_entry(&shell, &item.id, &item.name);
+                return;
+            }
             {
                 let mut s = shell.borrow_mut();
-                let Some(index) = s.list.get_selection() else { return };
-                let Some(item) = s.items.get(index as usize).cloned() else { return };
                 // The id may belong to a command, a timer or an alarm.
                 if !s.controller.commands.pop_by_uuid(&item.id) {
                     s.controller.timers.remove(&item.id);
@@ -606,14 +645,15 @@ pub fn toggle_visibility(shell: &SharedShell) {
 
 pub fn update_list(shell: &SharedShell) {
     let mut s = shell.borrow_mut();
-    // Connecting needs the shell unborrowed, so it waits until the end.
-    let mut entered_ssh = false;
+    // Connecting, and asking for the vault's master password, need the shell
+    // unborrowed, so they wait until the end.
+    let mut entry = ModeEntry::Nothing;
 
     // Trigger characters switch modes and are consumed.
     let value = s.edit.get_value();
     if value.len() == 1 {
         if let Some(new_mode) = UiMode::from_trigger_char(value.chars().next().unwrap()) {
-            entered_ssh = apply_mode_switch(&mut s, new_mode);
+            entry = apply_mode_switch(&mut s, new_mode);
         }
     }
 
@@ -667,45 +707,60 @@ pub fn update_list(shell: &SharedShell) {
     }
 
     drop(s);
-    if entered_ssh {
-        crate::ssh_flows::enter_ssh_mode(shell);
-    }
+    finish_entry(shell, entry);
 }
 
 /// The first menu item id used by the modes menu; each mode takes the id
 /// `MODE_MENU_BASE_ID + its index in UiMode::MENU_MODES`.
 const MODE_MENU_BASE_ID: i32 = 6100;
 
+/// Work that entering a mode leaves for the caller to do once the shell is no
+/// longer borrowed, because it opens a connection or a modal dialog.
+#[derive(PartialEq, Eq, Clone, Copy)]
+enum ModeEntry {
+    Nothing,
+    Ssh,
+    Vault,
+}
+
 /// Apply a mode change on an already-borrowed shell: announce it, run the
-/// mode's one-time setup, select it and clear the input. Returns `true` when
-/// SSH mode was entered, which the caller must finish (unborrowed) by calling
-/// [`ssh_flows::enter_ssh_mode`].
-fn apply_mode_switch(s: &mut Shell, new_mode: UiMode) -> bool {
+/// mode's one-time setup, select it and clear the input. Returns what the
+/// caller still has to do once it has dropped the borrow (see [`finish_entry`]).
+fn apply_mode_switch(s: &mut Shell, new_mode: UiMode) -> ModeEntry {
     speak_now(&mode_announcement(new_mode), true);
-    let mut entered_ssh = false;
+    let mut entry = ModeEntry::Nothing;
     match new_mode {
         UiMode::Snippets => s.controller.reload_snippets(),
         UiMode::Steam => s.controller.rescan_steam(),
-        UiMode::Ssh => entered_ssh = true,
+        UiMode::Ssh => entry = ModeEntry::Ssh,
+        UiMode::Vault => entry = ModeEntry::Vault,
         _ => {}
     }
     s.mode = new_mode;
     s.edit.change_value("");
-    entered_ssh
+    entry
+}
+
+/// Run the deferred half of a mode switch. Must be called with the shell
+/// unborrowed: both of these open something modal.
+fn finish_entry(shell: &SharedShell, entry: ModeEntry) {
+    match entry {
+        ModeEntry::Nothing => {}
+        ModeEntry::Ssh => crate::ssh_flows::enter_ssh_mode(shell),
+        ModeEntry::Vault => crate::vault_flows::enter_vault_mode(shell),
+    }
 }
 
 /// Switch to `new_mode` from outside `update_list` (the modes menu). Mirrors
 /// the trigger-character path: apply the switch, refresh the list, and finish
-/// SSH entry once the shell is unborrowed.
+/// entry once the shell is unborrowed.
 pub fn switch_to_mode(shell: &SharedShell, new_mode: UiMode) {
-    let entered_ssh = {
+    let entry = {
         let mut s = shell.borrow_mut();
         apply_mode_switch(&mut s, new_mode)
     };
     update_list(shell);
-    if entered_ssh {
-        crate::ssh_flows::enter_ssh_mode(shell);
-    }
+    finish_entry(shell, entry);
 }
 
 /// The spoken sentence announced on entering a mode.
@@ -724,6 +779,7 @@ fn mode_announcement(mode: UiMode) -> String {
         UiMode::Ssh => tr("SSH mode, type a command and press enter"),
         UiMode::Emoji => tr("emoji mode, type a description and press enter to copy"),
         UiMode::Units => tr("unit conversion mode, type a number and choose a conversion"),
+        UiMode::Vault => tr("encrypted vault mode"),
         UiMode::Regions => unreachable!("no trigger char"),
     }
 }
@@ -744,6 +800,7 @@ fn mode_name(mode: UiMode) -> String {
         UiMode::Ssh => tr("SSH"),
         UiMode::Emoji => tr("Emoji"),
         UiMode::Units => tr("Unit conversion"),
+        UiMode::Vault => tr("Encrypted vault"),
         UiMode::Regions => tr("Regions"),
     }
 }
@@ -855,6 +912,11 @@ pub fn run_clicked(shell: &SharedShell) {
             }
             None => speak_now(&tr("Type a number to convert first"), true),
         },
+        // The vault decrypts and copies (and hides the window) itself, because
+        // it has clipboard hygiene to arrange around the copy; its action rows
+        // open dialogs and so must keep the window up.
+        ItemKind::VaultEntry => crate::vault_flows::copy_secret(shell, &item.id, &item.name),
+        ItemKind::VaultAction { action } => crate::vault_flows::run_action(shell, action),
         // A region: crop it out of the last screenshot, copy the crop, and
         // describe it. Keep the window open so more regions can be chosen.
         ItemKind::Region { r#box } => crate::ai_flows::crop_and_describe_region(shell, r#box),
@@ -1106,6 +1168,9 @@ pub fn exit_app(shell: &SharedShell) {
     }
     if let Some(mut scheduler) = s.scheduler.take() {
         scheduler.stop();
+    }
+    if let Some(mut locker) = s.vault_locker.take() {
+        locker.stop();
     }
     s.frame.close(true);
 }

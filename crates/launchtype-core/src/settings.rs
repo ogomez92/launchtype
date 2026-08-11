@@ -25,6 +25,14 @@ pub const LANGUAGE_SYSTEM: &str = "system";
 
 pub const DEFAULT_SSH_PORT: u16 = 22;
 
+/// Long enough to look several secrets up in one sitting, short enough that
+/// walking away from the machine closes the vault behind you.
+pub const DEFAULT_VAULT_LOCK_MINUTES: u32 = 5;
+
+/// Long enough to switch windows and paste, short enough that a password is
+/// not still sitting on the clipboard an hour later.
+pub const DEFAULT_VAULT_CLIPBOARD_SECONDS: u32 = 30;
+
 /// Field order mirrors the Python DEFAULTS dict so the saved file keeps the
 /// same key order.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -57,6 +65,14 @@ pub struct Settings {
     /// Whether to check for machine-specific paths at startup and offer to
     /// replace them with placeholders. Turned off by "Never ask again".
     pub portability_check: bool,
+    /// Minutes the encrypted vault (`*`) stays unlocked without being used
+    /// before its key is wiped from memory. 0 additionally re-locks it the
+    /// moment a secret has been copied, so the master password is asked for
+    /// every single time.
+    pub vault_lock_minutes: u32,
+    /// Seconds after which a copied vault secret is taken back off the
+    /// clipboard, provided nothing else has been copied since. 0 never clears.
+    pub vault_clipboard_seconds: u32,
 }
 
 pub const DEFAULT_COMMANDS_FILE: &str = "commands.json";
@@ -80,6 +96,8 @@ impl Default for Settings {
             ssh_key_path: String::new(),
             ssh_password: String::new(),
             portability_check: true,
+            vault_lock_minutes: DEFAULT_VAULT_LOCK_MINUTES,
+            vault_clipboard_seconds: DEFAULT_VAULT_CLIPBOARD_SECONDS,
         }
     }
 }
@@ -210,6 +228,18 @@ mod tests {
     #[test]
     fn the_portability_check_is_on_until_dismissed() {
         assert!(Settings::default().portability_check);
+    }
+
+    /// A settings.json written before the vault existed must not read as
+    /// "never lock" / "never clear the clipboard".
+    #[test]
+    fn a_file_from_before_the_vault_gets_the_vault_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        std::fs::write(&path, r#"{"enable_sounds": true}"#).unwrap();
+        let store = SettingsStore::load(&path);
+        assert_eq!(store.settings.vault_lock_minutes, DEFAULT_VAULT_LOCK_MINUTES);
+        assert_eq!(store.settings.vault_clipboard_seconds, DEFAULT_VAULT_CLIPBOARD_SECONDS);
     }
 
     #[test]

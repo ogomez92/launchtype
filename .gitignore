@@ -6,6 +6,8 @@
 /*.json
 /snippets/
 /screenshots/
+# a dev-run vault: encrypted, but a password store has no business in a repo
+/vault/
 
 # fixtures are real data and ARE committed
 !/fixtures/**

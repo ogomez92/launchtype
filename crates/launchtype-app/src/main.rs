@@ -11,6 +11,7 @@ mod macos;
 mod shell;
 mod speech;
 mod ssh_flows;
+mod vault_flows;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -18,11 +19,13 @@ use std::sync::{Arc, Mutex};
 use launchtype_core::clock::SystemClock;
 use launchtype_core::i18n::tr;
 use launchtype_core::settings::SettingsStore;
+use launchtype_core::vault::VaultSession;
 use launchtype_services::alerts::fire_alert;
 use launchtype_services::poller::ClipboardPoller;
 use launchtype_services::scheduler::Scheduler;
 use launchtype_services::sounds::SoundPlayer;
 use launchtype_services::stores::{AlarmStore, CommandsStore, TimerStore};
+use launchtype_services::vault::VaultLocker;
 
 #[derive(Default)]
 struct CliArgs {
@@ -143,11 +146,18 @@ fn main() {
     let clipboard = Arc::new(Mutex::new(launchtype_core::clipboard_history::load_history(
         std::path::Path::new("clipboard_history.json"),
     )));
+    // Nothing is read or decrypted here: the vault is a locked door until the
+    // user goes to `*` mode and gives it the master password.
+    let vault = Arc::new(Mutex::new(VaultSession::new(
+        launchtype_core::vault::VAULT_DIR,
+        settings.settings.vault_lock_minutes,
+    )));
 
     let mut controller = controller::ModeController::new(
         commands,
         settings.settings.command_sort_by_uses,
         clipboard.clone(),
+        vault.clone(),
         timers,
         alarms,
         PathBuf::from(steam_library),
@@ -192,6 +202,7 @@ fn main() {
                 Arc::new(SystemClock),
                 move |item| fire_alert(&item, &speaker, &alert_sounds),
             ));
+            s.vault_locker = Some(VaultLocker::start(vault.clone(), Arc::new(SystemClock)));
         }
 
         if !effective_start_minimized {
