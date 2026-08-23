@@ -124,6 +124,14 @@ Las barras invertidas de Windows se traducen automáticamente, así que `{{home}
 
 `{{chrome}}`, `{{firefox}}`, `{{edge}}`, `{{brave}}`, `{{vivaldi}}`, `{{opera}}` y `{{safari}}` nombran un navegador concreto, para que puedas mantener unos enlaces en un navegador y otros en otro. Cada uno se busca en las ubicaciones de instalación habituales de la plataforma actual y **recurre a `{{browser}}` cuando ese navegador no está instalado**: un comando con `{{chrome}}` sigue abriéndose en un Mac que solo tenga Safari, en lugar de fallar.
 
+### La variable de búsqueda por palabra clave
+
+`{{query}}` es distinta de las demás: no tiene un valor fijo en este equipo, y solo funciona junto con un acceso abreviado. Escribe el acceso abreviado, un espacio, y lo que quieras, y ese texto —codificado para URL— aparece donde esté `{{query}}` en la ruta o en los argumentos del comando, justo antes de ejecutarlo.
+
+Añade un comando con ruta `{{browser}}`, argumentos `https://www.google.com/search?q={{query}}` y acceso abreviado `g`, y escribir `g gatos` abre una búsqueda de Google por "gatos". Un comando que no contenga `{{query}}` no se ve afectado: su acceso abreviado sigue funcionando exactamente igual que antes, así que esto nunca convierte un acceso abreviado normal en algo inesperado.
+
+`{{query}}` aparece en el menú de variables de abajo junto con las demás —descrita en vez de mostrada con un valor resuelto, porque todavía no hay nada que resolver.
+
 ### Cómo añadirlas
 
 En los diálogos Añadir y Editar comando, los botones "Variable de ruta..." y "Variable de argumento..." abren un menú con todas las variables, su descripción y a qué se resuelven en este equipo. Al elegir una se inserta donde está el cursor y el foco se queda en el campo, para que puedas seguir escribiendo.

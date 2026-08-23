@@ -23,6 +23,12 @@ use crate::model::CommandsFile;
 pub const OPEN: &str = "{{";
 pub const CLOSE: &str = "}}";
 
+/// The keyword-search placeholder's name. Unlike every other placeholder it
+/// has no value on this machine — it is filled in per invocation by
+/// [`substitute_query`], not by [`expand`] — so it is exempt from
+/// [`unknown_placeholders`] even though `vars.get("query")` is always `None`.
+pub const QUERY_PLACEHOLDER: &str = "query";
+
 /// What one placeholder resolves to on this machine.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VarValue {
@@ -76,6 +82,7 @@ pub fn description(name: &str) -> String {
         "vivaldi" => tr("Vivaldi"),
         "opera" => tr("Opera"),
         "safari" => tr("Safari"),
+        "query" => tr("The text typed after this command's keyword shortcut"),
         other => other.to_string(),
     }
 }
@@ -326,7 +333,7 @@ pub fn substitute_query(template: &str, value: &str) -> String {
         let name = after_open[..end].trim();
         let tail = &after_open[end + CLOSE.len()..];
         out.push_str(&rest[..start]);
-        if name.eq_ignore_ascii_case("query") {
+        if name.eq_ignore_ascii_case(QUERY_PLACEHOLDER) {
             out.push_str(value);
         } else {
             out.push_str(OPEN);
@@ -438,7 +445,11 @@ pub fn placeholder_names(template: &str) -> impl Iterator<Item = String> + '_ {
 /// True when `template` still holds at least one placeholder this machine
 /// cannot resolve — a typo, or a name from a newer version.
 pub fn unknown_placeholders(template: &str, vars: &Vars) -> Vec<String> {
-    placeholder_names(template).filter(|name| vars.get(name).is_none()).collect()
+    // {{query}} deliberately has no entry in `vars` (see QUERY_PLACEHOLDER) —
+    // it is not a typo, so it must not be reported as one.
+    placeholder_names(template)
+        .filter(|name| name != QUERY_PLACEHOLDER && vars.get(name).is_none())
+        .collect()
 }
 
 /// The single best placeholder rewrite for one literal field value, as

@@ -197,8 +197,8 @@ impl ModeController {
         // shortcut/fuzzy search below untouched.
         if let Some((index, query)) = keyword_query_match(search, &items, |i| i.shortcut.clone()) {
             if let ItemKind::Command { path, args, run_as_admin } = items[index].kind.clone() {
-                let has_query = portable::placeholder_names(&path).any(|n| n == "query")
-                    || portable::placeholder_names(&args).any(|n| n == "query");
+                let has_query = portable::placeholder_names(&path).any(|n| n == portable::QUERY_PLACEHOLDER)
+                    || portable::placeholder_names(&args).any(|n| n == portable::QUERY_PLACEHOLDER);
                 if has_query {
                     let encoded = portable::url_encode(&query);
                     let mut item = items[index].clone();

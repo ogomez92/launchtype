@@ -124,6 +124,14 @@ Windows-style backslashes are translated automatically, so `{{home}}\stuff\notes
 
 `{{chrome}}`, `{{firefox}}`, `{{edge}}`, `{{brave}}`, `{{vivaldi}}`, `{{opera}}` and `{{safari}}` name a specific browser, so you can keep some links in one browser and some in another. Each is looked up in the usual install locations for the current platform, and **falls back to `{{browser}}` when that browser is not installed** — a `{{chrome}}` command still opens on a Mac that only has Safari, rather than failing.
 
+### The keyword-search variable
+
+`{{query}}` is different from the rest: it has no fixed value on this machine, and only works together with a shortcut. Type the shortcut, a space, and then anything, and that text — percent-encoded — lands wherever `{{query}}` sits in the command's path or arguments, before the command ever runs.
+
+Add a command with path `{{browser}}`, arguments `https://www.google.com/search?q={{query}}`, and shortcut `g`, and typing `g cats` opens a Google search for "cats". A command that does not contain `{{query}}` is unaffected — its shortcut still works exactly as before, so this never turns a plain shortcut into something unexpected.
+
+`{{query}}` is offered in the variable menu below, alongside the rest — described rather than shown with a resolved value, since there is nothing to resolve yet.
+
 ### Adding them
 
 In the Add and Edit Command dialogs, the "Path variable..." and "Argument variable..." buttons open a menu of every variable with its description and what it resolves to on this machine. Choosing one inserts it where the cursor is and leaves you in the field, so you can carry on typing.

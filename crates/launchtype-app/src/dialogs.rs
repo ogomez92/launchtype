@@ -171,10 +171,17 @@ fn variable_menu_button(
     // text in the command. Menu ids are `base_id + index into this list`, so both
     // closures below share the same filtered vec.
     let vars = launchtype_services::portable::vars();
-    let specs: Vec<VarSpec> = portable::all_specs()
+    let mut specs: Vec<VarSpec> = portable::all_specs()
         .into_iter()
         .filter(|spec| vars.get(spec.name).is_some())
         .collect();
+    // {{query}} is not machine-resolved, so it has no entry in `vars` to
+    // filter on (see QUERY_PLACEHOLDER) -- it rides along at the end
+    // instead of coming from `all_specs()`. `variable_menu_label` already
+    // renders a spec with no resolved value the same way it renders
+    // `{{browser}}` (name and description, no "(value)" suffix), so no
+    // extra rendering path is needed here.
+    specs.push(VarSpec { name: portable::QUERY_PLACEHOLDER, suggest: false });
     {
         let dialog = *dialog;
         let specs = specs.clone();

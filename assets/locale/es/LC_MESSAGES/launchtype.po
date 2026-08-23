@@ -1378,6 +1378,10 @@ msgstr "Opera"
 msgid "Safari"
 msgstr "Safari"
 
+#: crates/launchtype-core/src/portable.rs
+msgid "The text typed after this command's keyword shortcut"
+msgstr "El texto escrito después del acceso abreviado de este comando"
+
 #: crates/launchtype-app/src/dialogs.rs
 msgid "Path &variable..."
 msgstr "&Variable de ruta..."
