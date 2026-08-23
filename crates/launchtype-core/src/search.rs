@@ -95,6 +95,33 @@ pub fn exact_shortcut_match<T, S: AsRef<str>>(
         .position(|item| shortcut(item).as_ref().to_lowercase() == search_lower)
 }
 
+/// Split `search` at its first space into a keyword and the rest, and
+/// case-insensitively match the keyword against an item's shortcut — the
+/// other half of a keyword-search command. Typing `g cats` finds the item
+/// whose shortcut is `g` and hands back `"cats"` for the caller to splice
+/// into that command's `{{query}}` placeholder.
+///
+/// Returns `None` when there is no space (a bare shortcut goes through
+/// [`exact_shortcut_match`] instead — this function must never shadow the
+/// plain "select this item" case), when the text after the space is empty
+/// or all whitespace, or when no item's shortcut matches the keyword.
+pub fn keyword_query_match<T, S: AsRef<str>>(
+    search: &str,
+    items: &[T],
+    shortcut: impl Fn(&T) -> S,
+) -> Option<(usize, String)> {
+    let (keyword, rest) = search.split_once(' ')?;
+    let rest = rest.trim();
+    if keyword.is_empty() || rest.is_empty() {
+        return None;
+    }
+    let keyword_lower = keyword.to_lowercase();
+    let index = items
+        .iter()
+        .position(|item| shortcut(item).as_ref().to_lowercase() == keyword_lower)?;
+    Some((index, rest.to_string()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -179,5 +206,29 @@ mod tests {
         let hit = exact_shortcut_match("GH", &cmds, |c| c.shortcut);
         assert_eq!(hit.map(|i| cmds[i].name), Some("github repo"));
         assert_eq!(exact_shortcut_match("xyz", &cmds, |c| c.shortcut), None);
+    }
+
+    #[test]
+    fn keyword_query_matching() {
+        struct Cmd {
+            name: &'static str,
+            shortcut: &'static str,
+        }
+        let cmds = [
+            Cmd { name: "search google", shortcut: "g" },
+            Cmd { name: "github repo", shortcut: "gh" },
+        ];
+        let hit = keyword_query_match("g what is magic", &cmds, |c| c.shortcut);
+        assert_eq!(hit.map(|(i, q)| (cmds[i].name, q)), Some(("search google", "what is magic".into())));
+        // Case-insensitive on the keyword, like exact_shortcut_match.
+        let hit = keyword_query_match("G cats", &cmds, |c| c.shortcut);
+        assert_eq!(hit.map(|(i, q)| (cmds[i].name, q)), Some(("search google", "cats".into())));
+        // No space at all: a plain shortcut, not this function's job.
+        assert_eq!(keyword_query_match("g", &cmds, |c| c.shortcut), None);
+        // Space but nothing (or only whitespace) after it.
+        assert_eq!(keyword_query_match("g ", &cmds, |c| c.shortcut), None);
+        assert_eq!(keyword_query_match("g   ", &cmds, |c| c.shortcut), None);
+        // Unknown keyword.
+        assert_eq!(keyword_query_match("zz cats", &cmds, |c| c.shortcut), None);
     }
 }

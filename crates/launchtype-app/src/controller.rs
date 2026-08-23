@@ -11,7 +11,8 @@ use launchtype_core::clock::{Clock, SystemClock};
 use launchtype_core::emoji;
 use launchtype_core::i18n::tr;
 use launchtype_core::mode::UiMode;
-use launchtype_core::search::{exact_shortcut_match, fuzzy_search};
+use launchtype_core::portable;
+use launchtype_core::search::{exact_shortcut_match, fuzzy_search, keyword_query_match};
 use launchtype_core::stats::stats_labels;
 use launchtype_core::units;
 use launchtype_core::vault::VaultSession;
@@ -185,6 +186,34 @@ impl ModeController {
                 },
             })
             .collect();
+
+        // Keyword search: "g cats" finds the command whose shortcut is
+        // exactly "g" and whose path or args names {{query}}, and bakes the
+        // typed remainder into that one placeholder before the item ever
+        // reaches the list — same one-item-then-Enter shape as an ordinary
+        // exact-shortcut match, just with the blank filled in. A command
+        // without {{query}} is not a keyword-search command, so it is left
+        // alone here and "d something" falls through to the plain
+        // shortcut/fuzzy search below untouched.
+        if let Some((index, query)) = keyword_query_match(search, &items, |i| i.shortcut.clone()) {
+            if let ItemKind::Command { path, args, run_as_admin } = items[index].kind.clone() {
+                let has_query = portable::placeholder_names(&path).any(|n| n == "query")
+                    || portable::placeholder_names(&args).any(|n| n == "query");
+                if has_query {
+                    let encoded = portable::url_encode(&query);
+                    let mut item = items[index].clone();
+                    item.name = format!("{} {}", item.name, query);
+                    item.kind = ItemKind::Command {
+                        path: portable::substitute_query(&path, &encoded),
+                        args: portable::substitute_query(&args, &encoded),
+                        run_as_admin,
+                    };
+                    self.sounds.play("match");
+                    return vec![item];
+                }
+            }
+        }
+
         self.shortcut_then_fuzzy(search, items, true)
     }
 

@@ -306,6 +306,58 @@ pub fn expand(template: &str, vars: &Vars) -> String {
     }
 }
 
+/// Replace every `{{query}}` placeholder in `template` with `value`
+/// (matched the same way [`expand`] matches names: trimmed, case-insensitive),
+/// leaving every other placeholder untouched.
+///
+/// This is a keyword-search command's whole trick: typing `g cats` in the
+/// launcher finds the command whose shortcut is `g` and splices `cats` in
+/// here *before* the normal machine-vars pass runs, so `{{browser}}` /
+/// `{{chrome}}` elsewhere in the same path or arguments still resolve
+/// normally afterwards. A plain [`expand`] call cannot do this split: it
+/// would resolve every placeholder against one fixed `Vars` set, but the
+/// query is per-invocation, not per-machine.
+pub fn substitute_query(template: &str, value: &str) -> String {
+    let mut out = String::with_capacity(template.len());
+    let mut rest = template;
+    while let Some(start) = rest.find(OPEN) {
+        let after_open = &rest[start + OPEN.len()..];
+        let Some(end) = after_open.find(CLOSE) else { break };
+        let name = after_open[..end].trim();
+        let tail = &after_open[end + CLOSE.len()..];
+        out.push_str(&rest[..start]);
+        if name.eq_ignore_ascii_case("query") {
+            out.push_str(value);
+        } else {
+            out.push_str(OPEN);
+            out.push_str(name);
+            out.push_str(CLOSE);
+        }
+        rest = tail;
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Percent-encode `value` for use as the text substituted into `{{query}}`
+/// when that placeholder sits inside a URL (the common case: a search
+/// engine's `?q=` parameter). Unreserved characters (RFC 3986: letters,
+/// digits, `-` `.` `_` `~`) pass through unchanged; everything else —
+/// spaces, accented and non-Latin text, punctuation — is encoded byte by
+/// byte so UTF-8 text round-trips correctly.
+pub fn url_encode(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(byte as char)
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
 fn expand_inner(template: &str, vars: &Vars) -> (String, bool) {
     let mut out = String::with_capacity(template.len());
     let mut rest = template;
@@ -648,6 +700,34 @@ mod tests {
         assert_eq!(expand(r"{{home}}\stuff\x.exe", &vars), r"C:\Users\nitropc\stuff\x.exe");
         assert_eq!(expand("{{nope}}/x", &vars), "{{nope}}/x");
         assert_eq!(expand("plain text", &vars), "plain text");
+    }
+
+    #[test]
+    fn substitute_query_replaces_only_query_and_leaves_other_placeholders() {
+        let template = "https://www.google.com/search?q={{query}}";
+        assert_eq!(
+            substitute_query(template, "cats"),
+            "https://www.google.com/search?q=cats"
+        );
+        // Other placeholders in the same template survive untouched, for the
+        // normal machine-vars pass to resolve afterwards.
+        assert_eq!(
+            substitute_query("{{chrome}} {{query}}", "x"),
+            "{{chrome}} x"
+        );
+        // Matched the same way `expand` matches names: trimmed, case-insensitive.
+        assert_eq!(substitute_query("{{ Query }}", "x"), "x");
+        // No placeholder at all: passed through unchanged.
+        assert_eq!(substitute_query("plain text", "x"), "plain text");
+    }
+
+    #[test]
+    fn url_encode_keeps_unreserved_characters_and_escapes_the_rest() {
+        assert_eq!(url_encode("cats"), "cats");
+        assert_eq!(url_encode("what is magic"), "what%20is%20magic");
+        // Accented text round-trips byte by byte through its UTF-8 encoding.
+        assert_eq!(url_encode("qué"), "qu%C3%A9");
+        assert_eq!(url_encode("a-b_c.d~e"), "a-b_c.d~e");
     }
 
     /// The whole reason for `{{…}}`: a percent-encoded URL must survive intact.
