@@ -2673,3 +2673,23 @@ msgstr "{name} copiado"
 #: crates/launchtype-app/src/vault_flows.rs
 msgid "There is already a vault in that folder."
 msgstr "Ya hay una caja fuerte en esa carpeta."
+
+#: crates/launchtype-app/src/shell.rs
+msgid "applications mode, type the name of a program to launch it"
+msgstr "modo aplicaciones, escribe el nombre de un programa para abrirlo"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Applications"
+msgstr "Aplicaciones"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "C&opy program file (Alt+O)"
+msgstr "C&opiar archivo del programa (Alt+O)"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "{path} copied"
+msgstr "{path} copiado"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "This app has no program file to copy"
+msgstr "Esta aplicación no tiene ningún archivo de programa que copiar"

@@ -4,6 +4,7 @@
 
 pub mod ai;
 pub mod alerts;
+pub mod apps;
 pub mod clipboard;
 pub mod notebrook;
 pub mod poller;

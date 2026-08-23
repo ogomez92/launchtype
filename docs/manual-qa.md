@@ -17,7 +17,7 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Typing into the input field echoes normally
 - [ ] The results list has no label of its own: arrowing through it speaks only
       the items, never a "Results" prefix (and never "Sort commands by:")
-- [ ] Every mode trigger speaks its announcement (- ? . , ' [ ] # + ! : $ = *)
+- [ ] Every mode trigger speaks its announcement (- ? . , @ ' [ ] # + ! : $ = *)
 - [ ] Typing a search speaks the first result; multiple results speak
       "{first}, {n} search results shown, use down arrow..."
 - [ ] Down arrow in the input field focuses the result after the selected one
@@ -34,6 +34,29 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Snippets: copy to clipboard with "copy" sound; apple_snippets.plist entries present
 - [ ] Clipboard history: items numbered 1-50, re-copying moves to front
 - [ ] Steam: games listed, launch works (steam:// URL)
+- [ ] Applications: `@` announces the mode and lists what the Start Menu lists
+      (Windows: desktop programs, Store apps and the synthesised entries like
+      Task Manager; macOS: what Launchpad shows)
+- [ ] Applications: typing a name filters it, Enter launches the app, plays
+      "run" and hides the window — check one desktop program, one Store app
+      and one control-panel entry
+- [ ] Applications: launching from an elevated Launchtype starts the app
+      unelevated (Windows: no second UAC prompt, and the app's Task Manager
+      row is not "elevated")
+- [ ] Applications: on a Spanish system `administracion` finds "Administración
+      de equipos" without the accent, and accented names sort next to their
+      neighbours rather than after "z"
+- [ ] Applications: install something, then re-enter `@` without restarting —
+      the new program is in the list
+- [ ] Applications: no Steam game shows up in `@` at all — they belong to `,`
+      (Windows puts a Start Menu shortcut next to every installed game). The
+      Steam client itself is still there
+- [ ] Applications: the Copy Args button reads "Copy program file (Alt+O)" in
+      `@` and goes back to "Copy Args" on leaving; Alt+O works under both
+- [ ] Applications: Alt+O on a desktop program copies and speaks its .exe
+      path, and pasting it into a new command's path field runs the app; on a
+      Store app it says "This app has no program file to copy" and the
+      clipboard is left alone
 - [ ] Timers: add, toggle (speaks started/stopped, stays open), fires with
       speech + sound, repeating reschedules
 - [ ] Timers: Edit reopens the timer with its saved values; changing the

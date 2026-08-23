@@ -6,15 +6,17 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use launchtype_core::alarms::AlarmEngine;
+use launchtype_core::apps::{without_steam, App, AppTarget};
 use launchtype_core::clipboard_history::ClipboardHistory;
 use launchtype_core::clock::{Clock, SystemClock};
 use launchtype_core::emoji;
-use launchtype_core::i18n::tr;
+use launchtype_core::i18n::{fold, tr};
 use launchtype_core::mode::UiMode;
 use launchtype_core::search::{exact_shortcut_match, fuzzy_search};
 use launchtype_core::stats::stats_labels;
 use launchtype_core::units;
 use launchtype_core::vault::VaultSession;
+use launchtype_services::apps::scan_apps;
 use launchtype_services::snippets::{load_snippets, Snippet};
 use launchtype_services::sounds::SoundPlayer;
 use launchtype_services::steam::scan_games;
@@ -47,6 +49,8 @@ pub enum ItemKind {
     Snippet,
     Clip,
     Steam { appid: String },
+    /// An installed application, launched through whatever listed it.
+    App { target: AppTarget },
     Screenshot { action: &'static str },
     Timer,
     Alarm,
@@ -81,6 +85,10 @@ pub struct ModeController {
     pub alarms: AlarmStore,
     pub steam_library: PathBuf,
     steam_games: Vec<launchtype_core::steam::SteamGame>,
+    /// Everything the OS says is installed. Refreshed on entering `@` and held
+    /// for the keystrokes that follow — the scan costs a few hundred
+    /// milliseconds, which is fine once per visit and not once per letter.
+    apps: Vec<App>,
     pub sounds: Arc<SoundPlayer>,
     pub clock: Arc<dyn Clock>,
     /// Transient "explore regions" state: AI-space size + labeled boxes of
@@ -112,6 +120,7 @@ impl ModeController {
             alarms,
             steam_library,
             steam_games: Vec::new(),
+            apps: Vec::new(),
             sounds,
             clock: Arc::new(SystemClock),
             regions: Vec::new(),
@@ -127,12 +136,18 @@ impl ModeController {
         self.steam_games = scan_games(&self.steam_library);
     }
 
+    /// Rescan the installed applications, less the Steam games `,` mode owns.
+    pub fn rescan_apps(&mut self) {
+        self.apps = without_steam(scan_apps());
+    }
+
     pub fn items_for(&mut self, search: &str, mode: UiMode) -> Vec<Item> {
         match mode {
             UiMode::Commands => self.command_items(search),
             UiMode::Snippets => self.snippet_items(search),
             UiMode::Clipboard => self.clipboard_items(search),
             UiMode::Steam => self.steam_items(search),
+            UiMode::Apps => self.app_items(search),
             UiMode::Screenshots => self.screenshot_items(search),
             UiMode::Timers => self.timer_items(search),
             UiMode::Alarms => self.alarm_items(search),
@@ -248,6 +263,35 @@ impl ModeController {
             return items;
         }
         let results = fuzzy_search(search, items, |i| i.name.clone());
+        self.sounds.play("type");
+        results
+    }
+
+    /// Installed applications. Entering the mode has normally scanned already;
+    /// the guard below covers the paths that reach the list without one.
+    ///
+    /// Matching folds accents off both sides. These names come from the OS in
+    /// the OS's language — a Spanish Windows lists "Administración de equipos"
+    /// and "Álbumes compartidos en iCloud" — and nobody reaches for the accent
+    /// keys while searching a launcher (same reasoning as emoji and units).
+    fn app_items(&mut self, search: &str) -> Vec<Item> {
+        if self.apps.is_empty() {
+            self.rescan_apps();
+        }
+        let items: Vec<Item> = self
+            .apps
+            .iter()
+            .map(|app| Item {
+                name: app.name.clone(),
+                shortcut: String::new(),
+                id: String::new(),
+                kind: ItemKind::App { target: app.target.clone() },
+            })
+            .collect();
+        if search.is_empty() {
+            return items;
+        }
+        let results = fuzzy_search(&fold(search), items, |item| fold(&item.name));
         self.sounds.play("type");
         results
     }

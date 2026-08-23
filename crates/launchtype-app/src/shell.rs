@@ -15,7 +15,7 @@ use launchtype_services::scheduler::Scheduler;
 use launchtype_services::sounds::SoundPlayer;
 use launchtype_services::ssh::SshSession;
 use launchtype_services::vault::VaultLocker;
-use launchtype_services::{clipboard, notebrook, steam};
+use launchtype_services::{apps, clipboard, notebrook, steam};
 use wxdragon::dialogs::file_dialog::{FileDialog, FileDialogStyle};
 use wxdragon::prelude::*;
 
@@ -34,6 +34,9 @@ pub struct Shell {
     /// Commands-mode only, like the sort control: opens a terminal at the
     /// folder the focused command's arguments point at.
     terminal_button: Button,
+    /// Copies a command's arguments, or an app's program file — kept here so
+    /// its label can say which (see [`update_list`]).
+    copy_args_button: Button,
     pub list: ListBox,
     pub mode: UiMode,
     pub items: Vec<Item>,
@@ -134,7 +137,8 @@ pub fn build_shell(
     let edit_button = Button::builder(&panel).with_label(&tr("&Edit...")).build();
     let copy_button = Button::builder(&panel).with_label(&tr("&COPY...")).build();
     let delete_button = Button::builder(&panel).with_label(&tr("&Delete")).build();
-    let copy_args_button = Button::builder(&panel).with_label(&tr("C&opy Args (Alt+O)")).build();
+    let copy_args_button =
+        Button::builder(&panel).with_label(&copy_args_label(UiMode::Commands)).build();
     let terminal_button =
         Button::builder(&panel).with_label(&tr("Open in &Terminal (Alt+T)")).build();
     let snippets_button = Button::builder(&panel).with_label(&tr("Open &Snippets folder")).build();
@@ -165,6 +169,7 @@ pub fn build_shell(
         sort_label,
         sort_choice,
         terminal_button,
+        copy_args_button,
         list,
         mode: UiMode::Commands,
         items: Vec::new(),
@@ -477,15 +482,29 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 14]) {
             let s = shell.borrow();
             let Some(index) = s.list.get_selection() else { return };
             let Some(item) = s.items.get(index as usize) else { return };
-            if let ItemKind::Command { args, .. } = &item.kind {
-                if !args.is_empty() {
+            match &item.kind {
+                ItemKind::Command { args, .. } if !args.is_empty() => {
                     clipboard::set_text(args);
                     s.sounds.play("copy");
                     speak_now(&tr("Arguments copied"), true);
-                    return;
                 }
+                // An installed app has no arguments to copy, but it does have
+                // the thing this button is reached for in commands mode: a
+                // path worth pasting somewhere. Speak it as well as copying
+                // it — the point is usually to check what it is.
+                ItemKind::App { target } => match apps::executable_path(target) {
+                    Some(path) => {
+                        clipboard::set_text(&path);
+                        s.sounds.play("copy");
+                        speak_now(
+                            &format_args(&tr("{path} copied"), &[("path", Arg::Str(&path))]),
+                            true,
+                        );
+                    }
+                    None => speak_now(&tr("This app has no program file to copy"), true),
+                },
+                _ => speak_now(&tr("No arguments"), true),
             }
-            speak_now(&tr("No arguments"), true);
         });
     }
     {
@@ -667,6 +686,15 @@ pub fn update_list(shell: &SharedShell) {
         s.panel.layout();
     }
 
+    // Same button, two jobs: arguments in commands mode, the program file in
+    // apps mode. A screen reader reads the label before the press, so it has
+    // to name the one that will actually happen.
+    let copy_args_label = copy_args_label(s.mode);
+    if s.copy_args_button.get_label() != copy_args_label {
+        s.copy_args_button.set_label(&copy_args_label);
+        s.panel.layout();
+    }
+
     let value = s.edit.get_value();
     let search = value.to_lowercase();
     let mode = s.mode;
@@ -732,6 +760,11 @@ fn apply_mode_switch(s: &mut Shell, new_mode: UiMode) -> ModeEntry {
     match new_mode {
         UiMode::Snippets => s.controller.reload_snippets(),
         UiMode::Steam => s.controller.rescan_steam(),
+        // Rescanned on every entry, like Steam: programs get installed while
+        // the launcher sits in the tray, and a stale list is a mode that
+        // cannot reach the app you installed this morning. The walk runs
+        // while the announcement above is still being spoken.
+        UiMode::Apps => s.controller.rescan_apps(),
         UiMode::Ssh => entry = ModeEntry::Ssh,
         UiMode::Vault => entry = ModeEntry::Vault,
         _ => {}
@@ -763,6 +796,15 @@ pub fn switch_to_mode(shell: &SharedShell, new_mode: UiMode) {
     finish_entry(shell, entry);
 }
 
+/// What the copy-args button says it will do in `mode`. Both labels keep the
+/// same mnemonic, so Alt+O works wherever the button is.
+fn copy_args_label(mode: UiMode) -> String {
+    match mode {
+        UiMode::Apps => tr("C&opy program file (Alt+O)"),
+        _ => tr("C&opy Args (Alt+O)"),
+    }
+}
+
 /// The spoken sentence announced on entering a mode.
 fn mode_announcement(mode: UiMode) -> String {
     match mode {
@@ -770,6 +812,7 @@ fn mode_announcement(mode: UiMode) -> String {
         UiMode::Clipboard => tr("Clipboard history mode"),
         UiMode::Commands => tr("commands mode"),
         UiMode::Steam => tr("Steam games mode"),
+        UiMode::Apps => tr("applications mode, type the name of a program to launch it"),
         UiMode::Screenshots => tr("screenshots mode"),
         UiMode::Timers => tr("timers mode"),
         UiMode::Alarms => tr("alarms mode"),
@@ -791,6 +834,7 @@ fn mode_name(mode: UiMode) -> String {
         UiMode::Snippets => tr("Snippets"),
         UiMode::Clipboard => tr("Clipboard history"),
         UiMode::Steam => tr("Steam games"),
+        UiMode::Apps => tr("Applications"),
         UiMode::Screenshots => tr("Screenshots"),
         UiMode::Timers => tr("Timers"),
         UiMode::Alarms => tr("Alarms"),
@@ -980,6 +1024,10 @@ fn run_hidden_action(shell: &SharedShell, item: &Item, kind: ItemKind) -> Result
         }
         ItemKind::Steam { appid } => {
             open::that_detached(steam::rungameid_url(&appid)).map_err(|e| e.to_string())?;
+            shell.borrow().sounds.play("run");
+        }
+        ItemKind::App { target } => {
+            apps::launch(&target).map_err(|e| e.to_string())?;
             shell.borrow().sounds.play("run");
         }
         _ => {}

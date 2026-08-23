@@ -69,7 +69,7 @@ The bundle is built for the host architecture only. `libprism.a` is universal, s
 | Crate | What lives there |
 |-------|------------------|
 | `crates/launchtype-core` | Data model, storage, search, settings, i18n, realtime data sources — no UI, fully unit tested |
-| `crates/launchtype-services` | Side effects: running commands, sounds, clipboard, screenshots, Steam scanning, AI vision, schedulers |
+| `crates/launchtype-services` | Side effects: running commands, sounds, clipboard, screenshots, Steam and installed-app scanning, AI vision, schedulers |
 | `crates/launchtype-app` | The wxDragon UI, dialogs, global hotkey, speech |
 | `crates/prism`, `crates/prism-sys` | Safe wrapper and bindings for the Prism speech SDK |
 
@@ -200,6 +200,27 @@ Steam games launcher mode can be accessed by pressing , (comma) in the input fie
 The scanner looks for installed games in your Steam library folder (default: C:\Program Files (x86)\Steam\steamapps) by parsing the appmanifest files. You can specify a custom Steam library path using the `-l` command line option or in the Settings dialog.
 
 Once in Steam mode, you can search for games by name using fuzzy matching, just like with commands. Selecting a game will launch it through Steam.
+
+To go back to commands mode, press the period key (.).
+
+## Applications
+
+Applications mode can be accessed by pressing @ (at sign) in the input field. It lists every program installed on this machine — no adding, no configuring — and launching one works exactly like launching a command: type enough of its name for it to show up, arrow to it, press Enter.
+
+Where the list comes from depends on the platform:
+
+- **Windows**: the shell's Applications folder, the same virtual folder `shell:AppsFolder` opens and the Start Menu searches. That means desktop programs (everything with a Start Menu entry), Microsoft Store and other packaged apps, and the control-panel entries Windows synthesises — Task Manager, Print Management, the Visual Studio command prompts. Each one is started through the shell that listed it, so a Store app comes up the same way it does from the Start Menu, and a program launched this way is never elevated just because Launchtype is.
+- **macOS**: every application bundle in the Spotlight index, plus a walk of `/Applications`, `/System/Applications` and `~/Applications` (one level into their subfolders) for machines with indexing turned off. Bundles are started with `open`, which is the only supported way to launch one.
+
+Nothing is filtered out for being uninteresting. If the Start Menu or Launchpad can reach it, `@` can reach it, help files and uninstallers included.
+
+Steam games are the one exception: they have `,` mode of their own. Windows puts a Start Menu shortcut next to every installed game — 78 of 433 rows on the machine this was written against — so without this `@` would read the whole library out a second time. Anything launching through a `steam://` URL is left to `,`; Steam itself is a program like any other and stays.
+
+Searching folds accents off both what you type and what the list holds, because these names arrive in whatever language the OS is running: on a Spanish Windows, `administracion` finds "Administración de equipos" without reaching for the accent keys. The list is sorted the same way, so accented names sit next to their neighbours instead of after "z".
+
+The scan runs each time you enter the mode — a program installed this morning is there without restarting Launchtype — and takes a few hundred milliseconds, which happens while the mode announcement is still being spoken.
+
+The Copy Args button becomes "Copy program file (Alt+O)" here, and copies the path to the selected app's executable — handy for turning something you found with `@` into a saved command. On Windows the path is whatever the Applications folder records the entry as pointing at, so it works for programs whose identity gives nothing away: Firefox is listed under the opaque id `308046B0AF4A39CB` and still yields `C:\Program Files\Mozilla Firefox\firefox.exe`. Store and other packaged apps have no such path — Windows starts them by identity, and their files live in a locked-down `WindowsApps` folder under a name that changes with every update — so those say "This app has no program file to copy" instead. On macOS the path is the `.app` bundle, which is what a Mac means by the application.
 
 To go back to commands mode, press the period key (.).
 
@@ -430,6 +451,7 @@ The app has several modes, each accessed by typing a special character in the in
 | `-` | Snippets | Copy text snippets to clipboard |
 | `?` | Clipboard | Access clipboard history |
 | `,` | Steam | Launch installed Steam games |
+| `@` | Applications | Launch any program installed on this machine |
 | `'` | Screenshots | Capture, describe or crop a window or the full screen |
 | `[` | Timers | Count down for X minutes (one-shot or repeating) |
 | `]` | Alarms | Fire at a time of day (24-hour) |

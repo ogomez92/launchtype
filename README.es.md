@@ -69,7 +69,7 @@ El paquete se compila solo para la arquitectura de la máquina. `libprism.a` es 
 | Crate | Qué contiene |
 |-------|--------------|
 | `crates/launchtype-core` | Modelo de datos, almacenamiento, búsqueda, ajustes, i18n, fuentes de datos en tiempo real — sin interfaz, con pruebas unitarias |
-| `crates/launchtype-services` | Efectos: ejecutar comandos, sonidos, portapapeles, capturas, escaneo de Steam, visión por IA, planificadores |
+| `crates/launchtype-services` | Efectos: ejecutar comandos, sonidos, portapapeles, capturas, escaneo de Steam y de las aplicaciones instaladas, visión por IA, planificadores |
 | `crates/launchtype-app` | La interfaz wxDragon, los diálogos, el atajo global y la voz |
 | `crates/prism`, `crates/prism-sys` | Envoltorio seguro y bindings del SDK de voz Prism |
 
@@ -200,6 +200,27 @@ El modo de juegos de Steam se abre escribiendo , (coma) en la caja. Este modo es
 El escáner busca los juegos instalados en la carpeta de la biblioteca de Steam (por defecto: C:\Program Files (x86)\Steam\steamapps) analizando los archivos appmanifest. Puedes indicar una ruta personalizada con el parámetro `-l` o desde el diálogo de Ajustes.
 
 Estando en modo Steam, puedes buscar juegos por nombre con búsqueda difusa igual que con los comandos. Al seleccionar un juego se lanza a través de Steam.
+
+Para volver a comandos, pulsa la tecla punto (.).
+
+## Aplicaciones
+
+El modo aplicaciones se abre escribiendo @ (arroba) en la caja. Lista todos los programas instalados en este equipo — sin añadir nada, sin configurar nada — y lanzar uno funciona igual que lanzar un comando: escribe lo suficiente de su nombre para que aparezca, llega a él con las flechas y pulsa Intro.
+
+De dónde sale la lista depende de la plataforma:
+
+- **Windows**: la carpeta Aplicaciones del shell, la misma carpeta virtual que abre `shell:AppsFolder` y en la que busca el menú Inicio. Eso incluye los programas de escritorio (todo lo que tenga entrada en el menú Inicio), las aplicaciones de la Microsoft Store y otras empaquetadas, y las entradas del panel de control que Windows genera — Administrador de tareas, Administración de impresión, los símbolos del sistema de Visual Studio. Cada una se lanza a través del mismo shell que la listó, así que una aplicación de la Store arranca igual que desde el menú Inicio, y un programa lanzado así nunca se eleva solo porque Launchtype lo esté.
+- **macOS**: todos los paquetes de aplicación del índice de Spotlight, más un recorrido de `/Applications`, `/System/Applications` y `~/Applications` (un nivel dentro de sus subcarpetas) para equipos con la indexación desactivada. Los paquetes se lanzan con `open`, que es la única forma admitida de arrancar uno.
+
+No se filtra nada por parecer poco interesante. Si el menú Inicio o el Launchpad llegan a algo, `@` también llega, incluidos archivos de ayuda y desinstaladores.
+
+Los juegos de Steam son la única excepción: ya tienen su propio modo `,`. Windows coloca un acceso directo en el menú Inicio junto a cada juego instalado — 78 de 433 filas en el equipo donde se escribió esto — así que sin esto `@` leería la biblioteca entera por segunda vez. Todo lo que se lance con una URL `steam://` se deja a `,`; Steam en sí es un programa como cualquier otro y se queda.
+
+La búsqueda ignora los acentos tanto de lo que escribes como de lo que hay en la lista, porque estos nombres llegan en el idioma en el que corre el sistema: en un Windows en español, `administracion` encuentra "Administración de equipos" sin tocar las teclas de acentos. La lista se ordena igual, de modo que los nombres acentuados quedan junto a sus vecinos y no detrás de la "z".
+
+El escaneo se ejecuta cada vez que entras al modo — un programa instalado esta mañana está ahí sin reiniciar Launchtype — y tarda unos cientos de milisegundos, que transcurren mientras aún se está leyendo el anuncio del modo.
+
+Aquí el botón Copiar Argumentos pasa a llamarse "Copiar archivo del programa (Alt+O)" y copia la ruta al ejecutable de la aplicación seleccionada — útil para convertir en comando guardado algo que has encontrado con `@`. En Windows la ruta es aquella a la que la carpeta Aplicaciones dice que apunta la entrada, así que funciona incluso con programas cuya identidad no revela nada: Firefox aparece con el id opaco `308046B0AF4A39CB` y aun así da `C:\Program Files\Mozilla Firefox\firefox.exe`. Las aplicaciones de la Store y demás empaquetadas no tienen esa ruta — Windows las arranca por identidad, y sus archivos viven en una carpeta `WindowsApps` protegida con un nombre que cambia en cada actualización — así que en esos casos se dice "Esta aplicación no tiene ningún archivo de programa que copiar". En macOS la ruta es el paquete `.app`, que es lo que un Mac entiende por la aplicación.
 
 Para volver a comandos, pulsa la tecla punto (.).
 
@@ -430,6 +451,7 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `-` | Sustituciones | Copiar fragmentos de texto al portapapeles |
 | `?` | Portapapeles | Acceder al historial del portapapeles |
 | `,` | Steam | Lanzar juegos de Steam instalados |
+| `@` | Aplicaciones | Lanzar cualquier programa instalado en este equipo |
 | `'` | Capturas | Capturar, describir o recortar una ventana o la pantalla completa |
 | `[` | Temporizadores | Cuenta atrás de X minutos (una vez o repetitiva) |
 | `]` | Alarmas | Se disparan a una hora del día (formato 24 horas) |
