@@ -68,6 +68,7 @@ pub fn description(name: &str) -> String {
         "temp" => tr("The temporary files folder"),
         "launchtype" => tr("The folder Launchtype itself runs from"),
         "username" => tr("Your login name on its own, for arguments"),
+        "query" => tr("Text Launchtype asks you for every time the command runs"),
         "browser" => tr("Your default web browser"),
         "chrome" => tr("Google Chrome"),
         "firefox" => tr("Mozilla Firefox"),
@@ -131,6 +132,12 @@ const BROWSER_EXECUTABLES: &[(&str, &[&str])] = &[
     ("opera", &["opera.exe", "launcher.exe", "opera", "opera.app"]),
     ("safari", &["safari", "safari.app"]),
 ];
+
+/// The one placeholder no machine can fill in: the user is asked for it as
+/// the command launches (see [`crate::query`]). Deliberately outside
+/// [`all_specs`], which is the catalog of things resolved from *this*
+/// computer — `{{query}}` has no value here to resolve, look up or suggest.
+pub const QUERY_VAR: VarSpec = VarSpec { name: crate::query::NAME, suggest: false };
 
 /// Every placeholder name the app knows, folders first then browsers.
 pub fn all_specs() -> Vec<VarSpec> {
@@ -385,8 +392,13 @@ pub fn placeholder_names(template: &str) -> impl Iterator<Item = String> + '_ {
 
 /// True when `template` still holds at least one placeholder this machine
 /// cannot resolve — a typo, or a name from a newer version.
+///
+/// `{{query}}` is never unknown: it is answered by the user at launch, so
+/// having no value here is the whole point rather than a fault.
 pub fn unknown_placeholders(template: &str, vars: &Vars) -> Vec<String> {
-    placeholder_names(template).filter(|name| vars.get(name).is_none()).collect()
+    placeholder_names(template)
+        .filter(|name| name != crate::query::NAME && vars.get(name).is_none())
+        .collect()
 }
 
 /// The single best placeholder rewrite for one literal field value, as
@@ -821,6 +833,22 @@ mod tests {
         let vars = windows_vars();
         assert_eq!(unknown_placeholders("{{home}}/{{mystery}}", &vars), vec!["mystery"]);
         assert!(unknown_placeholders("{{home}}", &vars).is_empty());
+    }
+
+    /// `{{query}}` has no value on any machine — the user supplies it as the
+    /// command launches — so the Add dialog and the merge warnings must not
+    /// report it as a typo.
+    #[test]
+    fn the_query_placeholder_is_not_an_unknown_variable() {
+        let vars = windows_vars();
+        assert!(unknown_placeholders("https://example.com/?q={{query}}", &vars).is_empty());
+        assert_eq!(unknown_placeholders("{{query}}/{{mystery}}", &vars), vec!["mystery"]);
+        // Nor is it resolved from the machine: expand leaves it for
+        // `query::fill`, which is what the launch flow calls first.
+        assert_eq!(expand("?q={{query}}", &vars), "?q={{query}}");
+        // And it stays out of the machine catalog, so nothing ever looks for a
+        // value for it or rewrites a literal path into it.
+        assert!(!all_specs().iter().any(|spec| spec.name == QUERY_VAR.name));
     }
 
     fn sample_file() -> CommandsFile {

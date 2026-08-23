@@ -367,6 +367,66 @@ mod tests {
         assert_eq!(display_name("soft_pop"), "Soft Pop");
     }
 
+    /// Every effect the app asks for by name, and whether `assets/sounds` is
+    /// expected to hold a file for it.
+    ///
+    /// `play` no-ops on a missing file, on purpose — `type` has never shipped
+    /// a sound, and PlaySound would substitute the system ding on every
+    /// keystroke if it were asked for one that is not there. That silence is
+    /// also what a misspelt effect name looks like, which is what this table
+    /// is for: a caller playing `"askqery"` fails as quietly as one playing
+    /// `"type"` does deliberately, and only this test tells them apart.
+    const EFFECTS: [(&str, bool); 10] = [
+        ("askquery", true),
+        ("copy", true),
+        ("error", true),
+        ("hide", true),
+        ("logo", true),
+        ("match", true),
+        ("run", true),
+        ("show", true),
+        ("type", false),
+        ("typequery", true),
+    ];
+
+    #[test]
+    fn every_effect_name_the_app_plays_has_a_shipped_sound() {
+        let assets = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/sounds");
+        for (name, shipped) in EFFECTS {
+            let file = assets.join(format!("{name}.wav"));
+            assert_eq!(
+                file.is_file(),
+                shipped,
+                "{}: assets/sounds/{name}.wav",
+                if shipped { "missing" } else { "unexpectedly present" }
+            );
+        }
+    }
+
+    /// The other half of the same guard: a sound nobody plays is dead weight
+    /// in every build, and usually means a caller was renamed and the file was
+    /// not (or the other way round).
+    #[test]
+    fn every_shipped_sound_is_played_by_something() {
+        let assets = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/sounds");
+        for entry in std::fs::read_dir(&assets).expect("assets/sounds").flatten() {
+            let path = entry.path();
+            if path.extension().is_none_or(|ext| !ext.eq_ignore_ascii_case("wav")) {
+                continue;
+            }
+            let stem = path.file_stem().unwrap().to_string_lossy().to_string();
+            // Timer and alarm tones live in subfolders and are chosen by the
+            // user, not played by name; `timer.wav` is the legacy default.
+            if stem == "timer" {
+                continue;
+            }
+            assert!(
+                EFFECTS.iter().any(|(name, _)| *name == stem),
+                "assets/sounds/{stem}.wav is never played by name"
+            );
+        }
+    }
+
     #[test]
     fn bundled_alerts_lists_wavs_by_name() {
         let dir = tempfile::tempdir().unwrap();

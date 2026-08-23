@@ -2693,3 +2693,11 @@ msgstr "{path} copiado"
 #: crates/launchtype-app/src/shell.rs
 msgid "This app has no program file to copy"
 msgstr "Esta aplicación no tiene ningún archivo de programa que copiar"
+
+#: crates/launchtype-core/src/portable.rs
+msgid "Text Launchtype asks you for every time the command runs"
+msgstr "Texto que Launchtype te pide cada vez que se ejecuta el comando"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Query parameter {number}"
+msgstr "Parámetro de consulta {number}"

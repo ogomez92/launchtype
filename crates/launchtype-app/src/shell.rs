@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use launchtype_core::i18n::{format_args, tr, Arg};
 use launchtype_core::mode::UiMode;
+use launchtype_core::query;
 use launchtype_core::settings::SettingsStore;
 use launchtype_services::poller::ClipboardPoller;
 use launchtype_services::runner::run_command;
@@ -24,6 +25,19 @@ use crate::speech::speak_now;
 
 /// Notes are always posted to this channel (created on demand).
 const NOTEBROOK_CHANNEL: &str = "feeds";
+
+/// A command holding `{{query}}` placeholders, waiting for the user to type
+/// what goes in them. Enter answers one and asks for the next; the last one
+/// launches (see [`start_query`]).
+pub struct PendingQuery {
+    /// The command as the list held it, kept whole so the run is still
+    /// recorded against the right id once the answers are in.
+    item: Item,
+    /// How many placeholders `item` holds, across path and arguments.
+    total: usize,
+    /// Answers given so far, in the order they were asked for.
+    answers: Vec<String>,
+}
 
 pub struct Shell {
     pub frame: Frame,
@@ -48,6 +62,9 @@ pub struct Shell {
     /// `-c/--commands` was given, so the Settings commands-file picker must
     /// not fight the command line for the rest of this run.
     pub commands_file_from_cli: bool,
+    /// Set while the input field is collecting a command's `{{query}}`
+    /// parameters instead of searching. `None` the rest of the time.
+    pub pending_query: Option<PendingQuery>,
     /// Live SSH connection for `$` mode, kept between commands.
     pub ssh: Option<SshSession>,
     /// A command is in flight; the next Enter is ignored rather than queued.
@@ -179,6 +196,7 @@ pub fn build_shell(
         cli_snippets_on_invoke,
         cli_quiet,
         commands_file_from_cli,
+        pending_query: None,
         ssh: None,
         ssh_busy: false,
         poller: None,
@@ -602,7 +620,12 @@ fn bind_hide_on_escape<W: WindowEvents>(shell: &SharedShell, target: &W) {
     let shell = shell.clone();
     target.on_key_down(move |event| {
         if is_escape(&event) {
-            shell.borrow().frame.show(false);
+            let mut s = shell.borrow_mut();
+            // Escape is how you back out of a query prompt as well as out of
+            // the window; without this the next Enter would launch the command
+            // you walked away from.
+            end_query(&mut s);
+            s.frame.show(false);
             return;
         }
         event.skip(true);
@@ -632,12 +655,14 @@ pub fn toggle_visibility(shell: &SharedShell) {
         s.frame.is_shown()
     };
     if visible {
-        let s = shell.borrow();
+        let mut s = shell.borrow_mut();
+        end_query(&mut s);
         s.frame.show(false);
         s.sounds.play("hide");
     } else {
         {
             let mut s = shell.borrow_mut();
+            end_query(&mut s);
             s.frame.show(true);
             s.sounds.play("show");
             s.frame.raise();
@@ -664,6 +689,17 @@ pub fn toggle_visibility(shell: &SharedShell) {
 
 pub fn update_list(shell: &SharedShell) {
     let mut s = shell.borrow_mut();
+
+    // A `{{query}}` parameter is being typed, not a search. Nothing about the
+    // normal keystroke handling applies: the text is an answer, so it must not
+    // filter the list, and its first character must not be read as a mode
+    // trigger — plenty of searches start with `?` or `@`. Its own sound says
+    // which of the two the input field is doing.
+    if s.pending_query.is_some() {
+        s.sounds.play("typequery");
+        return;
+    }
+
     // Connecting, and asking for the vault's master password, need the shell
     // unborrowed, so they wait until the end.
     let mut entry = ModeEntry::Nothing;
@@ -755,6 +791,8 @@ enum ModeEntry {
 /// mode's one-time setup, select it and clear the input. Returns what the
 /// caller still has to do once it has dropped the borrow (see [`finish_entry`]).
 fn apply_mode_switch(s: &mut Shell, new_mode: UiMode) -> ModeEntry {
+    // Leaving for another mode abandons whatever command was mid-question.
+    end_query(s);
     speak_now(&mode_announcement(new_mode), true);
     let mut entry = ModeEntry::Nothing;
     match new_mode {
@@ -871,6 +909,13 @@ fn show_modes_menu(shell: &SharedShell) {
 }
 
 pub fn run_clicked(shell: &SharedShell) {
+    // Mid-conversation with a command that wants `{{query}}` parameters:
+    // Enter answers the question rather than running whatever is selected.
+    if shell.borrow().pending_query.is_some() {
+        answer_query(shell);
+        return;
+    }
+
     let mode = shell.borrow().mode;
     if mode == UiMode::Notebrook {
         send_notebrook_note(shell);
@@ -887,6 +932,15 @@ pub fn run_clicked(shell: &SharedShell) {
         let Some(item) = s.items.get(index as usize).cloned() else { return };
         item
     };
+
+    // A command written with `{{query}}` is a template, not something that can
+    // be launched as it stands: ask for the missing text first.
+    if let ItemKind::Command { path, args, .. } = &item.kind {
+        if query::count(path, args) > 0 {
+            start_query(shell, item);
+            return;
+        }
+    }
 
     match item.kind.clone() {
         // Timers and alarms are toggled in place; keep the window open.
@@ -972,17 +1026,98 @@ pub fn run_clicked(shell: &SharedShell) {
         ItemKind::Screenshot { action } => {
             crate::ai_flows::handle_screenshot_action(shell, action)
         }
-        other => {
-            shell.borrow().frame.show(false);
-            let result = run_hidden_action(shell, &item, other);
-            if let Err(message) = result {
-                // Python interpolated this inside _() as an f-string, so the
-                // msgid never existed in the catalog: always English there too.
-                let msg = format!("Something went wrong while running your command: {message}");
-                show_error(&shell.borrow().frame, "Oops...", &msg);
-            }
-        }
+        other => run_and_report(shell, &item, other),
     }
+}
+
+/// Hide the window and run, reporting a failure once it is back up.
+fn run_and_report(shell: &SharedShell, item: &Item, kind: ItemKind) {
+    shell.borrow().frame.show(false);
+    if let Err(message) = run_hidden_action(shell, item, kind) {
+        // Python interpolated this inside _() as an f-string, so the msgid
+        // never existed in the catalog: always English there too.
+        let msg = format!("Something went wrong while running your command: {message}");
+        show_error(&shell.borrow().frame, "Oops...", &msg);
+    }
+}
+
+/// Begin asking for a command's `{{query}}` parameters. The window stays up —
+/// there is a question on screen — and every keystroke from here until the
+/// last answer goes to [`answer_query`] rather than to the search.
+fn start_query(shell: &SharedShell, item: Item) {
+    let ItemKind::Command { path, args, .. } = &item.kind else { return };
+    let total = query::count(path, args);
+    shell.borrow_mut().pending_query = Some(PendingQuery { item, total, answers: Vec::new() });
+    ask_for_query(shell);
+}
+
+/// Empty the field and the list, then ask for the next parameter by number.
+///
+/// The list is cleared rather than left showing the command: the text being
+/// typed is not a filter, so a list that reacted to it would be lying, and one
+/// that sat there unchanged would be read out on every arrow press.
+fn ask_for_query(shell: &SharedShell) {
+    let mut s = shell.borrow_mut();
+    let Some(pending) = &s.pending_query else { return };
+    // Numbered even when there is only one, so "parameter 2" never arrives
+    // without a "parameter 1" having been heard first.
+    let number = pending.answers.len() + 1;
+    let prompt =
+        format_args(&tr("Query parameter {number}"), &[("number", Arg::Int(number as i64))]);
+    s.edit.change_value("");
+    // The field is asking a different question now, so it has to answer to a
+    // different name: this is what a screen reader reads when focus returns.
+    s.edit.set_name(&prompt);
+    s.list.clear();
+    s.items.clear();
+    // The question and the answering are two different sounds: "askquery" is
+    // the field turning into a prompt, "typequery" is you filling it in.
+    s.sounds.play("askquery");
+    speak_now(&prompt, true);
+}
+
+/// Take the typed text as the answer to the question on screen. Asks the next
+/// question, or launches once the last one is in.
+fn answer_query(shell: &SharedShell) {
+    let ready = {
+        let mut s = shell.borrow_mut();
+        let answer = s.edit.get_value();
+        let Some(pending) = s.pending_query.as_mut() else { return };
+        pending.answers.push(answer);
+        pending.answers.len() >= pending.total
+    };
+    if !ready {
+        ask_for_query(shell);
+        return;
+    }
+
+    let pending = {
+        let mut s = shell.borrow_mut();
+        let pending = s.pending_query.take();
+        restore_input_field(&mut s);
+        pending
+    };
+    let Some(pending) = pending else { return };
+    let ItemKind::Command { path, args, run_as_admin } = &pending.item.kind else { return };
+    let (path, args) = query::fill(path, args, &pending.answers);
+    run_and_report(
+        shell,
+        &pending.item,
+        ItemKind::Command { path, args, run_as_admin: *run_as_admin },
+    );
+}
+
+/// Abandon a half-answered query prompt, if there is one.
+fn end_query(s: &mut Shell) {
+    if s.pending_query.take().is_some() {
+        restore_input_field(s);
+    }
+}
+
+/// Put the input field back to being a search box after a query prompt.
+fn restore_input_field(s: &mut Shell) {
+    s.edit.set_name(&tr("Input Field"));
+    s.edit.change_value("");
 }
 
 fn run_hidden_action(shell: &SharedShell, item: &Item, kind: ItemKind) -> Result<(), String> {

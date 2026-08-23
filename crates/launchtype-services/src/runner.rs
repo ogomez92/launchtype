@@ -336,6 +336,52 @@ mod tests {
         assert!(result.is_ok(), "{result:?}");
     }
 
+    /// The whole launch pipeline for the command this feature exists for: one
+    /// stored Google search, filled in at launch, then split and expanded the
+    /// way `run_command` does it. The assertion is literally what the browser
+    /// process is handed.
+    ///
+    /// The comma in the search words is the point. Arguments are one
+    /// comma-separated string, so an unencoded comma would have split the URL
+    /// in half and opened a search for "screen reader" with "braille" as a
+    /// second, meaningless argument.
+    #[test]
+    fn a_google_search_reaches_the_browser_as_one_argument() {
+        let vars = Vars::new(
+            [("chrome".to_string(), VarValue::Path(r"C:\chrome.exe".to_string()))],
+            true,
+            '\\',
+        );
+        let (path, args) = launchtype_core::query::fill(
+            "{{chrome}}",
+            "https://www.google.com/search?q={{query}}",
+            &["screen reader, braille".to_string()],
+        );
+
+        assert_eq!(resolve_target(&path, &vars), Target::Path(r"C:\chrome.exe".to_string()));
+        let split: Vec<String> = arg_segments(&args).iter().map(|a| expand(a, &vars)).collect();
+        assert_eq!(split, vec!["https://www.google.com/search?q=screen%20reader%2C%20braille"]);
+    }
+
+    /// Away from a URL the answer is the user's own text — a file name, a
+    /// search string for a desktop program — and reaches the process as typed,
+    /// alongside the ordinary placeholders in the same argument list.
+    #[test]
+    fn a_query_outside_a_url_reaches_the_program_verbatim() {
+        let vars = Vars::new(
+            [("home".to_string(), VarValue::Path(r"C:\Users\me".to_string()))],
+            true,
+            '\\',
+        );
+        let (_, args) = launchtype_core::query::fill(
+            "",
+            r"-i, {{query}}, {{home}}\notes",
+            &["to do".to_string()],
+        );
+        let split: Vec<String> = arg_segments(&args).iter().map(|a| expand(a, &vars)).collect();
+        assert_eq!(split, vec!["-i", "to do", r"C:\Users\me\notes"]);
+    }
+
     /// Arguments reach the process unquoted: a quoted path used to be passed
     /// through with its quotes, which the target program saw as part of the
     /// name. (The elevated path re-quotes, since it builds one string.)

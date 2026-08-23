@@ -11,6 +11,7 @@ use launchtype_core::i18n::{format_args, tr, Arg};
 use launchtype_core::merge;
 use launchtype_core::model::Command;
 use launchtype_core::portable::{self, Target, VarSpec};
+use launchtype_core::query;
 use launchtype_core::timers::TimerDef;
 use launchtype_services::sounds::{SoundPlayer, ALARM_SOUNDS, TIMER_SOUNDS};
 use wxdragon::dialogs::dir_dialog::DirDialog;
@@ -170,10 +171,13 @@ fn variable_menu_button(
     // value (`{{onedrive}}` without OneDrive installed) would leave the literal
     // text in the command. Menu ids are `base_id + index into this list`, so both
     // closures below share the same filtered vec.
+    //
+    // `{{query}}` leads the menu and is exempt from that filter: it is the one
+    // placeholder that is *meant* to have no value here, and it is the reason
+    // most people open this menu now.
     let vars = launchtype_services::portable::vars();
-    let specs: Vec<VarSpec> = portable::all_specs()
-        .into_iter()
-        .filter(|spec| vars.get(spec.name).is_some())
+    let specs: Vec<VarSpec> = std::iter::once(portable::QUERY_VAR)
+        .chain(portable::all_specs().into_iter().filter(|spec| vars.get(spec.name).is_some()))
         .collect();
     {
         let dialog = *dialog;
@@ -365,11 +369,14 @@ pub fn command_edition_dialog(
                 return;
             }
             // {{browser}} names a handler rather than a file, so there is
-            // nothing on disk to check.
-            if let Target::Path(resolved) = portable::resolve_target(&path, vars) {
-                if !std::path::Path::new(&resolved).exists() {
-                    error_box(&dialog, &tr("This path is incorrect."), "Error");
-                    return;
+            // nothing on disk to check — and neither is there when part of the
+            // path is only typed in as the command launches.
+            if query::count(&path, "") == 0 {
+                if let Target::Path(resolved) = portable::resolve_target(&path, vars) {
+                    if !std::path::Path::new(&resolved).exists() {
+                        error_box(&dialog, &tr("This path is incorrect."), "Error");
+                        return;
+                    }
                 }
             }
             if name_entry.get_value().is_empty() {

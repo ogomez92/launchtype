@@ -124,9 +124,33 @@ Windows-style backslashes are translated automatically, so `{{home}}\stuff\notes
 
 `{{chrome}}`, `{{firefox}}`, `{{edge}}`, `{{brave}}`, `{{vivaldi}}`, `{{opera}}` and `{{safari}}` name a specific browser, so you can keep some links in one browser and some in another. Each is looked up in the usual install locations for the current platform, and **falls back to `{{browser}}` when that browser is not installed** — a `{{chrome}}` command still opens on a Mac that only has Safari, rather than failing.
 
+### The query variable
+
+`{{query}}` is the one variable no machine can answer: Launchtype asks *you* for it, every time the command runs. It turns a command into a template, so one saved command covers everything you might ever want to look up instead of one command per search.
+
+```
+Path:      {{browser}}
+Arguments: https://www.google.com/search?q={{query}}
+Name:      google
+```
+
+Run that and the window stays up: the input field is now asking for the search words rather than searching your commands, and your screen reader says "Query parameter 1" over its own sound. Type what you are looking for, press Enter, and the browser opens on the results. Nothing filters while you type — the text is the answer, not a search — so a query may start with `?`, `@` or any other mode character without switching modes, and a distinct typing sound plays on each keystroke so you can hear which of the two the input field is doing.
+
+A command may hold as many as it likes, in the path as well as in the arguments. They are asked for in the order they appear, path first, announced as "Query parameter 1", "Query parameter 2" and so on, and the command launches once the last one is in. Escape backs out without running anything.
+
+Answers landing inside a URL are percent-encoded, so spaces, accents, ampersands and commas all survive: searching for `cats, dogs` opens one search for `cats, dogs` rather than two arguments. Anywhere else the answer is passed through exactly as typed, because a `{{query}}` standing in for a file name has to stay a file name:
+
+```
+Path:      {{home}}\bin\rg.exe
+Arguments: -i, {{query}}, {{documents}}
+Name:      search my documents
+```
+
+Wikipedia works the same way, with the answer in the path of the URL rather than in a query string: `https://en.wikipedia.org/wiki/{{query}}`.
+
 ### Adding them
 
-In the Add and Edit Command dialogs, the "Path variable..." and "Argument variable..." buttons open a menu of every variable with its description and what it resolves to on this machine. Choosing one inserts it where the cursor is and leaves you in the field, so you can carry on typing.
+In the Add and Edit Command dialogs, the "Path variable..." and "Argument variable..." buttons open a menu of every variable with its description and what it resolves to on this machine. `{{query}}` leads the menu — it is the one with nothing to resolve. Choosing one inserts it where the cursor is and leaves you in the field, so you can carry on typing.
 
 The Browse button also does this for you: pick a file inside your user folder and it is stored as `{{home}}\...` rather than with your user name baked in.
 
@@ -472,6 +496,8 @@ The app provides audio cues for various actions:
 - Show/hide sounds when toggling the window
 - Match sound when an exact shortcut is found
 - Type sound when search results update
+- Ask sound when a command starts asking for a `{{query}}` parameter, alongside the spoken "Query parameter 1"
+- Query typing sound on every keystroke while you answer it, in place of the match/type sounds — the input field is taking an answer, not searching
 - Run sound when executing a command or launching a game
 - Copy sound when copying a snippet or clipboard item
 

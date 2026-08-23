@@ -14,6 +14,7 @@ pub mod merge;
 pub mod mode;
 pub mod model;
 pub mod portable;
+pub mod query;
 pub mod realtime;
 pub mod search;
 pub mod settings;

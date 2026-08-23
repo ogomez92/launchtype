@@ -124,9 +124,33 @@ Las barras invertidas de Windows se traducen automáticamente, así que `{{home}
 
 `{{chrome}}`, `{{firefox}}`, `{{edge}}`, `{{brave}}`, `{{vivaldi}}`, `{{opera}}` y `{{safari}}` nombran un navegador concreto, para que puedas mantener unos enlaces en un navegador y otros en otro. Cada uno se busca en las ubicaciones de instalación habituales de la plataforma actual y **recurre a `{{browser}}` cuando ese navegador no está instalado**: un comando con `{{chrome}}` sigue abriéndose en un Mac que solo tenga Safari, en lugar de fallar.
 
+### La variable de consulta
+
+`{{query}}` es la única variable que ningún equipo puede resolver: Launchtype te la pide *a ti*, cada vez que se ejecuta el comando. Convierte un comando en una plantilla, de modo que un solo comando guardado cubre todo lo que quieras buscar, en lugar de un comando por búsqueda.
+
+```
+Ruta:       {{browser}}
+Argumentos: https://www.google.com/search?q={{query}}
+Nombre:     google
+```
+
+Al ejecutarlo la ventana se queda abierta: el campo de entrada pasa a pedirte las palabras de la búsqueda en vez de buscar entre tus comandos, y tu lector de pantalla dice "Parámetro de consulta 1" acompañado de su propio sonido. Escribe lo que buscas, pulsa Intro y el navegador abre los resultados. Mientras escribes no se filtra nada (el texto es la respuesta, no una búsqueda), así que una consulta puede empezar por `?`, `@` o cualquier otro carácter de modo sin cambiar de modo, y suena un sonido de escritura distinto en cada pulsación para que oigas cuál de las dos cosas está haciendo el campo.
+
+Un comando puede llevar tantas como quiera, tanto en la ruta como en los argumentos. Se piden en el orden en que aparecen, primero la ruta, anunciadas como "Parámetro de consulta 1", "Parámetro de consulta 2", etc., y el comando se lanza en cuanto entra la última. Escape se sale sin ejecutar nada.
+
+Las respuestas que caen dentro de una URL se codifican en porcentaje, así que sobreviven los espacios, los acentos, los ampersands y las comas: buscar `gatos, perros` abre una única búsqueda de `gatos, perros` en lugar de dos argumentos. En cualquier otro sitio la respuesta pasa tal cual se escribió, porque un `{{query}}` que hace de nombre de archivo tiene que seguir siendo un nombre de archivo:
+
+```
+Ruta:       {{home}}\bin\rg.exe
+Argumentos: -i, {{query}}, {{documents}}
+Nombre:     buscar en mis documentos
+```
+
+Wikipedia funciona igual, con la respuesta en la ruta de la URL en vez de en la cadena de consulta: `https://es.wikipedia.org/wiki/{{query}}`.
+
 ### Cómo añadirlas
 
-En los diálogos Añadir y Editar comando, los botones "Variable de ruta..." y "Variable de argumento..." abren un menú con todas las variables, su descripción y a qué se resuelven en este equipo. Al elegir una se inserta donde está el cursor y el foco se queda en el campo, para que puedas seguir escribiendo.
+En los diálogos Añadir y Editar comando, los botones "Variable de ruta..." y "Variable de argumento..." abren un menú con todas las variables, su descripción y a qué se resuelven en este equipo. `{{query}}` encabeza el menú: es la única que no tiene nada que resolver. Al elegir una se inserta donde está el cursor y el foco se queda en el campo, para que puedas seguir escribiendo.
 
 El botón Examinar también lo hace por ti: si eliges un archivo dentro de tu carpeta de usuario, se guarda como `{{home}}\...` en lugar de dejar tu nombre de usuario fijado.
 
@@ -472,6 +496,8 @@ La aplicación emite sonidos ante distintas acciones:
 - Sonidos de mostrar/ocultar al alternar la ventana
 - Sonido de coincidencia cuando se encuentra un acceso abreviado exacto
 - Sonido al escribir cuando cambian los resultados de búsqueda
+- Sonido de pregunta cuando un comando empieza a pedir un parámetro `{{query}}`, junto con el "Parámetro de consulta 1" hablado
+- Sonido de escritura de consulta en cada pulsación mientras respondes, en lugar de los sonidos de coincidencia y de escritura: el campo de entrada está recogiendo una respuesta, no buscando
 - Sonido al ejecutar un comando o lanzar un juego
 - Sonido al copiar una sustitución o un elemento del portapapeles
 
