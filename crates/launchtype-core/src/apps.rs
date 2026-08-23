@@ -5,13 +5,14 @@
 //! Two things are worth doing here rather than in the scanner. A scanner can
 //! read the same app twice — macOS asks Spotlight *and* walks the applications
 //! folders — and the names come back in whatever case and whatever language the
-//! machine chose, while a launcher row has to be lowercased to match and folded
-//! to sort. Both are pure, so both are tested.
+//! machine chose, while a launcher row has to be folded to sort. Both are pure,
+//! so both are tested.
 
 /// One launchable application.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct App {
-    /// Display name, lowercased for matching like every other launcher item.
+    /// Display name, spelled the way the OS spells it. Matching folds case
+    /// itself, so there is nothing to gain by flattening it here.
     pub name: String,
     pub target: AppTarget,
 }
@@ -42,7 +43,7 @@ impl AppTarget {
 }
 
 /// The display name for a launchable file: the file name without its
-/// extension, lowercased. Used where the scanner has a path and no name of its
+/// extension. Used where the scanner has a path and no name of its
 /// own — the macOS bundle walk today, a Start Menu shortcut walk if one is ever
 /// needed. (Windows has no use for it: the shell hands over the display name
 /// alongside the target.)
@@ -62,11 +63,11 @@ pub fn display_name(path: &str) -> Option<String> {
         _ => file_name,
     };
     let name = stem.trim();
-    (!name.is_empty()).then(|| name.to_lowercase())
+    (!name.is_empty()).then(|| name.to_string())
 }
 
-/// Normalise a raw scan into the list the mode shows: names lowercased and
-/// trimmed, blanks dropped, duplicates collapsed, sorted by name.
+/// Normalise a raw scan into the list the mode shows: names trimmed, blanks
+/// dropped, duplicates collapsed, sorted by name.
 ///
 /// Duplicates are decided by target, not by name. Plenty of unrelated programs
 /// ship a "Documentation" or an "Uninstall" entry, and collapsing those by name
@@ -77,12 +78,13 @@ pub fn display_name(path: &str) -> Option<String> {
 /// Sorting is by the [`crate::i18n::fold`]ed name, not the raw one: this list
 /// comes from the OS in the OS's language, and comparing bytes would file every
 /// accented name — "Álbumes compartidos", "Administración de impresión" — after
-/// the whole ASCII alphabet instead of next to its neighbours.
+/// the whole ASCII alphabet instead of next to its neighbours, and every
+/// capitalised name ahead of every lowercase one.
 pub fn normalize(apps: Vec<App>) -> Vec<App> {
     let mut seen: std::collections::HashSet<AppTarget> = std::collections::HashSet::new();
     let mut kept: Vec<App> = Vec::with_capacity(apps.len());
     for app in apps {
-        let name = app.name.trim().to_lowercase();
+        let name = app.name.trim().to_string();
         if name.is_empty() || app.target.as_str().trim().is_empty() {
             continue;
         }
@@ -129,15 +131,15 @@ mod tests {
 
     #[test]
     fn display_names_drop_the_folder_and_the_extension() {
-        assert_eq!(display_name("/Applications/Google Chrome.app").unwrap(), "google chrome");
-        assert_eq!(display_name("/Applications/Utilities/Terminal.app/").unwrap(), "terminal");
+        assert_eq!(display_name("/Applications/Google Chrome.app").unwrap(), "Google Chrome");
+        assert_eq!(display_name("/Applications/Utilities/Terminal.app/").unwrap(), "Terminal");
         let start_menu = r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\7-Zip";
         assert_eq!(
             display_name(&format!(r"{start_menu}\7-Zip File Manager.lnk")).unwrap(),
-            "7-zip file manager"
+            "7-Zip File Manager"
         );
         // A dotted name keeps everything but the last segment.
-        assert_eq!(display_name("/Applications/Node.js 20.app").unwrap(), "node.js 20");
+        assert_eq!(display_name("/Applications/Node.js 20.app").unwrap(), "Node.js 20");
     }
 
     #[test]
@@ -151,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn normalize_lowercases_sorts_and_drops_blanks() {
+    fn normalize_trims_sorts_and_drops_blanks() {
         let apps = normalize(vec![
             aumid("Notepad", "{GUID}\\notepad.exe"),
             aumid("Calculator", "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App"),
@@ -159,7 +161,7 @@ mod tests {
             aumid("Nowhere", "   "),
         ]);
         let names: Vec<&str> = apps.iter().map(|a| a.name.as_str()).collect();
-        assert_eq!(names, ["calculator", "notepad"]);
+        assert_eq!(names, ["Calculator", "Notepad"]);
     }
 
     /// The same app reached two ways is one row; two different apps that happen
@@ -174,9 +176,9 @@ mod tests {
         ]);
         assert_eq!(apps.len(), 3);
         // First name wins for a repeated target.
-        assert_eq!(apps[0].name, "firefox");
-        assert_eq!(apps[1].name, "uninstall");
-        assert_eq!(apps[2].name, "uninstall");
+        assert_eq!(apps[0].name, "Firefox");
+        assert_eq!(apps[1].name, "Uninstall");
+        assert_eq!(apps[2].name, "Uninstall");
         assert_ne!(apps[1].target, apps[2].target);
     }
 
@@ -193,7 +195,7 @@ mod tests {
         let names: Vec<&str> = apps.iter().map(|a| a.name.as_str()).collect();
         assert_eq!(
             names,
-            ["administración de equipos", "álbumes compartidos", "bloc de notas", "zoom"]
+            ["Administración de equipos", "Álbumes compartidos", "Bloc de notas", "Zoom"]
         );
     }
 
@@ -210,7 +212,7 @@ mod tests {
         ]);
         let kept = without_steam(apps);
         let names: Vec<&str> = kept.iter().map(|a| a.name.as_str()).collect();
-        assert_eq!(names, ["firefox", "steam"]);
+        assert_eq!(names, ["Firefox", "Steam"]);
     }
 
     /// Rows are read out one after another, so equal names must not shuffle

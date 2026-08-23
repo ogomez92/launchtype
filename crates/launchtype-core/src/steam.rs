@@ -4,7 +4,7 @@
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SteamGame {
-    /// Lowercased for matching, like every launcher item name.
+    /// Spelled the way the manifest spells it; matching folds case itself.
     pub name: String,
     pub appid: String,
 }
@@ -40,7 +40,7 @@ pub fn parse_appmanifest(content: &str) -> Option<SteamGame> {
     if name.is_empty() {
         return None;
     }
-    Some(SteamGame { name: name.to_lowercase(), appid: appid.to_string() })
+    Some(SteamGame { name: name.to_string(), appid: appid.to_string() })
 }
 
 #[cfg(test)]
@@ -59,10 +59,10 @@ mod tests {
 "#;
 
     #[test]
-    fn parses_appid_and_lowercased_name() {
+    fn parses_appid_and_name() {
         let game = parse_appmanifest(MANIFEST).unwrap();
         assert_eq!(game.appid, "620");
-        assert_eq!(game.name, "portal 2");
+        assert_eq!(game.name, "Portal 2");
     }
 
     #[test]

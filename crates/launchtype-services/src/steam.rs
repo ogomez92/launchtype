@@ -53,8 +53,8 @@ mod tests {
 
         let games = scan_games(dir.path());
         assert_eq!(games.len(), 2);
-        assert_eq!(games[0].name, "portal 2");
-        assert_eq!(games[1].name, "team fortress 2");
+        assert_eq!(games[0].name, "Portal 2");
+        assert_eq!(games[1].name, "Team Fortress 2");
         assert_eq!(rungameid_url(&games[0].appid), "steam://rungameid/620");
     }
 

@@ -47,8 +47,11 @@ impl CommandsStore {
         let _ = atomic_write_json(&self.path, &self.file, None);
     }
 
-    /// Add a command (name and shortcut lowercased, like the Python dialog
-    /// path) and persist. Returns the stored command.
+    /// Add a command and persist. The shortcut is lowercased, like the Python
+    /// dialog path — `shortcut_exists` and the dialog's duplicate check both
+    /// compare it raw against a lowercased input. The display name is stored
+    /// as typed: nothing matches on it without folding case first.
+    /// Returns the stored command.
     pub fn add_command(
         &mut self,
         path: &str,
@@ -60,7 +63,7 @@ impl CommandsStore {
     ) -> Command {
         let command = Command {
             path: path.to_string(),
-            name: name.to_lowercase(),
+            name: name.to_string(),
             args: Some(args.to_string()),
             shortcut: Some(shortcut.to_lowercase()),
             id: uuid::Uuid::new_v4().to_string(),

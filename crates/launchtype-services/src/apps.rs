@@ -353,7 +353,7 @@ mod tests {
         assert!(apps.len() > 5, "only {} apps found", apps.len());
         for app in &apps {
             assert!(!app.name.is_empty());
-            assert_eq!(app.name, app.name.to_lowercase(), "{} is not lowercased", app.name);
+            assert_eq!(app.name, app.name.trim(), "{} is not trimmed", app.name);
             assert!(!app.target.as_str().is_empty(), "{} has no target", app.name);
         }
     }

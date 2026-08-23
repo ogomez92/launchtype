@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Command {
     pub path: String,
-    /// Display name, stored lowercase for matching.
+    /// Display name, stored as typed. Search folds case itself, and so does
+    /// the import dedupe in `merge`.
     pub name: String,
     /// Comma-separated argument string (NOT a list), as typed in the dialog.
     #[serde(default, skip_serializing_if = "Option::is_none")]
