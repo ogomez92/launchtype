@@ -17,6 +17,7 @@ use launchtype_core::stats::stats_labels;
 use launchtype_core::units;
 use launchtype_core::vault::VaultSession;
 use launchtype_services::apps::scan_apps;
+use launchtype_core::placeholders::Placeholders;
 use launchtype_services::snippets::{load_snippets, Snippet};
 use launchtype_services::sounds::SoundPlayer;
 use launchtype_services::steam::scan_games;
@@ -47,6 +48,10 @@ pub struct Item {
 pub enum ItemKind {
     Command { path: String, args: String, run_as_admin: bool },
     Snippet,
+    /// One of the user's own `{{name}}` variables. Its `name` is the text it
+    /// stands for and its `id` is the variable's name, the way the store
+    /// knows it.
+    Variable,
     Clip,
     Steam { appid: String },
     /// An installed application, launched through whatever listed it.
@@ -78,6 +83,9 @@ pub struct ModeController {
     pub commands: CommandsStore,
     pub sort_by_uses: bool,
     pub snippets: Vec<Snippet>,
+    /// The user's own `{{name}}` variables, reloaded on entering their mode
+    /// so a hand-edited `placeholders.json` shows up without a restart.
+    pub variables: Arc<Placeholders>,
     pub clipboard: Arc<Mutex<ClipboardHistory>>,
     /// Shared with the auto-lock thread, which wipes the key on idle.
     pub vault: Arc<Mutex<VaultSession>>,
@@ -114,6 +122,7 @@ impl ModeController {
             commands,
             sort_by_uses,
             snippets: Vec::new(),
+            variables: Arc::new(Placeholders::default()),
             clipboard,
             vault,
             timers,
@@ -132,6 +141,11 @@ impl ModeController {
         self.snippets = load_snippets(std::path::Path::new("."));
     }
 
+    pub fn reload_variables(&mut self) {
+        launchtype_services::placeholders::reload();
+        self.variables = launchtype_services::placeholders::current();
+    }
+
     pub fn rescan_steam(&mut self) {
         self.steam_games = scan_games(&self.steam_library);
     }
@@ -145,6 +159,7 @@ impl ModeController {
         match mode {
             UiMode::Commands => self.command_items(search),
             UiMode::Snippets => self.snippet_items(search),
+            UiMode::Variables => self.variable_items(search),
             UiMode::Clipboard => self.clipboard_items(search),
             UiMode::Steam => self.steam_items(search),
             UiMode::Apps => self.app_items(search),
@@ -222,6 +237,33 @@ impl ModeController {
             return vec![items[index].clone()];
         }
         // Fuzzy over "shortcut contents", like the Python snippet search.
+        let results = fuzzy_search(search, items, |i| format!("{} {}", i.shortcut, i.name));
+        self.sounds.play("type");
+        results
+    }
+
+    /// The user's own variables, searched the way snippets are: an exact
+    /// name wins outright, otherwise fuzzy over "name text" so you can find
+    /// one by what it says as well as by what it is called.
+    fn variable_items(&self, search: &str) -> Vec<Item> {
+        let items: Vec<Item> = self
+            .variables
+            .entries()
+            .iter()
+            .map(|(name, text)| Item {
+                name: text.clone(),
+                shortcut: name.clone(),
+                id: name.clone(),
+                kind: ItemKind::Variable,
+            })
+            .collect();
+        if search.is_empty() {
+            return items;
+        }
+        if let Some(index) = exact_shortcut_match(search, &items, |i| i.shortcut.clone()) {
+            self.sounds.play("match");
+            return vec![items[index].clone()];
+        }
         let results = fuzzy_search(search, items, |i| format!("{} {}", i.shortcut, i.name));
         self.sounds.play("type");
         results

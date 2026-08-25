@@ -32,6 +32,8 @@ behavioral reference: when in doubt, compare side by side on the same data.
       argument its containing folder, and with neither it speaks
       "No folder in this command's arguments" (Windows Terminal / Terminal.app)
 - [ ] Snippets: copy to clipboard with "copy" sound; apple_snippets.plist entries present
+- [ ] Substitution variables (`_`): the user's own `{{name}}` variables, listed
+      with Add / Edit / Delete working on them
 - [ ] Clipboard history: items numbered 1-50, re-copying moves to front
 - [ ] Steam: games listed, launch works (steam:// URL)
 - [ ] Applications: `@` announces the mode and lists what the Start Menu lists
@@ -238,6 +240,45 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Restarting after a fix does NOT show the dialog again
 - [ ] Elevated (run_as_admin) command with a quoted, spaced argument still
       receives it as one argument
+
+## Parameters a command or snippet asks for
+- [ ] A command with two `{{query}}`s asks twice, announcing "Query parameter 1"
+      then "Query parameter 2", each over the ask sound
+- [ ] While answering, every keystroke plays the query typing sound instead of
+      the match/type sounds, the list stays empty, and a leading `?` or `@` does
+      NOT switch mode
+- [ ] Escape backs out; the input field goes back to being announced as
+      "Input Field" and the next Enter does not launch the abandoned command
+- [ ] A snippet holding `{{informe}}` asks "informe, query parameter 1" — the
+      NAME first — and puts the filled text on the clipboard with the copy sound
+- [ ] The same name twice in one snippet is asked ONCE and filled in both places
+- [ ] `{{Informe}}` and `{{ informe }}` are one question, put in the first
+      spelling written
+- [ ] A snippet holding only `{{fecha}}` never asks; it copies with today's date
+      as day/month/year, and `{{date}}` as month/day/year
+- [ ] Add Snippet dialog: the help line above Contents is announced, and
+      "Insert variable..." lists the clock and your own variables
+- [ ] In snippets mode the Add button adds a SNIPPET (not a command), and there
+      is no longer a "New snipet" button in any other mode
+
+## Variables of your own (`_`)
+- [ ] `_` announces "substitution variables mode" and lists every variable as
+      its text with `(name)` after it; searching finds one by either
+- [ ] Add opens Add Variable; Edit opens it seeded with the selected one; Delete
+      removes it — and the list refreshes each time without leaving the mode
+- [ ] Renaming one in Edit does not leave the old name behind
+- [ ] Enter opens Edit Variable on the selected one, same as the Edit button
+- [ ] A name that is already a Launchtype variable (`home`, `query`, `fecha`) is
+      refused with the reason, and the dialog stays open
+- [ ] A name with a brace in it is refused
+- [ ] The dialog's own "Insert variable..." writes a variable out of the others
+- [ ] `snippets/placeholders.json` holds them, is readable by hand, and a
+      hand-edited one is picked up on the next use — and does NOT appear in the
+      snippets list as a snippet called "placeholders"
+- [ ] A variable used in a command's arguments expands at launch
+- [ ] A variable holding `{{fecha}}` expands that too, and one holding
+      `{{informe}}` makes the snippet using it ask for the informe
+- [ ] A variable that names itself comes out as `{{name}}` rather than hanging
 
 ## CLI flags
 - [ ] -q silences effect sounds (alerts still audible)

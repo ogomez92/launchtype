@@ -7,6 +7,7 @@ pub mod alerts;
 pub mod apps;
 pub mod clipboard;
 pub mod notebrook;
+pub mod placeholders;
 pub mod poller;
 pub mod portable;
 pub mod realtime;

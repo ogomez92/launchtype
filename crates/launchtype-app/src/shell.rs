@@ -10,6 +10,7 @@ use launchtype_core::i18n::{format_args, tr, Arg};
 use launchtype_core::mode::UiMode;
 use launchtype_core::query;
 use launchtype_core::settings::SettingsStore;
+use launchtype_core::snippet_vars::{self, Ask};
 use launchtype_services::poller::ClipboardPoller;
 use launchtype_services::runner::run_command;
 use launchtype_services::scheduler::Scheduler;
@@ -26,15 +27,17 @@ use crate::speech::speak_now;
 /// Notes are always posted to this channel (created on demand).
 const NOTEBROOK_CHANNEL: &str = "feeds";
 
-/// A command holding `{{query}}` placeholders, waiting for the user to type
+/// A command or a snippet holding placeholders, waiting for the user to type
 /// what goes in them. Enter answers one and asks for the next; the last one
-/// launches (see [`start_query`]).
+/// launches, or copies (see [`start_query`]).
 pub struct PendingQuery {
-    /// The command as the list held it, kept whole so the run is still
-    /// recorded against the right id once the answers are in.
+    /// The item as the list held it, kept whole so the run is still recorded
+    /// against the right id once the answers are in.
     item: Item,
-    /// How many placeholders `item` holds, across path and arguments.
-    total: usize,
+    /// What is still being asked for, in the order it will be asked. A
+    /// command's are every `{{query}}` in its path and arguments; a snippet's
+    /// may be named (see [`launchtype_core::snippet_vars`]).
+    asks: Vec<Ask>,
     /// Answers given so far, in the order they were asked for.
     answers: Vec<String>,
 }
@@ -159,7 +162,6 @@ pub fn build_shell(
     let terminal_button =
         Button::builder(&panel).with_label(&tr("Open in &Terminal (Alt+T)")).build();
     let snippets_button = Button::builder(&panel).with_label(&tr("Open &Snippets folder")).build();
-    let new_snippet_button = Button::builder(&panel).with_label(&tr("&New snipet")).build();
     let run_button = Button::builder(&panel).with_label(&tr("&Run")).build();
     let modes_button = Button::builder(&panel).with_label(&tr("&Modes (Alt+M)")).build();
     let help_button = Button::builder(&panel).with_label(&tr("&Help")).build();
@@ -169,8 +171,8 @@ pub fn build_shell(
     let exit_button = Button::builder(&panel).with_label(&tr("E&xit")).build();
     for b in [
         &add_button, &edit_button, &copy_button, &delete_button, &copy_args_button,
-        &terminal_button, &snippets_button, &new_snippet_button, &run_button, &modes_button,
-        &help_button, &settings_button, &merge_button, &exit_button,
+        &terminal_button, &snippets_button, &run_button, &modes_button, &help_button,
+        &settings_button, &merge_button, &exit_button,
     ] {
         button_sizer.add(b, 0, SizerFlag::All, 0);
     }
@@ -210,15 +212,15 @@ pub fn build_shell(
         &shell,
         [
             add_button, edit_button, copy_button, delete_button, copy_args_button,
-            terminal_button, snippets_button, new_snippet_button, run_button, modes_button,
-            help_button, settings_button, merge_button, exit_button,
+            terminal_button, snippets_button, run_button, modes_button, help_button,
+            settings_button, merge_button, exit_button,
         ],
     );
     shell
 }
 
-fn bind_events(shell: &SharedShell, buttons: [Button; 14]) {
-    let [add_button, edit_button, copy_button, delete_button, copy_args_button, terminal_button, snippets_button, new_snippet_button, run_button, modes_button, help_button, settings_button, merge_button, exit_button] =
+fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
+    let [add_button, edit_button, copy_button, delete_button, copy_args_button, terminal_button, snippets_button, run_button, modes_button, help_button, settings_button, merge_button, exit_button] =
         buttons;
     let (frame, edit, list, panel, sort_choice) = {
         let s = shell.borrow();
@@ -296,6 +298,20 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 14]) {
                     UiMode::Alarms => {
                         crate::dialogs::alarm_dialog(&frame, &mut s.controller, None);
                     }
+                    // Add means "add one of these", so in snippets and
+                    // variables modes it adds a snippet and a variable. That
+                    // is what lets the button row hold one Add rather than one
+                    // per kind of thing.
+                    UiMode::Snippets => {
+                        if crate::dialogs::snippet_dialog(&frame, None) {
+                            s.controller.reload_snippets();
+                        }
+                    }
+                    UiMode::Variables => {
+                        if crate::dialogs::variable_dialog(&frame, None) {
+                            s.controller.reload_variables();
+                        }
+                    }
                     _ => {
                         crate::dialogs::command_edition_dialog(&frame, &mut s.controller, None);
                     }
@@ -331,6 +347,14 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 14]) {
                             Some((item.shortcut.clone(), item.name.clone())),
                         ) {
                             s.controller.reload_snippets();
+                        }
+                    }
+                    ItemKind::Variable => {
+                        if crate::dialogs::variable_dialog(
+                            &frame,
+                            Some((item.shortcut.clone(), item.name.clone())),
+                        ) {
+                            s.controller.reload_variables();
                         }
                     }
                     // Timers and alarms live in their own stores, not in
@@ -414,21 +438,6 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 14]) {
     }
     {
         let shell = shell.clone();
-        new_snippet_button.on_click(move |_| {
-            {
-                let mut s = shell.borrow_mut();
-                let frame = s.frame;
-                if crate::dialogs::snippet_dialog(&frame, None) {
-                    s.controller.reload_snippets();
-                }
-                s.edit.change_value("");
-            }
-            update_list(&shell);
-            toggle_visibility(&shell);
-        });
-    }
-    {
-        let shell = shell.clone();
         settings_button.on_click(move |_| {
             {
                 let mut s = shell.borrow_mut();
@@ -481,6 +490,17 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 14]) {
             // it opens a dialog to do it.
             if matches!(item.kind, ItemKind::VaultEntry) {
                 crate::vault_flows::delete_entry(&shell, &item.id, &item.name);
+                return;
+            }
+            // A variable lives in its own file, and its id is its name.
+            if matches!(item.kind, ItemKind::Variable) {
+                let mut s = shell.borrow_mut();
+                match launchtype_services::placeholders::forget(&item.id) {
+                    Ok(_) => s.controller.reload_variables(),
+                    Err(error) => log::warn!("variable delete failed: {error}"),
+                }
+                drop(s);
+                update_list(&shell);
                 return;
             }
             {
@@ -585,8 +605,8 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 14]) {
     bind_hide_on_escape(shell, &sort_choice);
     for button in [
         &add_button, &edit_button, &copy_button, &delete_button, &copy_args_button,
-        &terminal_button, &snippets_button, &new_snippet_button, &run_button, &modes_button,
-        &help_button, &settings_button, &merge_button, &exit_button,
+        &terminal_button, &snippets_button, &run_button, &modes_button, &help_button,
+        &settings_button, &merge_button, &exit_button,
     ] {
         bind_hide_on_escape(shell, button);
     }
@@ -797,6 +817,7 @@ fn apply_mode_switch(s: &mut Shell, new_mode: UiMode) -> ModeEntry {
     let mut entry = ModeEntry::Nothing;
     match new_mode {
         UiMode::Snippets => s.controller.reload_snippets(),
+        UiMode::Variables => s.controller.reload_variables(),
         UiMode::Steam => s.controller.rescan_steam(),
         // Rescanned on every entry, like Steam: programs get installed while
         // the launcher sits in the tray, and a stale list is a mode that
@@ -861,6 +882,7 @@ fn mode_announcement(mode: UiMode) -> String {
         UiMode::Emoji => tr("emoji mode, type a description and press enter to copy"),
         UiMode::Units => tr("unit conversion mode, type a number and choose a conversion"),
         UiMode::Vault => tr("encrypted vault mode"),
+        UiMode::Variables => tr("substitution variables mode"),
         UiMode::Regions => unreachable!("no trigger char"),
     }
 }
@@ -870,6 +892,7 @@ fn mode_name(mode: UiMode) -> String {
     match mode {
         UiMode::Commands => tr("Commands"),
         UiMode::Snippets => tr("Snippets"),
+        UiMode::Variables => tr("Substitution variables"),
         UiMode::Clipboard => tr("Clipboard history"),
         UiMode::Steam => tr("Steam games"),
         UiMode::Apps => tr("Applications"),
@@ -933,13 +956,49 @@ pub fn run_clicked(shell: &SharedShell) {
         item
     };
 
-    // A command written with `{{query}}` is a template, not something that can
-    // be launched as it stands: ask for the missing text first.
-    if let ItemKind::Command { path, args, .. } = &item.kind {
-        if query::count(path, args) > 0 {
-            start_query(shell, item);
+    // A command written with `{{query}}`, or a snippet written with `{{any
+    // name}}`, is a template rather than something that can be used as it
+    // stands: ask for the missing text first.
+    match &item.kind {
+        ItemKind::Command { path, args, .. } => {
+            let count = query::count(path, args);
+            if count > 0 {
+                start_query(shell, item, vec![Ask::Positional; count]);
+                return;
+            }
+        }
+        // Enter on a variable edits it. There is nothing to launch and nothing
+        // worth copying — a variable is used by *naming* it from a snippet or
+        // a command — so the useful thing to do with the one you have arrowed
+        // to is change what it says.
+        ItemKind::Variable => {
+            {
+                let mut s = shell.borrow_mut();
+                let frame = s.frame;
+                if crate::dialogs::variable_dialog(
+                    &frame,
+                    Some((item.shortcut.clone(), item.name.clone())),
+                ) {
+                    s.controller.reload_variables();
+                }
+                s.edit.change_value("");
+            }
+            update_list(shell);
             return;
         }
+        ItemKind::Snippet => {
+            let asks =
+                snippet_vars::questions(&item.name, &launchtype_services::portable::vars());
+            if asks.is_empty() {
+                // Nothing to ask, but there may still be a `{{fecha}}` for the
+                // computer to answer on the way to the clipboard.
+                copy_snippet(shell, &item, &[]);
+            } else {
+                start_query(shell, item, asks);
+            }
+            return;
+        }
+        _ => {}
     }
 
     match item.kind.clone() {
@@ -1041,17 +1100,15 @@ fn run_and_report(shell: &SharedShell, item: &Item, kind: ItemKind) {
     }
 }
 
-/// Begin asking for a command's `{{query}}` parameters. The window stays up —
-/// there is a question on screen — and every keystroke from here until the
-/// last answer goes to [`answer_query`] rather than to the search.
-fn start_query(shell: &SharedShell, item: Item) {
-    let ItemKind::Command { path, args, .. } = &item.kind else { return };
-    let total = query::count(path, args);
-    shell.borrow_mut().pending_query = Some(PendingQuery { item, total, answers: Vec::new() });
+/// Begin asking for an item's parameters. The window stays up — there is a
+/// question on screen — and every keystroke from here until the last answer
+/// goes to [`answer_query`] rather than to the search.
+fn start_query(shell: &SharedShell, item: Item, asks: Vec<Ask>) {
+    shell.borrow_mut().pending_query = Some(PendingQuery { item, asks, answers: Vec::new() });
     ask_for_query(shell);
 }
 
-/// Empty the field and the list, then ask for the next parameter by number.
+/// Empty the field and the list, then ask for the next parameter.
 ///
 /// The list is cleared rather than left showing the command: the text being
 /// typed is not a filter, so a list that reacted to it would be lying, and one
@@ -1060,10 +1117,18 @@ fn ask_for_query(shell: &SharedShell) {
     let mut s = shell.borrow_mut();
     let Some(pending) = &s.pending_query else { return };
     // Numbered even when there is only one, so "parameter 2" never arrives
-    // without a "parameter 1" having been heard first.
+    // without a "parameter 1" having been heard first. A snippet's named
+    // placeholder leads with its name — that is the part that says what to
+    // type — and keeps the number behind it, so the two kinds of prompt are
+    // still recognisably the same conversation.
     let number = pending.answers.len() + 1;
-    let prompt =
-        format_args(&tr("Query parameter {number}"), &[("number", Arg::Int(number as i64))]);
+    let prompt = match pending.asks.get(pending.answers.len()).and_then(Ask::name) {
+        Some(name) => format_args(
+            &tr("{name}, query parameter {number}"),
+            &[("name", Arg::Str(name)), ("number", Arg::Int(number as i64))],
+        ),
+        None => format_args(&tr("Query parameter {number}"), &[("number", Arg::Int(number as i64))]),
+    };
     s.edit.change_value("");
     // The field is asking a different question now, so it has to answer to a
     // different name: this is what a screen reader reads when focus returns.
@@ -1084,7 +1149,7 @@ fn answer_query(shell: &SharedShell) {
         let answer = s.edit.get_value();
         let Some(pending) = s.pending_query.as_mut() else { return };
         pending.answers.push(answer);
-        pending.answers.len() >= pending.total
+        pending.answers.len() >= pending.asks.len()
     };
     if !ready {
         ask_for_query(shell);
@@ -1098,13 +1163,30 @@ fn answer_query(shell: &SharedShell) {
         pending
     };
     let Some(pending) = pending else { return };
-    let ItemKind::Command { path, args, run_as_admin } = &pending.item.kind else { return };
-    let (path, args) = query::fill(path, args, &pending.answers);
-    run_and_report(
-        shell,
-        &pending.item,
-        ItemKind::Command { path, args, run_as_admin: *run_as_admin },
-    );
+    match &pending.item.kind {
+        ItemKind::Command { path, args, run_as_admin } => {
+            let (path, args) = query::fill(path, args, &pending.answers);
+            run_and_report(
+                shell,
+                &pending.item,
+                ItemKind::Command { path, args, run_as_admin: *run_as_admin },
+            );
+        }
+        ItemKind::Snippet => copy_snippet(shell, &pending.item, &pending.answers),
+        _ => {}
+    }
+}
+
+/// Fill a snippet in and put it on the clipboard. `answers` lines up with
+/// `snippet_vars::questions`, and is empty for a snippet that asked nothing.
+///
+/// Filling happens here rather than at the copy itself so that it happens
+/// exactly once: an answer that contains `{{braces}}` is somebody's text, not
+/// another round of substitution.
+fn copy_snippet(shell: &SharedShell, item: &Item, answers: &[String]) {
+    let contents =
+        snippet_vars::fill(&item.name, answers, &launchtype_services::portable::vars());
+    run_and_report(shell, &Item { name: contents, ..item.clone() }, ItemKind::Snippet);
 }
 
 /// Abandon a half-answered query prompt, if there is one.
@@ -1131,7 +1213,7 @@ fn run_hidden_action(shell: &SharedShell, item: &Item, kind: ItemKind) -> Result
                         &args,
                         run_as_admin,
                         &s.sounds,
-                        launchtype_services::portable::vars(),
+                        &launchtype_services::portable::vars(),
                     ),
                     item.id.clone(),
                 )
@@ -1184,7 +1266,7 @@ fn open_in_terminal(shell: &SharedShell) {
         let vars = launchtype_services::portable::vars();
         launchtype_core::portable::arg_segments(args)
             .iter()
-            .map(|segment| launchtype_core::portable::expand(segment, vars))
+            .map(|segment| launchtype_core::portable::expand(segment, &vars))
             .find_map(|expanded| {
                 let path = std::path::Path::new(&expanded);
                 if path.is_dir() {
@@ -1309,7 +1391,7 @@ fn merge_clicked(shell: &SharedShell) {
         launchtype_core::merge::plan(
             &s.controller.commands.file,
             &incoming,
-            launchtype_services::portable::vars(),
+            &launchtype_services::portable::vars(),
             &|path| std::path::Path::new(path).exists(),
         )
     };
@@ -1433,7 +1515,7 @@ pub fn check_portability(shell: &SharedShell) {
         launchtype_core::portable::scan(
             &s.controller.commands.file,
             &s.settings.settings.machine_specific_paths(),
-            launchtype_services::portable::vars(),
+            &launchtype_services::portable::vars(),
         )
     };
     if report.fixes.is_empty() {
@@ -1459,7 +1541,7 @@ pub fn check_portability(shell: &SharedShell) {
                 let mut changed = launchtype_core::portable::apply(
                     &mut s.controller.commands.file,
                     &selected,
-                    vars,
+                    &vars,
                 );
                 s.controller.commands.sync();
                 // Settings hold machine-specific paths too, and they were
@@ -1468,7 +1550,7 @@ pub fn check_portability(shell: &SharedShell) {
                 let settings = &mut s.settings.settings;
                 for field in [&mut settings.steam_library, &mut settings.ssh_key_path] {
                     if let Some(fixed) =
-                        launchtype_core::portable::apply_to_setting(field, &selected, vars)
+                        launchtype_core::portable::apply_to_setting(field, &selected, &vars)
                     {
                         *field = fixed;
                         changed += 1;

@@ -148,9 +148,52 @@ Nombre:     buscar en mis documentos
 
 Wikipedia funciona igual, con la respuesta en la ruta de la URL en vez de en la cadena de consulta: `https://es.wikipedia.org/wiki/{{query}}`.
 
+### La fecha y la hora
+
+Cuatro variables las responde el reloj en lugar del equipo:
+
+- `{{fecha}}` — hoy, día/mes/año (`25/08/2026`)
+- `{{date}}` — hoy, mes/día/año (`08/25/2026`)
+- `{{hora}}` — la hora actual, formato de 24 horas (`15:07`)
+- `{{time}}` — la hora actual, formato de 12 horas (`3:07 PM`)
+
+El nombre elige el formato, no el idioma en el que esté funcionando Launchtype. Una sustitución se escribe en el idioma en el que se va a *leer*, así que si escribes a un cliente de Estados Unidos querrás `{{date}}` en esa línea y `{{fecha}}` en el resto.
+
+Nunca se preguntan. Si lo que quieres es que *te pregunte* una fecha —el día en que se solicitó un informe, por ejemplo— ponle otro nombre: `{{fecha de solicitud}}` es una pregunta, `{{fecha}}` es hoy.
+
+### Tus propias variables
+
+`{{hola}}`, `{{firma}}`, `{{aviso legal}}`: un nombre y el texto que escribes una y otra vez. Lo escribes una vez, lo usas en tantas sustituciones y comandos como quieras, y el día que cambie lo cambias en un solo sitio.
+
+Se guardan en `snippets/placeholders.json`, un objeto JSON normal que puedes abrir y editar a mano:
+
+```json
+{
+  "hola": "Hola, ¿qué tal?",
+  "firma": "Un saludo,\nOscar"
+}
+```
+
+Una variable puede estar escrita a partir de las demás, incluidas las del reloj y las preguntas:
+
+```json
+{
+  "encabezado": "Madrid, {{fecha}}",
+  "cierre": "{{encabezado}}\n{{firma}}"
+}
+```
+
+Un nombre que acaba llegando a sí mismo —directamente o dando la vuelta por otros dos— se detiene ahí y se queda en pantalla como `{{nombre}}`, en lugar de dar vueltas.
+
+Las de Launchtype mandan. Una variable tuya llamada `home`, `query` o `fecha` se rechaza al escribirla, porque esos nombres ya significan algo en todas partes.
+
+Tienen un modo propio, `_` (guion bajo). Lista todo lo que hay en el archivo, y puedes buscar tanto por el nombre como por lo que dice; los botones de siempre hacen lo de siempre: **Añadir** escribe una nueva, **Editar** cambia la que tengas seleccionada y **Eliminar** la borra. Intro también edita: aquí no hay nada que lanzar, y una variable se usa *nombrándola* desde una sustitución o un comando, no desde esta lista.
+
 ### Cómo añadirlas
 
-En los diálogos Añadir y Editar comando, los botones "Variable de ruta..." y "Variable de argumento..." abren un menú con todas las variables, su descripción y a qué se resuelven en este equipo. `{{query}}` encabeza el menú: es la única que no tiene nada que resolver. Al elegir una se inserta donde está el cursor y el foco se queda en el campo, para que puedas seguir escribiendo.
+En los diálogos Añadir y Editar comando, los botones "Variable de ruta..." y "Variable de argumento..." abren un menú con todas las variables, su descripción y a qué se resuelven en este equipo. `{{query}}` encabeza el menú (es la única que no tiene nada que resolver) y tus propias variables van después de las de Launchtype, cada una con el texto al que equivale. Al elegir una se inserta donde está el cursor y el foco se queda en el campo, para que puedas seguir escribiendo.
+
+El diálogo de sustituciones tiene el mismo menú en "Insertar variable...", con el reloj y las tuyas: una firma con `{{programfiles}}` dentro no se le ocurre a nadie, aunque sigue funcionando si la escribes. Y el diálogo Añadir/Editar variable también, que es la forma de escribir una variable a partir de las demás.
 
 El botón Examinar también lo hace por ti: si eliges un archivo dentro de tu carpeta de usuario, se guarda como `{{home}}\...` en lugar de dejar tu nombre de usuario fijado.
 
@@ -201,7 +244,7 @@ Nada de esto impide importar; está ahí para que nada llegue por sorpresa. Los 
 
 Las sustituciones son fragmentos de texto que, al escribir su nombre de archivo en la caja de texto, se copian al portapapeles.
 
-Para usarlas hay que crear archivos .txt dentro de la carpeta snippets de la aplicación. El botón "Nueva sustitución" crea uno por ti, y "Abrir carpeta de sustituciones" abre esa carpeta en el explorador de archivos.
+Para usarlas hay que crear archivos .txt dentro de la carpeta snippets de la aplicación. En modo sustituciones el botón Añadir te crea una, Editar cambia la que tengas seleccionada y Eliminar la borra; "Abrir carpeta de sustituciones" abre esa carpeta en el explorador de archivos.
 
 El nombre del archivo es el acceso abreviado (sin la extensión .txt) y el contenido es lo que se copia.
 
@@ -210,6 +253,33 @@ Por ejemplo, con un archivo email.txt que contenga mi_email@gmail.com, basta con
 Para acceder a las sustituciones debes estar en modo sustituciones: escribe un guion (-) en la caja. Desaparecerán los comandos y aparecerán las sustituciones.
 
 Para volver a comandos, escribe un punto (.). En cualquier caso, cada vez que se invoca con el atajo del lanzador la aplicación arranca en modo comandos, así que no hace falta hacer nada.
+
+### Sustituciones que preguntan
+
+Una sustitución se copia tal cual, y eso cubre una firma. Lo que no cubre es el correo que mandas dos veces por semana cambiando dos palabras: una sustitución por informe, si el texto tiene que ir literal.
+
+Escribe esas dos palabras como `{{un nombre}}` y la sustitución pasa a ser una plantilla. Al pulsar Intro, en lugar de copiarse, la ventana se queda abierta y te va pidiendo cada una, igual que hace un comando con su `{{query}}`: los mismos sonidos, la misma numeración, Escape para salirte, y el texto ya relleno en el portapapeles en cuanto entra la última respuesta.
+
+```
+snippets/informe.txt:
+
+Hola, te envío el informe de {{informe}}, solicitado el {{fecha de solicitud}}.
+Un saludo.
+```
+
+Eso hace dos preguntas —"informe, parámetro de consulta 1", "fecha de solicitud, parámetro de consulta 2"— y el nombre se dice primero, porque el nombre es lo que te indica qué escribir.
+
+Una sola regla decide qué se pregunta y qué no: **un nombre que Launchtype conoce se rellena, y uno que no conoce se pregunta.** Lo que conoce es [todo lo de arriba](#rutas-portables-variables): las carpetas y navegadores de este equipo, el `{{date}}`/`{{fecha}}`/`{{time}}`/`{{hora}}` del reloj, y tus propias variables. Así que `{{fecha}}` es hoy sin preguntar, `{{firma}}` es tu firma sin preguntar, y `{{informe}}` —que no es el nombre de nada— es una pregunta.
+
+Un nombre se pregunta **una vez** por muchas veces que aparezca, y se rellena en todas. Para eso sirve ponerle nombre: `{{nombre}}` tres veces en una carta es una cosa dicha tres veces, no tres cosas que escribir. Ni las mayúsculas ni los espacios importan: `{{Informe}}`, `{{ informe }}` e `{{INFORME}}` son una sola pregunta, y se te pide con la primera forma que hayas escrito.
+
+`{{query}}` es la excepción, y conserva el significado que tiene en un comando: una pregunta por cada uno, en el orden en que aparecen, escribas los que escribas.
+
+Las preguntas se buscan también dentro de tus propias variables, así que una variable que lleve `{{nombre}}` hace que todas las sustituciones que la usan pregunten por el nombre.
+
+Nada se codifica ni se reescribe camino del portapapeles: una sustitución es texto, y llega tal como lo escribiste.
+
+Los diálogos Añadir y Editar sustitución cuentan todo esto en una línea encima de la caja de contenidos, y tienen un botón "Insertar variable..." con el reloj, tus variables y la forma de escribir una nueva.
 
 ## Historial del portapapeles
 
@@ -486,6 +556,7 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `:` | Emojis | Buscar un emoji por su descripción y copiarlo |
 | `=` | Conversión de unidades | Convertir un número entre unidades, tallas de calzado incluidas |
 | `*` | Caja fuerte cifrada | Contraseñas y otros secretos, cifrados tras una contraseña maestra |
+| `_` | Variables de sustitución | Las variables `{{nombre}}` que escribes tú, y que usan tanto las sustituciones como los comandos |
 | `.` | (cualquier modo) | Volver al modo Comandos |
 
 ## Retroalimentación de audio
@@ -496,7 +567,7 @@ La aplicación emite sonidos ante distintas acciones:
 - Sonidos de mostrar/ocultar al alternar la ventana
 - Sonido de coincidencia cuando se encuentra un acceso abreviado exacto
 - Sonido al escribir cuando cambian los resultados de búsqueda
-- Sonido de pregunta cuando un comando empieza a pedir un parámetro `{{query}}`, junto con el "Parámetro de consulta 1" hablado
+- Sonido de pregunta cuando un comando o una sustitución empieza a pedir un parámetro, junto con el "Parámetro de consulta 1" hablado
 - Sonido de escritura de consulta en cada pulsación mientras respondes, en lugar de los sonidos de coincidencia y de escritura: el campo de entrada está recogiendo una respuesta, no buscando
 - Sonido al ejecutar un comando o lanzar un juego
 - Sonido al copiar una sustitución o un elemento del portapapeles

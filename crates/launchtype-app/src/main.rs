@@ -134,7 +134,7 @@ fn main() {
     // another machine; the scanner needs the real folder.
     let steam_library = launchtype_core::portable::expand(
         &steam_library,
-        launchtype_services::portable::vars(),
+        &launchtype_services::portable::vars(),
     );
 
     let sounds = Arc::new(SoundPlayer::new(asset_dir("sounds"), effective_sounds));

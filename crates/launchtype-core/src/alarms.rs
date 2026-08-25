@@ -102,11 +102,12 @@ impl AlarmEngine {
             if !alarm.enabled {
                 continue;
             }
-            if alarm.hour == now.hour() && alarm.minute == now.minute() {
-                if self.last_fired.get(&alarm.id) != Some(&key) {
-                    self.last_fired.insert(alarm.id.clone(), key.clone());
-                    fired.push(alarm.clone());
-                }
+            if alarm.hour == now.hour()
+                && alarm.minute == now.minute()
+                && self.last_fired.get(&alarm.id) != Some(&key)
+            {
+                self.last_fired.insert(alarm.id.clone(), key.clone());
+                fired.push(alarm.clone());
             }
         }
         fired

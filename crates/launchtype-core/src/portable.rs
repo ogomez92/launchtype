@@ -33,6 +33,11 @@ pub enum VarValue {
     /// default browser for a URL. `{{browser}}` is always this; a specific
     /// browser falls back to it when that browser is not installed.
     DefaultOpener,
+    /// Text the user wrote for a name of their own (see
+    /// [`crate::placeholders`]). Substituted exactly as it stands: the
+    /// separator normalisation a path gets would rewrite the slashes in a date
+    /// and the backslashes in a sentence.
+    Text(String),
 }
 
 /// One placeholder in the catalog, before the machine fills in its value.
@@ -77,7 +82,9 @@ pub fn description(name: &str) -> String {
         "vivaldi" => tr("Vivaldi"),
         "opera" => tr("Opera"),
         "safari" => tr("Safari"),
-        other => other.to_string(),
+        // The clock keeps its own descriptions, next to the code that reads
+        // it; anything else is a name of the user's own and describes itself.
+        other => crate::snippet_vars::description(other),
     }
 }
 
@@ -220,10 +227,22 @@ impl Vars {
         self.entries.iter().find(|(n, _)| *n == name).map(|(_, value)| value)
     }
 
+    /// A copy of these vars with `extra` added on the end, its names folded
+    /// the way [`Vars::get`] folds the ones it is asked for.
+    ///
+    /// On the end, and not merged: a lookup takes the first match, so a name
+    /// the catalog already has keeps the catalog's meaning. A user's own
+    /// `{{home}}` cannot quietly redirect every command that uses it.
+    pub fn with(&self, extra: impl IntoIterator<Item = (String, VarValue)>) -> Vars {
+        let mut entries = self.entries.clone();
+        entries.extend(extra.into_iter().map(|(name, value)| (name.to_lowercase(), value)));
+        Vars { entries, ..*self }
+    }
+
     /// The resolved value shown next to a placeholder in the insert menu.
     pub fn display_value(&self, name: &str) -> Option<String> {
         match self.get(name)? {
-            VarValue::Path(path) => Some(path.clone()),
+            VarValue::Path(path) | VarValue::Text(path) => Some(path.clone()),
             VarValue::DefaultOpener => None,
         }
     }
@@ -304,51 +323,146 @@ pub enum Target {
 /// placeholder was substituted the result's separators are normalised to this
 /// machine's, because `{{home}}\stuff` written on Windows must still resolve
 /// on a Mac.
+///
+/// A [`VarValue::Text`] is itself expanded, so a variable of the user's own
+/// can be written in terms of the others: `{{header}}` standing for
+/// `Madrid, {{fecha}}` gives today's date, not the word. A name that reaches
+/// itself, however long the way round, stops there and is left visible —
+/// a placeholder in the output beats a launcher that never comes back.
 pub fn expand(template: &str, vars: &Vars) -> String {
-    let (expanded, substituted_path) = expand_inner(template, vars);
-    if substituted_path {
-        normalize_separators(&expanded, vars.separator)
-    } else {
-        expanded
-    }
+    let mut expansion = Expansion::with_capacity(template.len());
+    expansion.push_template(template, vars, false, &mut Vec::new());
+    expansion.finish(vars.separator)
 }
 
-fn expand_inner(template: &str, vars: &Vars) -> (String, bool) {
-    let mut out = String::with_capacity(template.len());
-    let mut rest = template;
-    let mut substituted_path = false;
-    while let Some(start) = rest.find(OPEN) {
-        let after_open = &rest[start + OPEN.len()..];
-        let Some(end) = after_open.find(CLOSE) else { break };
-        let name = after_open[..end].trim();
-        let tail = &after_open[end + CLOSE.len()..];
-        out.push_str(&rest[..start]);
-        match vars.get(name) {
-            Some(VarValue::Path(path)) => {
-                out.push_str(path);
-                substituted_path = true;
-            }
-            // Names a handler, not a path: contributes no text.
-            Some(VarValue::DefaultOpener) => {}
-            None => {
-                out.push_str(OPEN);
-                out.push_str(&after_open[..end]);
-                out.push_str(CLOSE);
-            }
+/// A field being expanded, and the two things about it that separator
+/// normalisation needs to know afterwards.
+struct Expansion {
+    out: String,
+    /// Byte ranges of `out` that came from the user's own text, which is prose
+    /// and not a path: `{{fecha}}` standing for `25/08/2026` has to keep its
+    /// slashes even in a field that also holds a `{{home}}`.
+    verbatim: Vec<(usize, usize)>,
+    /// Whether a folder placeholder went in, which is what puts the rest of
+    /// the field up for normalisation in the first place.
+    substituted_path: bool,
+}
+
+impl Expansion {
+    fn with_capacity(capacity: usize) -> Self {
+        Expansion { out: String::with_capacity(capacity), verbatim: Vec::new(), substituted_path: false }
+    }
+
+    /// Append `text`. `verbatim` marks it as the user's own, to be left alone
+    /// by normalisation; neighbouring verbatim runs are merged so the ranges
+    /// stay few and in order.
+    fn push(&mut self, text: &str, verbatim: bool) {
+        let start = self.out.len();
+        self.out.push_str(text);
+        if !verbatim || text.is_empty() {
+            return;
         }
-        rest = tail;
+        match self.verbatim.last_mut() {
+            Some(last) if last.1 == start => last.1 = self.out.len(),
+            _ => self.verbatim.push((start, self.out.len())),
+        }
     }
-    out.push_str(rest);
-    (out, substituted_path)
+
+    /// Expand `template` into this field. `in_user_text` says whether these
+    /// characters are the user's own prose; `open` is the names being expanded
+    /// further up, which is how a cycle is caught.
+    fn push_template(
+        &mut self,
+        template: &str,
+        vars: &Vars,
+        in_user_text: bool,
+        open: &mut Vec<String>,
+    ) {
+        let mut rest = template;
+        while let Some((range, name)) = next_placeholder(rest) {
+            let (start, end) = (range.start, range.end);
+            let whole = &rest[start..end];
+            self.push(&rest[..start], in_user_text);
+            let folded = name.to_lowercase();
+            match vars.get(name) {
+                Some(VarValue::Path(path)) => {
+                    // A path is a path wherever it was named from, so it is
+                    // never verbatim: it is exactly what normalisation is for.
+                    self.push(path, false);
+                    self.substituted_path = true;
+                }
+                // Names a handler, not a path: contributes no text.
+                Some(VarValue::DefaultOpener) => {}
+                Some(VarValue::Text(text)) if !open.contains(&folded) => {
+                    let text = text.clone();
+                    open.push(folded);
+                    // Prose, or a fragment of a path? Each variable decides for
+                    // itself, by whether it names a folder (see `names_a_path`).
+                    let prose = !names_a_path(&text, vars, open);
+                    self.push_template(&text, vars, prose, open);
+                    open.pop();
+                }
+                // Either a name that has reached itself, or one nobody knows.
+                // Both stay on screen: a visible `{{typo}}` says what happened.
+                _ => self.push(whole, in_user_text),
+            }
+            rest = &rest[end..];
+        }
+        self.push(rest, in_user_text);
+    }
+
+    /// The finished field, with separators normalised everywhere except the
+    /// stretches the user typed themselves.
+    fn finish(self, separator: char) -> String {
+        // A URL's slashes are not path separators; leave anything with a
+        // scheme be. Nor is there anything to normalise if no path went in.
+        if !self.substituted_path || looks_like_url(&self.out) {
+            return self.out;
+        }
+        let foreign = if separator == '\\' { '/' } else { '\\' };
+        let mut out = String::with_capacity(self.out.len());
+        let mut at = 0;
+        for (start, end) in self.verbatim {
+            out.push_str(&self.out[at..start].replace(foreign, &separator.to_string()));
+            out.push_str(&self.out[start..end]);
+            at = end;
+        }
+        out.push_str(&self.out[at..].replace(foreign, &separator.to_string()));
+        out
+    }
 }
 
-fn normalize_separators(value: &str, separator: char) -> String {
-    let foreign = if separator == '\\' { '/' } else { '\\' };
-    // A URL's slashes are not path separators; leave anything with a scheme be.
-    if looks_like_url(value) {
-        return value.to_string();
+/// Whether expanding `text` would put a folder into the field.
+///
+/// This is what tells a variable that is a fragment of a path
+/// (`{{home}}\notes`) from one that is prose (`Madrid, 25/08/2026`). The first
+/// has to come out with this machine's separators like any other path; the
+/// second has to keep the slashes it was written with, or a date arrives as
+/// `25\08\2026`. A variable that is both is read as a path, because it is
+/// sitting in a command's path or arguments and that is what those are for.
+///
+/// `open` is the cycle guard [`Expansion::push_template`] is already carrying,
+/// borrowed so that a self-referencing variable cannot spin here either.
+fn names_a_path(text: &str, vars: &Vars, open: &mut Vec<String>) -> bool {
+    let mut rest = text;
+    while let Some((range, name)) = next_placeholder(rest) {
+        let folded = name.to_lowercase();
+        rest = &rest[range.end..];
+        match vars.get(name) {
+            Some(VarValue::Path(_)) => return true,
+            Some(VarValue::Text(nested)) if !open.contains(&folded) => {
+                let nested = nested.clone();
+                open.push(folded);
+                let found = names_a_path(&nested, vars, open);
+                open.pop();
+                if found {
+                    return true;
+                }
+            }
+            _ => {}
+        }
     }
-    value.replace(foreign, &separator.to_string())
+    false
 }
 
 /// Whether `value` starts with a URL scheme (`https://`, `steam://`, `mailto:`).
@@ -375,18 +489,49 @@ pub fn resolve_target(path_template: &str, vars: &Vars) -> Target {
     Target::Path(expand(path_template, vars))
 }
 
+/// The next `{{name}}` in `template`: the byte range of the whole thing,
+/// braces included, and the trimmed name inside it.
+///
+/// The one place `{{` and `}}` are paired up, so every part of the app agrees
+/// on what a placeholder is.
+pub fn next_placeholder(template: &str) -> Option<(std::ops::Range<usize>, &str)> {
+    let mut from = 0;
+    loop {
+        let start = from + template[from..].find(OPEN)?;
+        let after_open = start + OPEN.len();
+        let end = after_open + template[after_open..].find(CLOSE)?;
+        if is_name(&template[after_open..end]) {
+            return Some((start..end + CLOSE.len(), template[after_open..end].trim()));
+        }
+        // Not a name, so this `{{` is just text. Carry on from just after it
+        // rather than from the far `}}`, so a real placeholder further along
+        // is still found.
+        from = after_open;
+    }
+}
+
+/// Whether what sits between `{{` and the next `}}` can be a placeholder name.
+///
+/// A name is a short label typed into a one-line field: no braces (see
+/// [`crate::placeholders::name_error`], which refuses them), no line breaks.
+///
+/// Rejecting the rest is what keeps a missing brace local. A snippet reading
+/// `- {{w111}: Logo sin alt text` and, two lines down, a real `{{firma}}`
+/// would otherwise pair that first `{{` with the *last* `}}` and swallow the
+/// whole paragraph into one placeholder — asking the user for something
+/// absurd, instead of leaving the typo on screen where they can see it.
+fn is_name(candidate: &str) -> bool {
+    !candidate.trim().is_empty() && !candidate.contains(['{', '}', '\n', '\r'])
+}
+
 /// Every placeholder name appearing in `template`, in order.
 pub fn placeholder_names(template: &str) -> impl Iterator<Item = String> + '_ {
     let mut rest = template;
-    std::iter::from_fn(move || loop {
-        let start = rest.find(OPEN)?;
-        let after_open = &rest[start + OPEN.len()..];
-        let end = after_open.find(CLOSE)?;
-        let name = after_open[..end].trim().to_lowercase();
-        rest = &after_open[end + CLOSE.len()..];
-        if !name.is_empty() {
-            return Some(name);
-        }
+    std::iter::from_fn(move || {
+        let (range, name) = next_placeholder(rest)?;
+        let name = name.to_lowercase();
+        rest = &rest[range.end..];
+        Some(name)
     })
 }
 
@@ -992,6 +1137,107 @@ mod tests {
         assert!(looks_like_url("steam://rungameid/12"));
         assert!(!looks_like_url(r"C:\Windows"));
         assert!(!looks_like_url("plain text"));
+    }
+
+    /// A name of the user's own expands in a command like any other, but as
+    /// text: a path would have its separators rewritten, and `25/08/2026` on
+    /// Windows would come out as `25\08\2026`.
+    #[test]
+    fn a_users_own_placeholder_expands_as_text() {
+        let vars = windows_vars()
+            .with([("SIGN".to_string(), VarValue::Text("mine, 25/08/2026".to_string()))]);
+        assert_eq!(expand("-m, {{sign}}", &vars), "-m, mine, 25/08/2026");
+        assert_eq!(vars.display_value("sign").unwrap(), "mine, 25/08/2026");
+        // Still normalised when a real path is in the same field.
+        assert_eq!(
+            expand("{{home}}/a, {{sign}}", &vars),
+            r"C:\Users\nitropc\a, mine, 25/08/2026"
+        );
+        // And it is no longer an unknown placeholder, so the startup check
+        // stops offering to fix it.
+        assert!(unknown_placeholders("{{sign}}", &vars).is_empty());
+    }
+
+    /// The pairing rule, stated once: a `{{` only pairs with a `}}` when what
+    /// lies between them could actually be a name.
+    #[test]
+    fn a_placeholder_name_may_not_span_braces_or_lines() {
+        let one_brace = "{{a}: text\n{{home}}";
+        assert_eq!(
+            placeholder_names(one_brace).collect::<Vec<_>>(),
+            ["home"],
+            "the far }} belongs to {{home}}, not to the typo"
+        );
+        assert_eq!(expand(one_brace, &windows_vars()), "{{a}: text\nC:\\Users\\nitropc");
+
+        // A name never runs across a line, however the braces fall.
+        assert_eq!(placeholder_names("{{a\nb}}").count(), 0);
+        // Nor across another placeholder's braces.
+        assert_eq!(placeholder_names("{{{{home}}").collect::<Vec<_>>(), ["home"]);
+        assert_eq!(placeholder_names("{{}}").count(), 0);
+    }
+
+    /// A variable written in terms of the others. This is what makes them
+    /// worth having: `{{header}}` is one name for a line that is really three.
+    #[test]
+    fn a_placeholder_may_be_written_out_of_other_placeholders() {
+        let vars = windows_vars().with([
+            ("header".to_string(), VarValue::Text("Madrid, {{today}} - {{who}}".to_string())),
+            ("today".to_string(), VarValue::Text("25/08/2026".to_string())),
+            ("who".to_string(), VarValue::Text("{{username}}".to_string())),
+        ]);
+        assert_eq!(expand("{{header}}", &vars), "Madrid, 25/08/2026 - nitropc");
+    }
+
+    /// A variable that names a folder is a fragment of a path, so it is
+    /// normalised like one — that is the whole portability promise, and it
+    /// must not stop working just because the path was named indirectly.
+    #[test]
+    fn a_placeholder_that_names_a_folder_is_normalised_like_a_path() {
+        let vars = mac_vars().with([
+            ("notes".to_string(), VarValue::Text(r"{{home}}\notes".to_string())),
+            ("deeper".to_string(), VarValue::Text(r"{{notes}}\2026".to_string())),
+        ]);
+        assert_eq!(expand("{{notes}}", &vars), "/Users/oriol/notes");
+        // However many variables deep the folder is named.
+        assert_eq!(expand("{{deeper}}", &vars), "/Users/oriol/notes/2026");
+    }
+
+    /// And a variable that names no folder is prose, so it keeps its slashes
+    /// even when the field around it holds a path.
+    #[test]
+    fn a_placeholder_that_names_no_folder_keeps_its_slashes() {
+        let vars = windows_vars().with([
+            ("stamp".to_string(), VarValue::Text("{{today}} report".to_string())),
+            ("today".to_string(), VarValue::Text("25/08/2026".to_string())),
+        ]);
+        assert_eq!(expand("{{home}}/out/{{stamp}}.txt", &vars), r"C:\Users\nitropc\out\25/08/2026 report.txt");
+    }
+
+    /// A name that reaches itself has to stop somewhere, and stopping with the
+    /// placeholder on screen is the only ending the user can act on.
+    #[test]
+    fn a_placeholder_that_reaches_itself_stops() {
+        let vars = windows_vars().with([
+            ("a".to_string(), VarValue::Text("a is {{b}}".to_string())),
+            ("b".to_string(), VarValue::Text("b is {{a}}".to_string())),
+            ("me".to_string(), VarValue::Text("me is {{me}}".to_string())),
+        ]);
+        assert_eq!(expand("{{a}}", &vars), "a is b is {{a}}");
+        assert_eq!(expand("{{me}}", &vars), "me is {{me}}");
+        // The guard is per branch, not per expansion: one name used twice side
+        // by side is not a cycle and must expand both times.
+        let vars = vars.with([("twice".to_string(), VarValue::Text("{{me}} {{me}}".to_string()))]);
+        assert_eq!(expand("{{twice}}", &vars), "me is {{me}} me is {{me}}");
+    }
+
+    /// The catalog wins: a user's `{{home}}` must not redirect every command
+    /// that already uses the real one.
+    #[test]
+    fn the_catalog_outranks_a_users_own_name() {
+        let vars =
+            windows_vars().with([("home".to_string(), VarValue::Text("nowhere".to_string()))]);
+        assert_eq!(expand("{{home}}", &vars), r"C:\Users\nitropc");
     }
 
     /// The startup check runs on every launch, so a second pass over an

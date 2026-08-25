@@ -18,7 +18,7 @@ pub fn stats_labels(file: &CommandsFile) -> Vec<String> {
 
     // Stable sorts keep insertion order for equal counts, like Python's sorted.
     let mut ranked: Vec<&crate::model::Command> = commands.iter().collect();
-    ranked.sort_by(|a, b| b.run_count().cmp(&a.run_count()));
+    ranked.sort_by_key(|command| std::cmp::Reverse(command.run_count()));
     let most_used: Vec<_> = ranked.iter().filter(|c| c.run_count() > 0).take(10).collect();
     if most_used.is_empty() {
         labels.push(tr("No commands have been run yet."));

@@ -12,6 +12,7 @@ use launchtype_core::merge;
 use launchtype_core::model::Command;
 use launchtype_core::portable::{self, Target, VarSpec};
 use launchtype_core::query;
+use launchtype_core::snippet_vars;
 use launchtype_core::timers::TimerDef;
 use launchtype_services::sounds::{SoundPlayer, ALARM_SOUNDS, TIMER_SOUNDS};
 use wxdragon::dialogs::dir_dialog::DirDialog;
@@ -22,17 +23,25 @@ use wxdragon::prelude::*;
 
 use crate::controller::ModeController;
 
-const ID_OK: i32 = wxdragon::id::ID_OK as i32;
-const ID_YES: i32 = wxdragon::id::ID_YES as i32;
+const ID_OK: i32 = wxdragon::id::ID_OK;
+const ID_YES: i32 = wxdragon::id::ID_YES;
 
-/// First menu id of each insert-variable menu; a placeholder takes
-/// `base + its index in `portable::all_specs()``.
+/// How far apart the insert-variable menus' id ranges sit.
 ///
-/// Every menu on a dialog posts `wxEVT_MENU` to that same dialog, so the two
-/// fields need ranges far enough apart that a pick can only ever land in the
-/// field it was opened from. The catalog is ~24 entries; 100 apart is ample.
+/// Every menu on a dialog posts `wxEVT_MENU` to that same dialog, so each
+/// field needs a range wide enough that a pick can only ever land in the field
+/// it was opened from. A menu is the catalog (~24) plus however many
+/// placeholders the user has defined, which has no fixed ceiling — 500 is far
+/// past what anyone will write by hand.
+const VARIABLE_MENU_STRIDE: i32 = 500;
+
+/// First menu id of each insert-variable menu; a line takes
+/// `base + its index in [`variable_choices`]`.
 const PATH_VARIABLE_MENU_BASE_ID: i32 = 6300;
-const ARGS_VARIABLE_MENU_BASE_ID: i32 = 6400;
+const ARGS_VARIABLE_MENU_BASE_ID: i32 = PATH_VARIABLE_MENU_BASE_ID + VARIABLE_MENU_STRIDE;
+const SNIPPET_VARIABLE_MENU_BASE_ID: i32 = ARGS_VARIABLE_MENU_BASE_ID + VARIABLE_MENU_STRIDE;
+const VARIABLE_VARIABLE_MENU_BASE_ID: i32 = SNIPPET_VARIABLE_MENU_BASE_ID + VARIABLE_MENU_STRIDE;
+
 
 /// Model ids offered in the AI-model dropdown, in display order.
 const AI_MODEL_IDS: [&str; 3] = ["claude-opus-4-8", "claude-sonnet-5", "claude-haiku-4-5"];
@@ -139,13 +148,101 @@ fn insert_at_caret(entry: &TextCtrl, text: &str) {
 /// The menu line for one placeholder: what to type, what it means, and what it
 /// resolves to here — the resolved value is the part that tells the user
 /// whether the variable is the one they want.
-fn variable_menu_label(spec: &VarSpec) -> String {
+fn variable_menu_label(spec: &VarSpec, vars: &portable::Vars) -> String {
     let name = portable::placeholder(spec.name);
     let description = portable::description(spec.name);
-    match launchtype_services::portable::vars().display_value(spec.name) {
-        Some(value) => format!("{name} - {description} ({value})"),
+    match vars.display_value(spec.name) {
+        Some(value) => format!("{name} - {} ({})", description, one_line(&value, MENU_TEXT_LIMIT)),
         // A default-handler variable has no path to show.
         None => format!("{name} - {description}"),
+    }
+}
+
+/// One line of an insert-variable menu: what it says, and what it drops into
+/// the field.
+///
+/// The built-in catalog, the clock placeholders and the user's own are three
+/// different lookups but one menu, so they are flattened into this before the
+/// menu is built — which is what keeps the `base_id + index` arithmetic below
+/// to a single list.
+#[derive(Clone)]
+struct VariableChoice {
+    placeholder: String,
+    label: String,
+}
+
+impl VariableChoice {
+    fn new(name: &str, label: String) -> Self {
+        VariableChoice { placeholder: portable::placeholder(name), label }
+    }
+}
+
+/// Which field's vocabulary a menu offers. A command's path and arguments take
+/// the machine catalog; a snippet is text and takes the clock instead — a
+/// snippet holding `{{programfiles}}` is nobody's idea of a signature.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum VariableMenu {
+    Command,
+    Snippet,
+}
+
+/// The lines a menu offers, in menu order: the placeholder that asks, then the
+/// ones this machine answers, then the clock's, then the user's own, then the
+/// way to write one.
+fn variable_choices(menu: VariableMenu) -> Vec<VariableChoice> {
+    let vars = launchtype_services::portable::vars();
+
+    // `{{query}}` leads: it is the one placeholder that is *meant* to have no
+    // value here, and it is the reason most people open this menu.
+    let mut choices =
+        vec![VariableChoice::new(query::NAME, variable_menu_label(&portable::QUERY_VAR, &vars))];
+
+    // A snippet is text, so the machine catalog is left out of its menu: a
+    // signature holding `{{programfiles}}` is nobody's idea of one. It still
+    // *works* there — one vocabulary, one meaning per name — it is just not
+    // what the menu is for.
+    if menu == VariableMenu::Command {
+        // Only placeholders this machine can resolve: offering one with no
+        // value (`{{onedrive}}` without OneDrive installed) would leave the
+        // literal text in the command.
+        choices.extend(
+            portable::all_specs()
+                .into_iter()
+                .filter(|spec| vars.get(spec.name).is_some())
+                .map(|spec| VariableChoice::new(spec.name, variable_menu_label(&spec, &vars))),
+        );
+    }
+    choices.extend(
+        snippet_vars::CLOCK_VARS
+            .iter()
+            .map(|spec| VariableChoice::new(spec.name, variable_menu_label(spec, &vars))),
+    );
+
+    // The user's own, last of the resolvable ones and shown with the text they
+    // stand for, clipped: a signature is several lines and a menu line is one.
+    for (name, _) in launchtype_services::placeholders::current().entries() {
+        let text = vars.display_value(name).unwrap_or_default();
+        let label =
+            format!("{} - {}", portable::placeholder(name), one_line(&text, MENU_TEXT_LIMIT));
+        choices.push(VariableChoice::new(name, label));
+    }
+
+    choices
+}
+
+/// How much of a variable's text a menu line shows before it is clipped.
+const MENU_TEXT_LIMIT: usize = 40;
+
+/// `text` as one line of at most `limit` characters, for a label. Newlines
+/// become spaces rather than being clipped at: a signature's first line is
+/// usually "Best regards," which says nothing about which variable this is.
+fn one_line(text: &str, limit: usize) -> String {
+    let flattened: String =
+        text.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(limit + 1).collect();
+    if flattened.chars().count() > limit {
+        format!("{}...", flattened.chars().take(limit).collect::<String>().trim_end())
+    } else {
+        flattened
     }
 }
 
@@ -163,60 +260,159 @@ fn variable_menu_button(
     entry: &TextCtrl,
     label: &str,
     base_id: i32,
+    menu: VariableMenu,
 ) {
     let button = Button::builder(dialog).with_label(label).build();
     row.add(&button, 0, SizerFlag::All, 0);
 
-    // Only offer placeholders this machine can resolve: inserting one with no
-    // value (`{{onedrive}}` without OneDrive installed) would leave the literal
-    // text in the command. Menu ids are `base_id + index into this list`, so both
-    // closures below share the same filtered vec.
-    //
-    // `{{query}}` leads the menu and is exempt from that filter: it is the one
-    // placeholder that is *meant* to have no value here, and it is the reason
-    // most people open this menu now.
-    let vars = launchtype_services::portable::vars();
-    let specs: Vec<VarSpec> = std::iter::once(portable::QUERY_VAR)
-        .chain(portable::all_specs().into_iter().filter(|spec| vars.get(spec.name).is_some()))
-        .collect();
+    // Rebuilt on every press rather than once here, because the user can add
+    // to it from inside the menu itself: the list the handler below indexes
+    // into has to be the list that was on screen when they picked.
     {
         let dialog = *dialog;
-        let specs = specs.clone();
         button.on_click(move |_| {
             let mut builder = Menu::builder();
-            for (index, spec) in specs.iter().enumerate() {
-                builder =
-                    builder.append_item(base_id + index as i32, &variable_menu_label(spec), "");
+            for (index, choice) in variable_choices(menu).iter().enumerate() {
+                builder = builder.append_item(base_id + index as i32, &choice.label, "");
             }
-            let mut menu = builder.build();
-            dialog.popup_menu(&mut menu, None);
+            let mut popup = builder.build();
+            dialog.popup_menu(&mut popup, None);
         });
     }
     {
+        let dialog = *dialog;
         let entry = *entry;
-        let count = specs.len() as i32;
         dialog.bind_internal(wxdragon::event::EventType::MENU, move |event| {
             let Some(index) = event.get_id().checked_sub(base_id) else { return };
             // Ignore the other field's menu, which posts to this same dialog.
-            if index >= count {
+            if index >= VARIABLE_MENU_STRIDE {
                 return;
             }
-            if let Some(spec) = specs.get(index as usize) {
-                insert_at_caret(&entry, &portable::placeholder(spec.name));
+            if let Some(choice) = variable_choices(menu).get(index as usize) {
+                insert_at_caret(&entry, &choice.placeholder);
             }
         });
     }
+}
+
+/// Add or edit one variable of the user's own — `{{hi}}` standing for whatever
+/// they keep typing. `existing`: `None` = add, otherwise `(name, text)` to
+/// edit. Returns true when one was saved.
+///
+/// Shaped like [`snippet_dialog`], because it is the same shape of thing: a
+/// name, some text, and the list it came from is the `_` mode behind it.
+pub fn variable_dialog(parent: &Frame, existing: Option<(String, String)>) -> bool {
+    let title = if existing.is_some() { tr("Edit Variable") } else { tr("Add Variable") };
+    let dialog = Dialog::builder(parent, &title).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+
+    let help = tr(
+        "Write {{name}} in a snippet, or in a command's path or arguments, and it is replaced by \
+         the text you give it here.",
+    );
+    sizer.add(&StaticText::builder(&dialog).with_label(&help).build(), 0, SizerFlag::All, 0);
+
+    let name_entry = labeled_row(&dialog, &sizer, &tr("&Name:"));
+    let contents_label = tr("&Stands for:");
+    sizer.add(&StaticText::builder(&dialog).with_label(&contents_label).build(), 0, SizerFlag::All, 0);
+    let contents_entry = TextCtrl::builder(&dialog)
+        .with_style(wxdragon::widgets::textctrl::TextCtrlStyle::MultiLine)
+        .build();
+    ax_name(&contents_entry, &contents_label);
+    sizer.add(&contents_entry, 1, SizerFlag::Expand, 0);
+
+    // A variable may be written out of the others, so it gets the same menu
+    // the snippet dialog has.
+    let variable_row = BoxSizer::builder(Orientation::Horizontal).build();
+    variable_menu_button(
+        &dialog,
+        &variable_row,
+        &contents_entry,
+        &tr("Insert &variable..."),
+        VARIABLE_VARIABLE_MENU_BASE_ID,
+        VariableMenu::Snippet,
+    );
+    sizer.add_sizer(&variable_row, 0, SizerFlag::All, 0);
+
+    let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
+    dialog.set_sizer(sizer, true);
+
+    let original_name = existing.as_ref().map(|(name, _)| name.clone());
+    if let Some((name, text)) = &existing {
+        name_entry.set_value(name);
+        contents_entry.set_value(text);
+    }
+
+    {
+        ok.on_click(move |_| {
+            let name = name_entry.get_value();
+            let text = contents_entry.get_value();
+            if let Some(problem) =
+                launchtype_core::placeholders::name_error(&name, &reserved_variable_names())
+            {
+                error_box(&dialog, &problem, &tr("Error"));
+                return;
+            }
+            if text.is_empty() {
+                error_box(
+                    &dialog,
+                    &tr("Please enter the text the variable stands for."),
+                    &tr("Error"),
+                );
+                return;
+            }
+            dialog.end_modal(ID_OK);
+        });
+    }
+    {
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
+    }
+
+    if dialog.show_modal() != ID_OK {
+        return false;
+    }
+    let name = name_entry.get_value();
+    // A rename is a remove and an add: the old name would otherwise be left
+    // behind, still standing for the same text.
+    if let Some(original) = original_name {
+        if !original.eq_ignore_ascii_case(name.trim()) {
+            let _ = launchtype_services::placeholders::forget(&original);
+        }
+    }
+    if let Err(error) = launchtype_services::placeholders::define(&name, &contents_entry.get_value())
+    {
+        log::warn!("variable save failed: {error}");
+        crate::shell::show_error(parent, &tr("Error"), &save_failed_message(&error));
+        return false;
+    }
+    true
+}
+
+/// Every name the app answers itself, and so cannot be taken by a variable of
+/// the user's own: `{{query}}`, the clock, and this machine's catalog.
+fn reserved_variable_names() -> Vec<String> {
+    std::iter::once(query::NAME.to_string())
+        .chain(snippet_vars::CLOCK_VARS.iter().map(|spec| spec.name.to_string()))
+        .chain(portable::all_specs().into_iter().map(|spec| spec.name.to_string()))
+        .collect()
+}
+
+fn save_failed_message(error: &std::io::Error) -> String {
+    format_args(
+        &tr("Could not save your variables: {reason}"),
+        &[("reason", Arg::Str(&error.to_string()))],
+    )
 }
 
 /// Rewrite a browsed-for path into placeholder form when one applies, so
 /// picking a file out of your user folder does not hardcode it.
 fn portabilize(path: &str) -> String {
     let vars = launchtype_services::portable::vars();
-    match portable::suggest(path, vars) {
+    match portable::suggest(path, &vars) {
         Some((from, to)) => portable::apply_to_setting(
             path,
             &[portable::Fix { from, to, count: 1 }],
-            vars,
+            &vars,
         )
         .unwrap_or_else(|| path.to_string()),
         None => path.to_string(),
@@ -280,6 +476,7 @@ pub fn command_edition_dialog(
         // reader announces the label, and "which one am I on" must be obvious.
         &tr("Path &variable..."),
         PATH_VARIABLE_MENU_BASE_ID,
+        VariableMenu::Command,
     );
     sizer.add_sizer(&path_row, 0, SizerFlag::All, 0);
 
@@ -296,6 +493,7 @@ pub fn command_edition_dialog(
         &args_entry,
         &tr("Argument var&iable..."),
         ARGS_VARIABLE_MENU_BASE_ID,
+        VariableMenu::Command,
     );
     sizer.add_sizer(&args_row, 0, SizerFlag::All, 0);
 
@@ -315,7 +513,6 @@ pub fn command_edition_dialog(
     }
 
     {
-        let dialog = dialog;
         browse.on_click(move |_| {
             let file_dialog = FileDialog::builder(&dialog)
                 .with_message(&tr("Choose a file"))
@@ -335,7 +532,6 @@ pub fn command_edition_dialog(
     {
         // Validation errors stay inside the modal (matching Python); success
         // ends the modal and the save happens after show_modal returns.
-        let dialog = dialog;
         // A shortcut may belong to at most one command. When editing, the
         // command's own shortcut must not clash with itself; adds and copies
         // exclude nothing (the original still owns its shortcut).
@@ -356,7 +552,7 @@ pub fn command_edition_dialog(
             let path = path_entry.get_value();
             let vars = launchtype_services::portable::vars();
             // A typo inside {{...}} would otherwise be launched literally.
-            let unknown = portable::unknown_placeholders(&path, vars);
+            let unknown = portable::unknown_placeholders(&path, &vars);
             if let Some(name) = unknown.first() {
                 error_box(
                     &dialog,
@@ -372,7 +568,7 @@ pub fn command_edition_dialog(
             // nothing on disk to check — and neither is there when part of the
             // path is only typed in as the command launches.
             if query::count(&path, "") == 0 {
-                if let Target::Path(resolved) = portable::resolve_target(&path, vars) {
+                if let Target::Path(resolved) = portable::resolve_target(&path, &vars) {
                     if !std::path::Path::new(&resolved).exists() {
                         error_box(&dialog, &tr("This path is incorrect."), "Error");
                         return;
@@ -388,7 +584,7 @@ pub fn command_edition_dialog(
                 return;
             }
             let shortcut = shortcut_entry.get_value().to_lowercase();
-            if !shortcut.is_empty() && existing_shortcuts.iter().any(|s| *s == shortcut) {
+            if !shortcut.is_empty() && existing_shortcuts.contains(&shortcut) {
                 error_box(&dialog, &tr("The shortcut is already in use."), &tr("Shortcut taken"));
                 return;
             }
@@ -396,8 +592,7 @@ pub fn command_edition_dialog(
         });
     }
     {
-        let dialog = dialog;
-        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
     }
 
     if dialog.show_modal() != ID_OK {
@@ -530,15 +725,12 @@ pub fn portability_dialog(
 
     const ID_NEVER: i32 = 6500;
     {
-        let dialog = dialog;
         fix.on_click(move |_| dialog.end_modal(ID_OK));
     }
     {
-        let dialog = dialog;
-        not_now.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+        not_now.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
     }
     {
-        let dialog = dialog;
         never.on_click(move |_| dialog.end_modal(ID_NEVER));
     }
 
@@ -668,12 +860,10 @@ pub fn merge_dialog(parent: &Frame, file_name: &str, plan: &merge::Plan) -> Vec<
         }
     });
     {
-        let dialog = dialog;
         import.on_click(move |_| dialog.end_modal(ID_OK));
     }
     {
-        let dialog = dialog;
-        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
     }
 
     if dialog.show_modal() != ID_OK {
@@ -786,7 +976,7 @@ pub fn settings_dialog(
     let commands_combo = ComboBox::builder(&dialog).build();
     ax_name(&commands_combo, &tr("Co&mmands file:"));
     let mut found = launchtype_core::model::commands_files_in(std::path::Path::new("."));
-    if !found.iter().any(|name| *name == settings.settings.commands_file) {
+    if !found.contains(&settings.settings.commands_file) {
         found.insert(0, settings.settings.commands_file.clone());
     }
     for name in &found {
@@ -841,7 +1031,6 @@ pub fn settings_dialog(
     dialog.set_sizer(sizer, true);
 
     {
-        let dialog = dialog;
         browse.on_click(move |_| {
             let dir_dialog = DirDialog::builder(
                 &dialog,
@@ -850,7 +1039,7 @@ pub fn settings_dialog(
                 // real folder to start in.
                 &portable::expand(
                     &steam_entry.get_value(),
-                    launchtype_services::portable::vars(),
+                    &launchtype_services::portable::vars(),
                 ),
             )
             .build();
@@ -862,7 +1051,6 @@ pub fn settings_dialog(
         });
     }
     {
-        let dialog = dialog;
         ssh_key_browse.on_click(move |_| {
             let file_dialog = FileDialog::builder(&dialog)
                 .with_message(&tr("Choose an SSH private key file"))
@@ -877,12 +1065,10 @@ pub fn settings_dialog(
         });
     }
     {
-        let dialog = dialog;
         ok.on_click(move |_| dialog.end_modal(ID_OK));
     }
     {
-        let dialog = dialog;
-        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
     }
 
     if dialog.show_modal() != ID_OK {
@@ -1083,7 +1269,6 @@ pub fn timer_dialog(
     dialog.set_sizer(sizer, true);
 
     {
-        let dialog = dialog;
         ok.on_click(move |_| {
             if title_entry.get_value().is_empty() {
                 error_box(&dialog, &tr("Please enter a title for the timer."), "Error");
@@ -1093,8 +1278,7 @@ pub fn timer_dialog(
         });
     }
     {
-        let dialog = dialog;
-        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
     }
 
     let confirmed = dialog.show_modal() == ID_OK;
@@ -1181,7 +1365,6 @@ pub fn alarm_dialog(
     dialog.set_sizer(sizer, true);
 
     {
-        let dialog = dialog;
         ok.on_click(move |_| {
             if title_entry.get_value().is_empty() {
                 error_box(&dialog, &tr("Please enter a title for the alarm."), "Error");
@@ -1191,8 +1374,7 @@ pub fn alarm_dialog(
         });
     }
     {
-        let dialog = dialog;
-        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
     }
 
     let confirmed = dialog.show_modal() == ID_OK;
@@ -1241,6 +1423,27 @@ pub fn snippet_dialog(parent: &Frame, existing: Option<(String, String)>) -> boo
         .build();
     ax_name(&contents_entry, &tr("Contents:"));
     sizer.add(&contents_entry, 1, SizerFlag::Expand, 0);
+
+    // What turns a snippet into a template, said once where it is needed: the
+    // rule is short enough to state, and nobody reads a manual to write a
+    // signature.
+    let help = tr(
+        "Anything you write as {{a name}} is asked for when you copy this snippet, and the same \
+         name is only asked for once. {{date}}, {{fecha}}, {{time}} and {{hora}} fill themselves \
+         in, and so do the variables of your own.",
+    );
+    sizer.add(&StaticText::builder(&dialog).with_label(&help).build(), 0, SizerFlag::All, 0);
+    let variable_row = BoxSizer::builder(Orientation::Horizontal).build();
+    variable_menu_button(
+        &dialog,
+        &variable_row,
+        &contents_entry,
+        &tr("Insert &variable..."),
+        SNIPPET_VARIABLE_MENU_BASE_ID,
+        VariableMenu::Snippet,
+    );
+    sizer.add_sizer(&variable_row, 0, SizerFlag::All, 0);
+
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
     dialog.set_sizer(sizer, true);
 
@@ -1251,7 +1454,6 @@ pub fn snippet_dialog(parent: &Frame, existing: Option<(String, String)>) -> boo
     }
 
     {
-        let dialog = dialog;
         ok.on_click(move |_| {
             if name_entry.get_value().is_empty() || contents_entry.get_value().is_empty() {
                 error_box(
@@ -1265,8 +1467,7 @@ pub fn snippet_dialog(parent: &Frame, existing: Option<(String, String)>) -> boo
         });
     }
     {
-        let dialog = dialog;
-        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
     }
 
     if dialog.show_modal() != ID_OK {
@@ -1293,7 +1494,6 @@ pub fn vault_unlock_dialog(parent: &Frame) -> Option<String> {
     dialog.set_sizer(sizer, true);
 
     {
-        let dialog = dialog;
         ok.on_click(move |_| {
             if entry.get_value().is_empty() {
                 error_box(&dialog, &tr("Please enter your master password."), &tr("Error"));
@@ -1303,8 +1503,7 @@ pub fn vault_unlock_dialog(parent: &Frame) -> Option<String> {
         });
     }
     {
-        let dialog = dialog;
-        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
     }
 
     if dialog.show_modal() != ID_OK {
@@ -1345,7 +1544,6 @@ pub fn vault_password_dialog(parent: &Frame, changing: bool) -> Option<VaultPass
     dialog.set_sizer(sizer, true);
 
     {
-        let dialog = dialog;
         ok.on_click(move |_| {
             if current_entry.is_some_and(|entry| entry.get_value().is_empty()) {
                 error_box(&dialog, &tr("Please enter your current master password."), &tr("Error"));
@@ -1371,8 +1569,7 @@ pub fn vault_password_dialog(parent: &Frame, changing: bool) -> Option<VaultPass
         });
     }
     {
-        let dialog = dialog;
-        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
     }
 
     if dialog.show_modal() != ID_OK {
@@ -1423,7 +1620,6 @@ pub fn vault_entry_dialog(parent: &Frame, existing: Option<VaultEntryFields>) ->
     }
 
     {
-        let dialog = dialog;
         ok.on_click(move |_| {
             if name_entry.get_value().trim().is_empty() || secret_entry.get_value().is_empty() {
                 error_box(
@@ -1437,8 +1633,7 @@ pub fn vault_entry_dialog(parent: &Frame, existing: Option<VaultEntryFields>) ->
         });
     }
     {
-        let dialog = dialog;
-        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
     }
 
     if dialog.show_modal() != ID_OK {
@@ -1499,7 +1694,6 @@ pub fn grab_region_dialog(parent: &Frame) -> Option<String> {
     dialog.set_sizer(sizer, true);
 
     {
-        let dialog = dialog;
         ok.on_click(move |_| {
             if entry.get_value().trim().is_empty() {
                 error_box(&dialog, &tr("Please describe what you want to grab."), &tr("Error"));
@@ -1509,8 +1703,7 @@ pub fn grab_region_dialog(parent: &Frame) -> Option<String> {
         });
     }
     {
-        let dialog = dialog;
-        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
     }
 
     if dialog.show_modal() != ID_OK {
@@ -1541,7 +1734,6 @@ pub fn notebrook_credentials_dialog(
     dialog.set_sizer(sizer, true);
 
     {
-        let dialog = dialog;
         ok.on_click(move |_| {
             if url_entry.get_value().trim().is_empty() || token_entry.get_value().trim().is_empty()
             {
@@ -1556,8 +1748,7 @@ pub fn notebrook_credentials_dialog(
         });
     }
     {
-        let dialog = dialog;
-        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL as i32));
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
     }
 
     if dialog.show_modal() != ID_OK {

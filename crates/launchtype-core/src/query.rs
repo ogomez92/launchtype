@@ -15,7 +15,7 @@
 //! follow. Everywhere else the answer is passed through exactly as typed: a
 //! `{{query}}` standing in for a file name must stay a file name.
 
-use crate::portable::{looks_like_url, placeholder_names, CLOSE, OPEN};
+use crate::portable::{looks_like_url, next_placeholder, placeholder_names};
 
 /// The placeholder name, without its braces.
 pub const NAME: &str = "query";
@@ -49,31 +49,35 @@ pub fn fill(path: &str, args: &str, answers: &[String]) -> (String, String) {
 
 fn fill_in<'a>(template: &str, answers: &mut impl Iterator<Item = &'a String>) -> String {
     let mut out = String::with_capacity(template.len());
-    let mut rest = template;
-    while let Some(start) = rest.find(OPEN) {
-        let after_open = &rest[start + OPEN.len()..];
-        let Some(end) = after_open.find(CLOSE) else { break };
-        let whole = start + OPEN.len() + end + CLOSE.len();
-        if !after_open[..end].trim().eq_ignore_ascii_case(NAME) {
+    // Bytes of `template` already written out. Tracked as an absolute offset
+    // rather than as a shrinking slice so the prefix below is easy to take.
+    let mut consumed = 0;
+    while let Some((range, name)) = next_placeholder(&template[consumed..]) {
+        let (start, end) = (consumed + range.start, consumed + range.end);
+        out.push_str(&template[consumed..start]);
+        if !name.eq_ignore_ascii_case(NAME) {
             // Somebody else's placeholder: copy it through braces and all.
-            out.push_str(&rest[..whole]);
-            rest = &rest[whole..];
-            continue;
-        }
-        out.push_str(&rest[..start]);
-        match answers.next() {
-            // What precedes the placeholder decides the encoding, and it is
-            // read off the template rather than off `out`: an answer already
-            // substituted could otherwise change how the next one is read.
-            Some(answer) => {
-                let prefix = &template[..template.len() - rest.len() + start];
-                out.push_str(&if inside_url(prefix) { encode(answer) } else { answer.clone() });
+            out.push_str(&template[start..end]);
+        } else {
+            match answers.next() {
+                // What precedes the placeholder decides the encoding, and it
+                // is read off the template rather than off `out`: an answer
+                // already substituted could otherwise change how the next one
+                // is read.
+                Some(answer) => {
+                    let value = if inside_url(&template[..start]) {
+                        encode(answer)
+                    } else {
+                        answer.clone()
+                    };
+                    out.push_str(&value);
+                }
+                None => out.push_str(&placeholder()),
             }
-            None => out.push_str(&placeholder()),
         }
-        rest = &rest[whole..];
+        consumed = end;
     }
-    out.push_str(rest);
+    out.push_str(&template[consumed..]);
     out
 }
 

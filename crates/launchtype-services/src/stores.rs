@@ -112,7 +112,7 @@ impl CommandsStore {
     pub fn display_order(&self, sort_by_uses: bool) -> Vec<Command> {
         let mut commands = self.file.commands.clone();
         if sort_by_uses {
-            commands.sort_by(|a, b| b.run_count().cmp(&a.run_count()));
+            commands.sort_by_key(|command| std::cmp::Reverse(command.run_count()));
         }
         commands
     }

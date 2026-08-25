@@ -41,7 +41,7 @@ fn config_from(settings: &Settings) -> SshConfig {
         // machine's user folder rather than the one it was configured on.
         key_path: launchtype_core::portable::expand(
             &settings.ssh_key_path,
-            launchtype_services::portable::vars(),
+            &launchtype_services::portable::vars(),
         ),
         password: settings.ssh_password.clone(),
     }

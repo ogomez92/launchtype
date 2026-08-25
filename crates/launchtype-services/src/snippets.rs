@@ -48,6 +48,12 @@ pub fn load_snippets(working_dir: &Path) -> Vec<Snippet> {
             let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
                 continue;
             };
+            // The user's placeholders share this folder but are not a snippet;
+            // without this they would show up in the list as "placeholders",
+            // pasting their own JSON.
+            if file_name.eq_ignore_ascii_case(launchtype_core::placeholders::FILE_NAME) {
+                continue;
+            }
             let shortcut = file_name.split('.').next().unwrap_or(file_name).to_lowercase();
             if let Ok(contents) = std::fs::read_to_string(&path) {
                 snippets.push(Snippet { shortcut, contents });
@@ -96,6 +102,21 @@ mod tests {
                 Snippet { shortcut: "my".into(), contents: "note body".into() },
                 Snippet { shortcut: "sig".into(), contents: "Best regards,\nOscar".into() },
             ]
+        );
+    }
+
+    /// `placeholders.json` lives in this folder and is not a snippet.
+    #[test]
+    fn the_placeholders_file_is_not_loaded_as_a_snippet() {
+        let dir = tempfile::tempdir().unwrap();
+        let snippets_dir = dir.path().join("snippets");
+        std::fs::create_dir(&snippets_dir).unwrap();
+        std::fs::write(snippets_dir.join("placeholders.json"), r#"{"hi": "hola"}"#).unwrap();
+        std::fs::write(snippets_dir.join("sig.txt"), "Oscar").unwrap();
+
+        assert_eq!(
+            load_snippets(dir.path()),
+            vec![Snippet { shortcut: "sig".into(), contents: "Oscar".into() }]
         );
     }
 

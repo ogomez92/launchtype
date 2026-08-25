@@ -173,8 +173,8 @@ mod tests {
     #[test]
     fn float_precision() {
         assert_eq!(
-            format_args("{value:.2f} euros", &[("value", Arg::Float(3.14159))]),
-            "3.14 euros"
+            format_args("{value:.2f} euros", &[("value", Arg::Float(1.23456))]),
+            "1.23 euros"
         );
     }
 

@@ -7,20 +7,51 @@
 //! opens the URL instead of failing.
 
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock, RwLock};
 
+use chrono::Local;
 use launchtype_core::portable::{VarValue, Vars};
+use launchtype_core::snippet_vars;
 
-static VARS: OnceLock<Vars> = OnceLock::new();
+static SYSTEM: OnceLock<Vars> = OnceLock::new();
+static COMBINED: RwLock<Option<Arc<Vars>>> = RwLock::new(None);
 
-/// This machine's placeholder values, probed once and reused.
+/// Every placeholder a command or a snippet can name: this machine's, the
+/// user's own ([`crate::placeholders`]), and the clock's.
 ///
-/// Resolution touches the filesystem (which browsers are installed), so it is
-/// cached; nothing here changes while the app runs. The app makes its data
-/// folder the working directory at startup, which is what `{{launchtype}}`
-/// resolves to.
-pub fn vars() -> &'static Vars {
-    VARS.get_or_init(|| {
+/// Resolution touches the filesystem (which browsers are installed), so the
+/// machine half is cached and probed once. The user's half changes when they
+/// edit it, and [`forget_placeholders`] is how the cache is told. The clock's
+/// is added fresh on every call, because that is the whole point of it — a
+/// cached `{{hora}}` would be the time the app started.
+///
+/// The app makes its data folder the working directory at startup, which is
+/// what `{{launchtype}}` resolves to.
+pub fn vars() -> Arc<Vars> {
+    Arc::new(machine_and_user().with(snippet_vars::clock_vars(Local::now())))
+}
+
+/// The two halves that are worth caching, combined.
+fn machine_and_user() -> Arc<Vars> {
+    if let Some(cached) = COMBINED.read().unwrap().clone() {
+        return cached;
+    }
+    let built = Arc::new(system().with(crate::placeholders::current().vars()));
+    *COMBINED.write().unwrap() = Some(built.clone());
+    built
+}
+
+/// Drop the cached half so the next [`vars`] picks up the user's edits.
+/// Called through `crate::placeholders::reload`, which is the front door.
+pub fn forget_placeholders() {
+    *COMBINED.write().unwrap() = None;
+}
+
+/// The machine half on its own, probed once. Everything in here is fixed for
+/// the life of the process, so the expensive part is only ever paid once even
+/// when the user's placeholders change.
+fn system() -> &'static Vars {
+    SYSTEM.get_or_init(|| {
         let app_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         system_vars(&app_dir)
     })
@@ -284,6 +315,7 @@ mod tests {
                 VarValue::DefaultOpener => {
                     assert_eq!(resolve_target(&format!("{{{{{name}}}}}"), &vars), Target::DefaultOpener)
                 }
+                VarValue::Text(text) => panic!("{name} resolved to text: {text}"),
             }
         }
     }

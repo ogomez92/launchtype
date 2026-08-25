@@ -46,7 +46,7 @@ impl Scheduler {
                     }
 
                     tick = tick.wrapping_add(1);
-                    if tick % 20 == 0 {
+                    if tick.is_multiple_of(20) {
                         let fired: Vec<AlertItem> = {
                             let mut engine = alarms.lock().unwrap();
                             engine.due(now).iter().map(AlertItem::from).collect()

@@ -148,9 +148,52 @@ Name:      search my documents
 
 Wikipedia works the same way, with the answer in the path of the URL rather than in a query string: `https://en.wikipedia.org/wiki/{{query}}`.
 
+### The date and the time
+
+Four variables are answered from the clock rather than from the machine:
+
+- `{{date}}` — today, month/day/year (`08/25/2026`)
+- `{{fecha}}` — today, day/month/year (`25/08/2026`)
+- `{{time}}` — the time now, 12-hour (`3:07 PM`)
+- `{{hora}}` — the time now, 24-hour (`15:07`)
+
+The name picks the convention, not the language Launchtype is running in. A snippet is written in the language it will be *read* in, so a Spanish speaker writing to a client in the States wants `{{date}}` in that one line and `{{fecha}}` in the rest.
+
+They are never asked for. If you want to be *asked* for a date — the day a report was requested, say — name the variable something else: `{{fecha de solicitud}}` is a question, `{{fecha}}` is today.
+
+### Variables of your own
+
+`{{hi}}`, `{{sig}}`, `{{disclaimer}}` — a name and the text you keep typing. Write the name once, use it in as many snippets and commands as you like, and change the text in one place when it changes.
+
+They are kept in `snippets/placeholders.json`, a plain JSON object you can open and edit by hand:
+
+```json
+{
+  "hi": "Hola, ¿qué tal?",
+  "sig": "Un saludo,\nOscar"
+}
+```
+
+A variable may be written in terms of the others, including the clock ones and the questions:
+
+```json
+{
+  "header": "Madrid, {{fecha}}",
+  "close": "{{header}}\n{{sig}}"
+}
+```
+
+A name that reaches itself — directly, or the long way round through two others — stops there and is left on screen as `{{name}}`, rather than looping.
+
+The built-ins win. A variable of your own called `home`, `query` or `fecha` is refused when you write it, because those already mean something everywhere else.
+
+They have a mode of their own, `_` (underscore). It lists everything in the file, searchable by name or by what it says, and the ordinary buttons do the ordinary things: **Add** writes a new one, **Edit** changes the one you are on, **Delete** removes it. Enter edits too — there is nothing to launch here, and a variable is used by *naming* it from a snippet or a command rather than from this list.
+
 ### Adding them
 
-In the Add and Edit Command dialogs, the "Path variable..." and "Argument variable..." buttons open a menu of every variable with its description and what it resolves to on this machine. `{{query}}` leads the menu — it is the one with nothing to resolve. Choosing one inserts it where the cursor is and leaves you in the field, so you can carry on typing.
+In the Add and Edit Command dialogs, the "Path variable..." and "Argument variable..." buttons open a menu of every variable with its description and what it resolves to on this machine. `{{query}}` leads the menu — it is the one with nothing to resolve — and your own variables come after the built-ins, each shown with the text it stands for. Choosing one inserts it where the cursor is and leaves you in the field, so you can carry on typing.
+
+The Snippet dialog has the same menu under "Insert variable...", offering the clock and your own — a snippet holding `{{programfiles}}` is nobody's idea of a signature, though it still works if you type it. So does the Add/Edit Variable dialog, which is how a variable gets written out of the others.
 
 The Browse button also does this for you: pick a file inside your user folder and it is stored as `{{home}}\...` rather than with your user name baked in.
 
@@ -201,7 +244,7 @@ None of those block an import; they are there so nothing arrives as a surprise. 
 
 Snippets are pieces of text that, when their filename is typed to the input field of the UI, the content of the file is put in the clipboard.
 
-In order to use snippets, you need to create .txt files in the snippets folder of the app. The "New snipet" button creates one for you, and "Open Snippets folder" opens that folder in your file manager.
+In order to use snippets, you need to create .txt files in the snippets folder of the app. In snippets mode the Add button makes one for you, Edit changes the one you are on and Delete removes it; "Open Snippets folder" opens that folder in your file manager.
 
 The name of the file is its shortcut, without the txt extension, and the content is what gets coppied.
 
@@ -210,6 +253,33 @@ For example, if you have a file called email.txt in the snippets folder which co
 In order to access snippets you need to be in snippets mode, you can do this by typing a dash character (-) in the input field. This will cause all the commands to be removed form the list and the snippets will show up.
 
 To go back to commands mode, you can press the period key (.). anyway, each time the app is opened by using the launcher hotkey, it is by default in commands mode so nothing needs to be done.
+
+### Snippets that ask
+
+A snippet copies as it stands, which covers a signature. It does not cover the mail you send twice a week with two words changed — one snippet per report, if the text has to be literal.
+
+Write those two words as `{{a name}}` and the snippet becomes a template. Press Enter on it and, instead of copying, the window stays up and asks you for each one in turn, exactly as a command's `{{query}}` does: the same sounds, the same numbering, Escape to back out, and the filled-in text on the clipboard once the last answer is in.
+
+```
+snippets/informe.txt:
+
+Hola, te envío el informe de {{informe}}, solicitado el {{fecha de solicitud}}.
+Un saludo.
+```
+
+That asks two questions — "informe, query parameter 1", "fecha de solicitud, query parameter 2" — and the name is announced first, because the name is the part that says what to type.
+
+One rule decides what is asked and what is not: **a name Launchtype knows is filled in, a name it does not know is asked for.** What it knows is [everything above](#portable-paths-variables) — this machine's folders and browsers, the clock's `{{date}}`/`{{fecha}}`/`{{time}}`/`{{hora}}`, and the variables of your own. So `{{fecha}}` is today without asking, `{{sig}}` is your signature without asking, and `{{informe}}` — which is nobody's name for anything — is a question.
+
+A name is asked **once** however often it appears, and filled in everywhere. That is the point of naming it: `{{nombre}}` three times in a letter is one thing said three times, not three things to type. Case and spacing do not matter — `{{Informe}}`, `{{ informe }}` and `{{INFORME}}` are one question, put in the first spelling you used.
+
+`{{query}}` is the exception, and keeps the meaning it has in a command: one question each, in reading order, however many you write.
+
+Questions are found through your own variables as well, so a variable holding `{{nombre}}` makes every snippet that uses it ask for the name.
+
+Nothing is encoded or rewritten on the way to the clipboard — a snippet is prose, and it arrives as you typed it.
+
+The Add and Edit Snippet dialogs say all this in one line above the Contents box, and have an "Insert variable..." button offering the clock, your own variables, and a way to write a new one.
 
 ## Clipboard History
 
@@ -486,6 +556,7 @@ The app has several modes, each accessed by typing a special character in the in
 | `:` | Emoji | Find an emoji by its description and copy it |
 | `=` | Unit conversion | Convert a typed number between units, shoe sizes included |
 | `*` | Encrypted vault | Passwords and other secrets, encrypted behind a master password |
+| `_` | Substitution variables | The `{{name}}` variables you write for yourself, used by snippets and commands alike |
 | `.` | (any mode) | Return to Commands mode |
 
 ## Audio Feedback
@@ -496,7 +567,7 @@ The app provides audio cues for various actions:
 - Show/hide sounds when toggling the window
 - Match sound when an exact shortcut is found
 - Type sound when search results update
-- Ask sound when a command starts asking for a `{{query}}` parameter, alongside the spoken "Query parameter 1"
+- Ask sound when a command or a snippet starts asking for a parameter, alongside the spoken "Query parameter 1"
 - Query typing sound on every keystroke while you answer it, in place of the match/type sounds — the input field is taking an answer, not searching
 - Run sound when executing a command or launching a game
 - Copy sound when copying a snippet or clipboard item

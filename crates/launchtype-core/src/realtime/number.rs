@@ -94,7 +94,7 @@ mod tests {
         // Trailing zeros are stripped.
         assert_eq!(format_number(3.10, 2), "3.1");
         assert_eq!(format_number(1085.6, 2), "1085.6");
-        assert_eq!(format_number(3.14159, 2), "3.14");
+        assert_eq!(format_number(1.23456, 2), "1.23");
         assert_eq!(format_number(1.0856, 4), "1.0856");
         assert_eq!(format_number(1.2, 4), "1.2");
         // No thousands separators, ever.

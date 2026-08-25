@@ -4,7 +4,7 @@
 //! refreshed tokens are written back to auth.json exactly like Codex does.
 
 use std::io::BufRead;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use launchtype_core::ai_auth::{
@@ -42,7 +42,7 @@ fn now_epoch_seconds() -> f64 {
 
 /// Refresh the access token and persist the rotated tokens. A failed
 /// write-back is tolerated (the fetch proceeds with the in-memory token).
-pub(crate) fn refresh_codex_tokens(path: &PathBuf, auth: &mut CodexAuth) -> Result<(), AiError> {
+pub(crate) fn refresh_codex_tokens(path: &Path, auth: &mut CodexAuth) -> Result<(), AiError> {
     let expired = || AiError(tr("Codex session expired, run Codex to log in again."));
     let body = codex_refresh_request_body(CODEX_CLIENT_ID, &auth.tokens.refresh_token);
     let agent = ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(15)).build();
@@ -71,6 +71,10 @@ fn codex_model() -> String {
 }
 
 /// POST a Responses request and accumulate the streamed answer text.
+///
+/// `ureq::Error` is a large enum, and boxing it here would only move the cost
+/// to the one caller that immediately turns it into an `AiError` sentence.
+#[allow(clippy::result_large_err)]
 fn codex_stream_text(auth: &CodexAuth, body: &str) -> Result<String, ureq::Error> {
     let agent = ureq::AgentBuilder::new().timeout(AI_TIMEOUT).build();
     let mut request = agent

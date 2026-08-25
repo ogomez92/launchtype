@@ -79,6 +79,10 @@ impl Scale {
         }
     }
 
+    /// `to_base`'s inverse, and named after it. Clippy reads `from_` as a
+    /// constructor prefix; here the pair names a direction of travel, and
+    /// splitting them up would make the one call site read worse.
+    #[allow(clippy::wrong_self_convention)]
     fn from_base(self, base: f64) -> f64 {
         match self {
             Scale::Linear { factor, offset } => (base - offset) / factor,

@@ -2701,3 +2701,75 @@ msgstr "Texto que Launchtype te pide cada vez que se ejecuta el comando"
 #: crates/launchtype-app/src/shell.rs
 msgid "Query parameter {number}"
 msgstr "Parámetro de consulta {number}"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "{name}, query parameter {number}"
+msgstr "{name}, parámetro de consulta {number}"
+
+#: crates/launchtype-core/src/snippet_vars.rs
+msgid "Today's date, month/day/year"
+msgstr "La fecha de hoy, mes/día/año"
+
+#: crates/launchtype-core/src/snippet_vars.rs
+msgid "Today's date, day/month/year"
+msgstr "La fecha de hoy, día/mes/año"
+
+#: crates/launchtype-core/src/snippet_vars.rs
+msgid "The time now, 12-hour"
+msgstr "La hora actual, en formato de 12 horas"
+
+#: crates/launchtype-core/src/snippet_vars.rs
+msgid "The time now, 24-hour"
+msgstr "La hora actual, en formato de 24 horas"
+
+#: crates/launchtype-core/src/placeholders.rs
+msgid "Please give the variable a name."
+msgstr "Ponle un nombre a la variable."
+
+#: crates/launchtype-core/src/placeholders.rs
+msgid "A variable name cannot contain { or }."
+msgstr "El nombre de una variable no puede contener { ni }."
+
+#: crates/launchtype-core/src/placeholders.rs
+msgid "{name} is already a Launchtype variable. Please pick another name."
+msgstr "{name} ya es una variable de Launchtype. Elige otro nombre."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Insert &variable..."
+msgstr "Insertar &variable..."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Stands for:"
+msgstr "&Equivale a:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Please enter the text the variable stands for."
+msgstr "Escribe el texto al que equivale la variable."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Could not save your variables: {reason}"
+msgstr "No se han podido guardar tus variables: {reason}"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Anything you write as {{a name}} is asked for when you copy this snippet, and the same name is only asked for once. {{date}}, {{fecha}}, {{time}} and {{hora}} fill themselves in, and so do the variables of your own."
+msgstr "Todo lo que escribas como {{un nombre}} se te pedirá al copiar la sustitución, y un mismo nombre solo se pide una vez. {{date}}, {{fecha}}, {{time}} y {{hora}} se rellenan solos, y tus propias variables también."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Add Variable"
+msgstr "Añadir variable"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Edit Variable"
+msgstr "Editar variable"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Substitution variables"
+msgstr "Variables de sustitución"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "substitution variables mode"
+msgstr "modo variables de sustitución"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Write {{name}} in a snippet, or in a command's path or arguments, and it is replaced by the text you give it here."
+msgstr "Escribe {{nombre}} en una sustitución, o en la ruta o los argumentos de un comando, y se sustituirá por el texto que le des aquí."
