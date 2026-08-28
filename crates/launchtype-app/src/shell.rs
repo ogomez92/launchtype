@@ -243,6 +243,10 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
     {
         let shell = shell.clone();
         edit.on_key_down(move |event| {
+            // Note: an arrow handled here still reaches the text field, because
+            // consuming a key means calling `skip(false)` — see the comment on
+            // `bind_hide_on_escape`. Left as it was: the caret moving to the
+            // start or end of the text is what has always happened here.
             let key = match &event {
                 WindowEventData::Keyboard(key_event) => key_event.get_key_code(),
                 _ => None,
@@ -637,15 +641,25 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
 
 /// Escape hides the window, and its beep is silenced.
 ///
-/// Handling only KEY_DOWN is not enough: Windows still translates the key
-/// press into a WM_CHAR, and every native control that cannot use Escape —
-/// the edit *and* the list — answers it with a MessageBeep. Both events have
-/// to be eaten, on every window that can hold the focus, which is why this is
-/// bound to the frame, the panel, the edit and the list alike.
+/// Handling only KEY_DOWN is not enough: Windows translates the key press into
+/// a WM_CHAR regardless, and a native control that cannot use Escape — the edit
+/// and every button — answers it with a MessageBeep. Both events have to be
+/// eaten, on every window that can hold the focus, which is why this is bound
+/// to the frame, the panel, the edit and the list alike.
+///
+/// And eating one means calling `skip(false)` and nothing else: wxdragon marks
+/// every event as skipped *before* handing it to the closure (its
+/// `cpp/src/event.cpp` does `event.Skip(true)` on each call and only treats the
+/// event as consumed if the closure clears it), so a handler that merely
+/// returns lets the key through. That is what kept the beep alive: the Escape
+/// reached the native control anyway. It still beeps from a button, where
+/// Windows does it inside IsDialogMessage() before the app sees the key; the
+/// only way out of that one is wxWANTS_CHARS, which costs Tab navigation.
 fn bind_hide_on_escape<W: WindowEvents>(shell: &SharedShell, target: &W) {
     let shell = shell.clone();
     target.on_key_down(move |event| {
         if is_escape(&event) {
+            event.skip(false);
             let mut s = shell.borrow_mut();
             // Escape is how you back out of a query prompt as well as out of
             // the window; without this the next Enter would launch the command
@@ -658,6 +672,7 @@ fn bind_hide_on_escape<W: WindowEvents>(shell: &SharedShell, target: &W) {
     });
     target.on_char(|event| {
         if is_escape(&event) {
+            event.skip(false);
             return;
         }
         event.skip(true);
