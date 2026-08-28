@@ -639,7 +639,8 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
     }
 }
 
-/// Escape hides the window, and its beep is silenced.
+/// Escape backs out of a query prompt if one is up, and otherwise hides the
+/// window. Its beep is silenced either way.
 ///
 /// Handling only KEY_DOWN is not enough: Windows translates the key press into
 /// a WM_CHAR regardless, and a native control that cannot use Escape — the edit
@@ -660,12 +661,30 @@ fn bind_hide_on_escape<W: WindowEvents>(shell: &SharedShell, target: &W) {
     target.on_key_down(move |event| {
         if is_escape(&event) {
             event.skip(false);
-            let mut s = shell.borrow_mut();
-            // Escape is how you back out of a query prompt as well as out of
-            // the window; without this the next Enter would launch the command
+            // A prompt takes the first Escape and the window the second: with
+            // both on the same press there was no way to abandon a prompt
+            // entered by mistake without losing the window too. Ending the
+            // prompt is what stops the next Enter from launching the command
             // you walked away from.
-            end_query(&mut s);
-            s.frame.show(false);
+            let cancelled = {
+                let mut s = shell.borrow_mut();
+                let cancelled = end_query(&mut s);
+                if cancelled.is_none() {
+                    s.frame.show(false);
+                }
+                cancelled
+            };
+            if cancelled.is_some() {
+                // The prompt emptied the list on the way in, and the window is
+                // staying up now, so it has to be filled back in — otherwise
+                // cancelling leaves you looking at nothing.
+                update_list(&shell);
+            }
+            match cancelled {
+                Some(ItemKind::Snippet) => speak_now(&tr("Substitution cancelled"), true),
+                Some(_) => speak_now(&tr("Command cancelled"), true),
+                None => {}
+            }
             return;
         }
         event.skip(true);
@@ -1252,11 +1271,12 @@ fn copy_snippet(shell: &SharedShell, item: &Item, answers: &[String]) {
     run_and_report(shell, &Item { name: contents, ..item.clone() }, ItemKind::Snippet);
 }
 
-/// Abandon a half-answered query prompt, if there is one.
-fn end_query(s: &mut Shell) {
-    if s.pending_query.take().is_some() {
-        restore_input_field(s);
-    }
+/// Abandon a half-answered query prompt, if there is one, and hand back what
+/// it was asking for so the caller can say what it just cancelled.
+fn end_query(s: &mut Shell) -> Option<ItemKind> {
+    let pending = s.pending_query.take()?;
+    restore_input_field(s);
+    Some(pending.item.kind)
 }
 
 /// Put the input field back to being a search box after a query prompt.

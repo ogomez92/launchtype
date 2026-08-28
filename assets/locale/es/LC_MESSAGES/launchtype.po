@@ -3217,3 +3217,10 @@ msgstr "{files} y {folders}"
 #: crates/launchtype-core/src/paths.rs
 msgid "There is nothing in {name} to convert to {format}."
 msgstr "No hay nada en {name} que convertir a {format}."
+#: crates/launchtype-app/src/shell.rs
+msgid "Command cancelled"
+msgstr "Comando cancelado"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Substitution cancelled"
+msgstr "Sustitución cancelada"

@@ -9,7 +9,8 @@ behavioral reference: when in doubt, compare side by side on the same data.
       shows, plays the "show" sound, and focus lands in the input field
 - [ ] "logo" sound plays once on startup
 - [ ] Ctrl+Alt+Space (Ctrl+Cmd+Space on macOS) toggles the window from anywhere (hidden ⇄ shown)
-- [ ] Escape and Alt+F4 hide the window (app keeps running, hotkey still works)
+- [ ] Escape (with no prompt up) and Alt+F4 hide the window (app keeps
+      running, hotkey still works)
 - [ ] Escape makes no Windows beep from the input field or either list.
       From a button it still beeps: Windows does that in IsDialogMessage,
       before the app sees the key, and the only way out would cost Tab
@@ -328,8 +329,10 @@ rows. Work on COPIES: a verified conversion deletes the original by design.
 - [ ] While answering, every keystroke plays the query typing sound instead of
       the match/type sounds, the list stays empty, and a leading `?` or `@` does
       NOT switch mode
-- [ ] Escape backs out; the input field goes back to being announced as
-      "Input Field" and the next Enter does not launch the abandoned command
+- [ ] Escape backs out of the prompt WITHOUT hiding the window, announcing
+      "Command cancelled" ("Substitution cancelled" for a snippet); the input
+      field goes back to being announced as "Input Field", the next Enter does
+      not launch the abandoned command, and a second Escape hides the window
 - [ ] A snippet holding `{{informe}}` asks "informe, query parameter 1" — the
       NAME first — and puts the filled text on the clipboard with the copy sound
 - [ ] The same name twice in one snippet is asked ONCE and filled in both places
