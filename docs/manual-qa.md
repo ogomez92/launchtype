@@ -9,8 +9,8 @@ behavioral reference: when in doubt, compare side by side on the same data.
       shows, plays the "show" sound, and focus lands in the input field
 - [ ] "logo" sound plays once on startup
 - [ ] Ctrl+Alt+Space (Ctrl+Cmd+Space on macOS) toggles the window from anywhere (hidden ⇄ shown)
-- [ ] Escape (with no prompt up) and Alt+F4 hide the window (app keeps
-      running, hotkey still works)
+- [ ] Escape (with no prompt up) and Alt+F4 hide the window over the "hide"
+      sound, same as the hotkey (app keeps running, hotkey still works)
 - [ ] Escape makes no Windows beep from the input field or either list.
       From a button it still beeps: Windows does that in IsDialogMessage,
       before the app sees the key, and the only way out would cost Tab
