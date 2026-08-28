@@ -630,7 +630,9 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
             if let WindowEventData::General(close_event) = &event {
                 if close_event.can_veto() {
                     close_event.veto();
-                    shell.borrow().frame.show(false);
+                    let s = shell.borrow();
+                    s.sounds.play("hide");
+                    s.frame.show(false);
                     return;
                 }
             }
@@ -670,6 +672,7 @@ fn bind_hide_on_escape<W: WindowEvents>(shell: &SharedShell, target: &W) {
                 let mut s = shell.borrow_mut();
                 let cancelled = end_query(&mut s);
                 if cancelled.is_none() {
+                    s.sounds.play("hide");
                     s.frame.show(false);
                 }
                 cancelled
