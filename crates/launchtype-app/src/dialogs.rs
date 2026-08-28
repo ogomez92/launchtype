@@ -145,11 +145,28 @@ fn insert_at_caret(entry: &TextCtrl, text: &str) {
     entry.set_focus();
 }
 
+/// A placeholder as it is written *in a menu line*: `portable::placeholder`
+/// with an `&` before the name.
+///
+/// Without an explicit `&` somewhere in the label, Windows falls back to the
+/// item's leading character as its implicit access key, and every one of these
+/// items starts with `{{`, so a screen reader announced that brace as the
+/// shortcut on every single row. This only changes what native Win32 reports
+/// as the item's shortcut; what gets inserted into the field is
+/// `VariableChoice::placeholder`, the real unmarked text.
+///
+/// Every menu line has to go through here. The one that did not — the user's
+/// own variables, which built their label by hand — kept announcing the brace
+/// long after the rest were fixed.
+fn menu_placeholder(name: &str) -> String {
+    format!("{}&{}{}", portable::OPEN, name, portable::CLOSE)
+}
+
 /// The menu line for one placeholder: what to type, what it means, and what it
 /// resolves to here — the resolved value is the part that tells the user
 /// whether the variable is the one they want.
 fn variable_menu_label(spec: &VarSpec, vars: &portable::Vars) -> String {
-    let name = portable::placeholder(spec.name);
+    let name = menu_placeholder(spec.name);
     let description = portable::description(spec.name);
     match vars.display_value(spec.name) {
         Some(value) => format!("{name} - {} ({})", description, one_line(&value, MENU_TEXT_LIMIT)),
@@ -222,8 +239,7 @@ fn variable_choices(menu: VariableMenu) -> Vec<VariableChoice> {
     // stand for, clipped: a signature is several lines and a menu line is one.
     for (name, _) in launchtype_services::placeholders::current().entries() {
         let text = vars.display_value(name).unwrap_or_default();
-        let label =
-            format!("{} - {}", portable::placeholder(name), one_line(&text, MENU_TEXT_LIMIT));
+        let label = format!("{} - {}", menu_placeholder(name), one_line(&text, MENU_TEXT_LIMIT));
         choices.push(VariableChoice::new(name, label));
     }
 
