@@ -3193,3 +3193,27 @@ msgstr "Esos PDF suman {size:.1f} megabytes, demasiado para enviarlos de una vez
 #: crates/launchtype-app/src/path_flows.rs
 msgid "Transcribing first, then asking Claude. This can take a while"
 msgstr "Primero transcribiendo y luego preguntando a Claude. Esto puede tardar"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Convert {what} to {format}"
+msgstr "Convertir {what} a {format}"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "everything in {name}"
+msgstr "todo lo que hay en {name}"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "everything in {count} folders"
+msgstr "todo lo que hay en {count} carpetas"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "{count} files"
+msgstr "{count} archivos"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "{files} and {folders}"
+msgstr "{files} y {folders}"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "There is nothing in {name} to convert to {format}."
+msgstr "No hay nada en {name} que convertir a {format}."

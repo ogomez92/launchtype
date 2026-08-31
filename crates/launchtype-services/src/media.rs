@@ -7,6 +7,7 @@
 //! ffprobe before they are believed: ffmpeg exits 0 on plenty of files it only
 //! half wrote, and the caller is about to delete the original.
 
+use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -204,6 +205,68 @@ pub fn probe(tools: &Tools, file: &str) -> Result<serde_json::Value, MediaError>
     })
 }
 
+/// Every audio or video file under `folder`, its subfolders included.
+///
+/// Nothing here opens a file or asks ffprobe anything: the extension decides,
+/// and ffmpeg is then simply pointed at everything in there it could
+/// plausibly read. That is what makes a folder row cost nothing to offer —
+/// the list is built without the disk being touched at all, and this walk is
+/// the first thing that looks inside, on the worker thread where a slow share
+/// costs nobody anything. A file whose name lies about its contents fails at
+/// the conversion like any other, one line in the report.
+///
+/// Symlinked folders are not followed: one pointing back up its own tree
+/// would walk forever. A subfolder that cannot be listed is logged and
+/// skipped, but failing to list the folder that was actually asked for is an
+/// error — the row promised everything in there and delivered nothing.
+pub fn media_files_in(folder: &str) -> Result<Vec<String>, MediaError> {
+    let mut found: Vec<String> = Vec::new();
+    // The folder that was asked for is read first and on its own, because it
+    // is the only one whose failure is worth stopping for.
+    let top = list_folder(Path::new(folder), &mut found).map_err(|error| {
+        MediaError(format_args(
+            &tr("{name} could not be read: {reason}"),
+            &[
+                ("name", Arg::Str(paths::file_name(folder))),
+                ("reason", Arg::Str(&error.to_string())),
+            ],
+        ))
+    })?;
+    // Breadth-first off a queue rather than by recursion: a folder tree deep
+    // enough to take the stack with it is somebody's backup drive, not a bug
+    // worth crashing over.
+    let mut pending: VecDeque<PathBuf> = top.into();
+    while let Some(dir) = pending.pop_front() {
+        match list_folder(&dir, &mut found) {
+            Ok(deeper) => pending.extend(deeper),
+            Err(error) => log::warn!("{} could not be listed: {error}", dir.display()),
+        }
+    }
+    Ok(found)
+}
+
+/// One folder: its media onto `found`, its subfolders back to the caller.
+/// Sorted, because that is the order the files are converted in, the order
+/// any failures are read out in, and the order the new list ends up in.
+fn list_folder(dir: &Path, found: &mut Vec<String>) -> std::io::Result<Vec<PathBuf>> {
+    let mut entries: Vec<std::fs::DirEntry> = std::fs::read_dir(dir)?.flatten().collect();
+    entries.sort_by_key(|entry| entry.file_name());
+    let mut subfolders: Vec<PathBuf> = Vec::new();
+    for entry in entries {
+        let Ok(kind) = entry.file_type() else { continue };
+        if kind.is_symlink() {
+            continue;
+        }
+        let path = entry.path();
+        if kind.is_dir() {
+            subfolders.push(path);
+        } else if paths::is_media_file(&path.to_string_lossy()) {
+            found.push(path.to_string_lossy().into_owned());
+        }
+    }
+    Ok(subfolders)
+}
+
 /// The encoder settings for each target format. `-vn` drops any video stream,
 /// which is what makes "convert this MKV to MP3" mean what it looks like.
 fn encoder_args(extension: &str) -> Option<&'static [&'static str]> {
@@ -352,6 +415,38 @@ mod tests {
         assert!(resolve_configured("   ", "ffmpeg").is_none());
     }
 
+    /// A folder conversion is only ever as good as what this finds: every
+    /// recording in the tree, nothing that is not one, in a settled order.
+    #[test]
+    fn a_folder_walk_finds_the_media_at_every_depth() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("album/live")).unwrap();
+        std::fs::create_dir(root.join("empty")).unwrap();
+        for name in ["b.wav", "a.flac", "cover.png", "notes.txt", "README"] {
+            std::fs::write(root.join(name), b"").unwrap();
+        }
+        std::fs::write(root.join("album/track.mp3"), b"").unwrap();
+        std::fs::write(root.join("album/live/encore.MKV"), b"").unwrap();
+
+        let found = media_files_in(&root.to_string_lossy()).unwrap();
+        let names: Vec<&str> = found.iter().map(|path| paths::file_name(path)).collect();
+        // Sorted within each folder, and a folder before what is under it.
+        assert_eq!(names, ["a.flac", "b.wav", "track.mp3", "encore.MKV"]);
+    }
+
+    /// A folder that cannot be listed has to say so: the row promised
+    /// everything in it, and "nothing was converted" alone would not tell
+    /// anybody whether it was empty or unreachable.
+    #[test]
+    fn a_folder_that_is_not_there_is_an_error_rather_than_an_empty_batch() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("gone");
+        assert!(media_files_in(&missing.to_string_lossy()).is_err());
+        // An empty one is not an error, just nothing to do.
+        assert_eq!(media_files_in(&dir.path().to_string_lossy()).unwrap().len(), 0);
+    }
+
     /// The whole conversion pipeline against the real ffmpeg, run by hand
     /// because it needs one installed:
     /// `cargo test -p launchtype-services -- --ignored --nocapture ffmpeg`
@@ -393,6 +488,50 @@ mod tests {
             !paths::conversion_is_sound(&source_probe, &truncated_probe),
             "a one-second rendering of a three-second tone must not pass"
         );
+    }
+
+    /// The folder half of path mode against the real ffmpeg, run by hand like
+    /// the test above:
+    /// `cargo test -p launchtype-services -- --ignored --nocapture folder`
+    ///
+    /// A tree of real tones is walked, batched and converted exactly as the
+    /// mode does it — which is the only way to know that "convert everything
+    /// in music to MP3" reaches a subfolder, leaves the MP3s alone, and puts
+    /// each result beside its own source rather than all of them at the top.
+    #[test]
+    #[ignore]
+    fn real_ffmpeg_converts_a_whole_folder() {
+        let tools = find_tools("").expect("ffmpeg on PATH");
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::create_dir(root.join("live")).unwrap();
+        let tone = |path: PathBuf| {
+            let name = path.to_string_lossy().into_owned();
+            run(&tools.ffmpeg, &["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=2", &name])
+                .unwrap();
+            assert!(path.is_file(), "no tone at {name}");
+        };
+        tone(root.join("a.wav"));
+        tone(root.join("live/b.wav"));
+        tone(root.join("already.mp3"));
+        std::fs::write(root.join("notes.txt"), b"not a recording").unwrap();
+
+        let folder = paths::Target::new(root.to_string_lossy().into_owned(), true);
+        let batch = paths::conversion_batch(&[folder], "mp3", "MP3", &|folder| {
+            media_files_in(folder).map_err(|error| error.0)
+        });
+        // Every depth, never the .txt, and not the MP3 that is one already.
+        let names: Vec<&str> = batch.files.iter().map(|path| paths::file_name(path)).collect();
+        assert_eq!(names, ["a.wav", "b.wav"]);
+        assert!(batch.failures.is_empty(), "{:?}", batch.failures);
+
+        for input in &batch.files {
+            let output = paths::output_path(input, "mp3", &|path| Path::new(path).exists());
+            convert(&tools, input, &output, "mp3").unwrap_or_else(|e| panic!("{input}: {e}"));
+            assert!(paths::probe_has_audio(&probe(&tools, &output).unwrap()));
+        }
+        assert!(root.join("a.mp3").is_file());
+        assert!(root.join("live/b.mp3").is_file(), "the subfolder's output stayed in it");
     }
 
     /// Naming one of the pair has to be enough to find the other: people fill

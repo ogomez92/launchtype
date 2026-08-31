@@ -273,18 +273,26 @@ fn start_conversion(shell: &SharedShell, action: &str) {
                 return wxdragon::call_after(Box::new(move || abandon(error.0)));
             }
         };
-        let mut outcome = Outcome { total: context.targets.len(), ..Default::default() };
+        // The first thing that looks inside a folder. Building the list never
+        // touches the disk, so this is where "everything in music" turns into
+        // the files it meant — out here on the worker thread, where a folder
+        // of ten thousand, or one on a sleeping share, costs the window
+        // nothing.
+        let batch = paths::conversion_batch(&context.targets, &extension, format, &|folder| {
+            media::media_files_in(folder).map_err(|error| error.0)
+        });
+        let inputs = batch.files;
+        let mut outcome =
+            Outcome { total: inputs.len(), failures: batch.failures, ..Default::default() };
         let mut deleted = 0;
-        for target in &context.targets {
+        for input in &inputs {
             let converted = if extracting {
-                media::extract_audio(&tools, &target.path, &|path| {
-                    std::path::Path::new(path).exists()
-                })
+                media::extract_audio(&tools, input, &|path| std::path::Path::new(path).exists())
             } else {
-                let output = paths::output_path(&target.path, &extension, &|path| {
+                let output = paths::output_path(input, &extension, &|path| {
                     std::path::Path::new(path).exists()
                 });
-                media::convert(&tools, &target.path, &output, &extension).map(|_| output)
+                media::convert(&tools, input, &output, &extension).map(|_| output)
             };
             match converted {
                 Ok(output) => {
@@ -294,12 +302,12 @@ fn start_conversion(shell: &SharedShell, action: &str) {
                     // is that recording — and never for an extraction, which
                     // leaves the video it came out of alone.
                     if context.delete_original && !extracting {
-                        match std::fs::remove_file(&target.path) {
+                        match std::fs::remove_file(input) {
                             Ok(()) => deleted += 1,
                             Err(error) => outcome.failures.push(format_args(
                                 &tr("{name} was converted but could not be deleted: {reason}"),
                                 &[
-                                    ("name", Arg::Str(target.name())),
+                                    ("name", Arg::Str(paths::file_name(input))),
                                     ("reason", Arg::Str(&error.to_string())),
                                 ],
                             )),

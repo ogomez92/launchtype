@@ -162,6 +162,26 @@ rows. Work on COPIES: a verified conversion deletes the original by design.
 - [ ] Convert an MKV to MP3: you get the soundtrack, and the video is unchanged
 - [ ] "Extract the audio track" of an MP4 is near-instant, lands as `.m4a`, and
       leaves the video alone
+- [ ] Copy a FOLDER: every conversion row is offered and names it ("Convert
+      everything in music to MP3"), including for a folder you know is full of
+      MP3s — nothing has looked inside it yet. No transcribe, media
+      information or Claude rows, and no "extract the audio track"
+- [ ] Convert that folder to FLAC: every recording at every depth is converted,
+      each output beside its own source in the subfolder it came from, and the
+      list afterwards is what was written. Work on a COPY of the folder: the
+      originals throughout the tree are deleted, subfolders included
+- [ ] Ask a folder of MP3s for MP3: nothing is converted and nothing is
+      deleted — no `song (2).mp3` anywhere — and it says so naming the folder
+- [ ] Copy a folder AND a loose file together: the row promises both
+      ("Convert song.wav and everything in music to MP3") and both are done.
+      Two folders read as "everything in 2 folders"
+- [ ] A folder with nothing convertible in it, and a folder that has been
+      deleted since it was copied, are each reported by name rather than
+      passing in silence
+- [ ] Put a junk file with a media name in the folder (rename a .txt to .wav):
+      it fails on its own line and the rest of the folder still converts
+- [ ] A folder on a slow or sleeping network share does not stall the LIST —
+      the wait, if any, comes after Enter, with the window still usable
 - [ ] Point a conversion at a file that is not really audio (rename a .txt to
       .wav): it reports the failure, no half-written output is left behind, and
       the original is still there

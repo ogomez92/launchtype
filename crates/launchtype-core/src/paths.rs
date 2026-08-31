@@ -8,6 +8,8 @@
 //! through closures the caller passes in, which is what makes it testable and
 //! what keeps a stalled network share out of the parsing.
 
+use std::collections::HashSet;
+
 use crate::i18n::{format_args, tr, Arg};
 use crate::portable::is_absolute_location;
 
@@ -96,6 +98,12 @@ impl Target {
         matches!(self.kind, PathKind::Audio | PathKind::Video)
     }
 
+    /// True when this is a folder, whose conversions are about what is inside
+    /// it rather than about the folder itself.
+    pub fn is_folder(&self) -> bool {
+        self.kind == PathKind::Folder
+    }
+
     /// True when Claude can be handed this file's contents directly.
     pub fn is_readable_document(&self) -> bool {
         matches!(self.kind, PathKind::Text | PathKind::Pdf)
@@ -155,6 +163,27 @@ fn kind_from_extension(path: &str) -> PathKind {
     } else {
         PathKind::Other
     }
+}
+
+/// True when ffmpeg has audio to work with in a file of this name.
+///
+/// The name is all this looks at — nothing is opened, nothing is probed. That
+/// is what lets a folder be walked without waiting on every file in it: a name
+/// that lies about its contents fails at the conversion, one line in the
+/// report, with the rest of the batch carrying on.
+pub fn is_media_file(path: &str) -> bool {
+    matches!(kind_from_extension(path), PathKind::Audio | PathKind::Video)
+}
+
+/// Whether converting `path` to `format` is worth doing: ffmpeg can read it,
+/// and it is not already in that format.
+///
+/// The same rule [`targets_for`] applies to a file on the clipboard, kept here
+/// so that what turns up inside a folder is judged by it too. Without it a
+/// folder of MP3s "converted to MP3" would rewrite every one of them as
+/// `song (2).mp3` and then delete the original of each.
+pub fn is_convertible_to(path: &str, format: &str) -> bool {
+    is_media_file(path) && extension(path) != format
 }
 
 /// Pull every path out of a block of clipboard text.
@@ -262,10 +291,12 @@ pub fn targets_for<'a>(action: &str, targets: &'a [Target]) -> Vec<&'a Target> {
             SUMMARIZE | ASK | TRANSLATE => target.is_askable(),
             PROOFREAD | TEXT_INFO | COPY_TEXT => target.kind == PathKind::Text,
             VSCODE | TERMINAL => true,
-            // A conversion: the format's extension is the action id. Skipping
-            // the files already in that format is what keeps "convert to MP3"
-            // off a list of nothing but MP3s.
-            other => target.has_audio() && extension(&target.path) != other,
+            // A conversion: the format's extension is the action id. A folder
+            // always qualifies, because nothing has looked inside it and
+            // nothing will until Enter — what is in there decides then. For a
+            // file, skipping the ones already in that format is what keeps
+            // "convert to MP3" off a list of nothing but MP3s.
+            other => target.is_folder() || is_convertible_to(&target.path, other),
         })
         .collect()
 }
@@ -287,16 +318,26 @@ pub fn rows(targets: &[Target]) -> Vec<Row> {
     let mut rows: Vec<Row> = Vec::new();
     for (name, extension) in CONVERSION_FORMATS {
         let applicable = targets_for(extension, targets);
-        let label = match applicable.len() {
-            0 => continue,
-            1 => format_args(
+        let folders = applicable.iter().filter(|target| target.is_folder()).count();
+        let label = match (applicable.len(), folders) {
+            (0, _) => continue,
+            // No folder among them: the row can name the files exactly,
+            // because every one of them is on the clipboard already.
+            (1, 0) => format_args(
                 &tr("Convert {name} to {format}"),
                 &[("name", Arg::Str(applicable[0].name())), ("format", Arg::Str(name))],
             ),
-            count => format_args(
+            (count, 0) => format_args(
                 &tr("Convert {count} files to {format}"),
                 &[("count", Arg::Int(count as i64)), ("format", Arg::Str(name))],
             ),
+            _ => {
+                let subject = conversion_subject(&applicable);
+                format_args(
+                    &tr("Convert {what} to {format}"),
+                    &[("what", Arg::Str(&subject)), ("format", Arg::Str(name))],
+                )
+            }
         };
         rows.push(Row { action: extension, label });
     }
@@ -385,6 +426,37 @@ pub fn rows(targets: &[Target]) -> Vec<Row> {
     rows
 }
 
+/// What a conversion row promises when there is a folder among its targets.
+///
+/// A folder cannot be counted: nothing has looked inside it, and nothing will
+/// until Enter. Building the list never touches the disk — that is what keeps
+/// a folder on a sleeping network share from stalling the mode — so the row
+/// promises the folder rather than a number, and "everything in music" is a
+/// promise it can keep whatever turns out to be in there.
+fn conversion_subject(applicable: &[&Target]) -> String {
+    let (folders, files): (Vec<&Target>, Vec<&Target>) =
+        applicable.iter().copied().partition(|target| target.is_folder());
+    let inside = match folders.len() {
+        1 => format_args(&tr("everything in {name}"), &[("name", Arg::Str(folders[0].name()))]),
+        count => {
+            format_args(&tr("everything in {count} folders"), &[("count", Arg::Int(count as i64))])
+        }
+    };
+    if files.is_empty() {
+        return inside;
+    }
+    // Both kinds: the files named or counted as they always are, then what is
+    // inside the folders — "song.wav and everything in music".
+    let named = match files.len() {
+        1 => files[0].name().to_string(),
+        count => format_args(&tr("{count} files"), &[("count", Arg::Int(count as i64))]),
+    };
+    format_args(
+        &tr("{files} and {folders}"),
+        &[("files", Arg::Str(&named)), ("folders", Arg::Str(&inside))],
+    )
+}
+
 /// The folders "open in terminal" would open: a folder itself, the containing
 /// folder of a file, each of them once.
 pub fn terminal_folders(targets: &[Target]) -> Vec<String> {
@@ -401,6 +473,78 @@ pub fn terminal_folders(targets: &[Target]) -> Vec<String> {
         }
     }
     folders
+}
+
+/// What a conversion will actually be run on, worked out from the clipboard.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Batch {
+    /// The files to hand to ffmpeg, in the order they will be converted.
+    pub files: Vec<String>,
+    /// Folders that gave nothing, each one already a sentence to read out.
+    pub failures: Vec<String>,
+}
+
+/// Expand the clipboard into the files a conversion to `extension` will run
+/// on: every file as itself, every folder as the media inside it, and nothing
+/// twice over.
+///
+/// `inside` is the walk of a folder, passed in because this module never
+/// touches the disk — the same reason [`output_path`] is handed an `exists`.
+/// It is called once per folder, and only ever after Enter: building the list
+/// looks inside nothing, which is what keeps a folder on a sleeping share out
+/// of the mode's way until it is actually asked for.
+///
+/// What a folder gives up is filtered by [`is_convertible_to`], the rule the
+/// list applies to a file on the clipboard. A folder that gives nothing, or
+/// that cannot be walked at all, becomes a failure rather than silence: the
+/// row promised everything in there, and "nothing was converted" alone would
+/// not say whether it was empty, unreachable, or already in that format.
+pub fn conversion_batch(
+    targets: &[Target],
+    extension: &str,
+    format: &str,
+    inside: &dyn Fn(&str) -> Result<Vec<String>, String>,
+) -> Batch {
+    let mut batch = Batch::default();
+    // Copying a folder and one of the files in it is one conversion of that
+    // file, not two: the second would convert what the first had converted
+    // and deleted.
+    let mut seen: HashSet<String> = HashSet::new();
+    for target in targets {
+        if !target.is_folder() {
+            if seen.insert(target.path.clone()) {
+                batch.files.push(target.path.clone());
+            }
+            continue;
+        }
+        let found = match inside(&target.path) {
+            Ok(found) => found,
+            Err(reason) => {
+                batch.failures.push(reason);
+                continue;
+            }
+        };
+        // Counted before the de-duplication, so that a folder copied twice —
+        // or copied alongside one of its own subfolders — is not reported as
+        // having had nothing in it.
+        let mut worth = 0;
+        for path in found {
+            if !is_convertible_to(&path, extension) {
+                continue;
+            }
+            worth += 1;
+            if seen.insert(path.clone()) {
+                batch.files.push(path);
+            }
+        }
+        if worth == 0 {
+            batch.failures.push(format_args(
+                &tr("There is nothing in {name} to convert to {format}."),
+                &[("name", Arg::Str(target.name())), ("format", Arg::Str(format))],
+            ));
+        }
+    }
+    batch
 }
 
 /// Where a conversion of `input` to `extension` should write.
@@ -742,6 +886,77 @@ mod tests {
         assert!(labels(&targets).contains(&"Summarize 3 files with Claude".to_string()));
     }
 
+    /// A folder is offered every conversion there is, including one it may
+    /// turn out to be full of already: what is inside is nobody's business
+    /// until Enter, and guessing would mean walking the disk to build a list.
+    #[test]
+    fn a_folder_is_offered_every_conversion() {
+        let targets = vec![Target::new(r"C:\music", true)];
+        let labels = labels(&targets);
+        for (name, _) in CONVERSION_FORMATS {
+            assert!(
+                labels.contains(&format!("Convert everything in music to {name}")),
+                "no {name} row: {labels:?}"
+            );
+        }
+        // A folder is not a recording, and nothing here has looked in it.
+        let actions: Vec<&str> = rows(&targets).iter().map(|r| r.action).collect();
+        assert!(!actions.contains(&EXTRACT));
+        assert!(!actions.contains(&TRANSCRIBE));
+        assert!(!actions.contains(&INFO));
+        assert!(!actions.contains(&SUMMARIZE));
+        // Opening it is still on offer, and so is another look at the clipboard.
+        assert!(actions.contains(&TERMINAL));
+        assert!(actions.contains(&RESCAN));
+    }
+
+    #[test]
+    fn several_folders_are_counted_rather_than_named() {
+        let targets = vec![Target::new("/m/music", true), Target::new("/m/podcasts", true)];
+        assert!(labels(&targets).contains(&"Convert everything in 2 folders to MP3".to_string()));
+    }
+
+    /// A mixed clipboard has to promise both halves: the files it can count,
+    /// and the folders it cannot.
+    #[test]
+    fn files_and_folders_together_are_both_promised() {
+        let one = vec![file("/m/song.wav"), Target::new("/m/music", true)];
+        assert!(
+            labels(&one).contains(&"Convert song.wav and everything in music to MP3".to_string())
+        );
+
+        let many = vec![
+            file("/m/a.wav"),
+            file("/m/b.flac"),
+            Target::new("/m/music", true),
+            Target::new("/m/podcasts", true),
+        ];
+        assert!(
+            labels(&many)
+                .contains(&"Convert 2 files and everything in 2 folders to MP3".to_string())
+        );
+        // The files still drop out of a format they are already in; the
+        // folders never do.
+        assert!(
+            labels(&many).contains(&"Convert a.wav and everything in 2 folders to FLAC".to_string())
+        );
+    }
+
+    /// The rule the flow applies to what it finds inside a folder. Converting
+    /// an MP3 to MP3 is what would delete an original and leave "song (2).mp3"
+    /// in its place, so it has to be the same rule the list uses.
+    #[test]
+    fn only_media_not_already_in_that_format_is_worth_converting() {
+        assert!(is_convertible_to("/m/song.wav", "mp3"));
+        assert!(is_convertible_to("/m/film.mkv", "mp3"), "a video converts like a recording");
+        assert!(!is_convertible_to("/m/song.mp3", "mp3"));
+        assert!(!is_convertible_to("/m/song.MP3", "mp3"), "the extension is compared lowercased");
+        assert!(!is_convertible_to("/m/notes.txt", "mp3"));
+        assert!(!is_convertible_to("/m/cover.png", "mp3"));
+        assert!(!is_convertible_to("/m/README", "mp3"));
+        assert!(is_media_file("/m/a.OGG") && !is_media_file("/m/a.pdf"));
+    }
+
     #[test]
     fn terminal_folders_are_listed_once_each() {
         let targets =
@@ -757,6 +972,68 @@ mod tests {
             let actions: Vec<&str> = rows(&targets).iter().map(|r| r.action).collect();
             assert!(actions.contains(&RESCAN), "{targets:?}");
         }
+    }
+
+    /// What a folder row turns into on Enter. The walk hands back everything
+    /// in there ffmpeg could read; what is already an MP3 drops out here.
+    #[test]
+    fn a_folder_becomes_the_convertible_media_inside_it() {
+        let walk = |_: &str| {
+            Ok(vec![
+                "/m/music/a.wav".to_string(),
+                "/m/music/b.mp3".to_string(),
+                "/m/music/live/c.mkv".to_string(),
+            ])
+        };
+        let batch = conversion_batch(&[Target::new("/m/music", true)], "mp3", "MP3", &walk);
+        assert_eq!(batch.files, ["/m/music/a.wav", "/m/music/live/c.mkv"]);
+        assert!(batch.failures.is_empty());
+        // To FLAC the MP3 is worth converting and the folder is walked once.
+        let batch = conversion_batch(&[Target::new("/m/music", true)], "flac", "FLAC", &walk);
+        assert_eq!(batch.files.len(), 3);
+    }
+
+    /// Copying a folder and a file inside it is one conversion of that file:
+    /// the second would convert what the first had converted and deleted.
+    #[test]
+    fn a_file_that_is_also_inside_a_copied_folder_is_converted_once() {
+        let targets = vec![file("/m/music/a.wav"), Target::new("/m/music", true)];
+        let walk = |_: &str| Ok(vec!["/m/music/a.wav".to_string(), "/m/music/b.wav".to_string()]);
+        let batch = conversion_batch(&targets, "mp3", "MP3", &walk);
+        assert_eq!(batch.files, ["/m/music/a.wav", "/m/music/b.wav"]);
+        assert!(batch.failures.is_empty(), "the folder did have something in it");
+    }
+
+    /// A folder copied twice, or copied with one of its own subfolders, has
+    /// had something in it both times — the second pass is a duplicate, not
+    /// an empty folder.
+    #[test]
+    fn the_same_folder_twice_is_not_reported_as_empty() {
+        let targets = vec![Target::new("/m/music", true), Target::new("/m/music", true)];
+        let walk = |_: &str| Ok(vec!["/m/music/a.wav".to_string()]);
+        let batch = conversion_batch(&targets, "mp3", "MP3", &walk);
+        assert_eq!(batch.files, ["/m/music/a.wav"]);
+        assert!(batch.failures.is_empty());
+    }
+
+    /// The two ways a folder gives nothing. Neither may pass in silence: the
+    /// row promised everything in there.
+    #[test]
+    fn a_folder_that_gives_nothing_says_which_folder_and_why() {
+        let empty = conversion_batch(
+            &[Target::new("/m/photos", true)],
+            "mp3",
+            "MP3",
+            &|_| Ok(vec!["/m/photos/cover.png".to_string()]),
+        );
+        assert!(empty.files.is_empty());
+        assert_eq!(empty.failures, ["There is nothing in photos to convert to MP3."]);
+
+        let unreadable = conversion_batch(&[Target::new("/m/gone", true)], "mp3", "MP3", &|_| {
+            Err("gone could not be read: no such folder".to_string())
+        });
+        assert!(unreadable.files.is_empty());
+        assert_eq!(unreadable.failures, ["gone could not be read: no such folder"]);
     }
 
     #[test]

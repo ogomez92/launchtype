@@ -209,7 +209,7 @@ Pulsa `/` (barra) en el campo de entrada y Launchtype mira lo que has copiado. A
 
 Al entrar en el modo se anuncia lo que ha encontrado: el nombre si hay un archivo, cuántos si hay varios, y "no hay nada en el portapapeles" si no hay nada. Si copias algo nuevo, elige "Volver a leer el portapapeles" en lugar de salir y volver a entrar.
 
-Solo se listan las filas que tienen sentido. Una carpeta de MP3 no ofrece "convertir a MP3"; un archivo de texto no ofrece ninguna conversión; y solo un vídeo ofrece "extraer la pista de audio".
+Solo se listan las filas que tienen sentido. Un portapapeles lleno de MP3 no ofrece "convertir a MP3"; un archivo de texto no ofrece ninguna conversión; y solo un vídeo ofrece "extraer la pista de audio". Las carpetas son la excepción: nadie mira dentro de una hasta que pulsas intro, así que se ofrecen todas las conversiones.
 
 ### Convertir audio
 
@@ -221,7 +221,15 @@ Cuando una conversión pasa esa comprobación se borra el original, que es el se
 
 Nunca se sobrescribe nada. Si `song.flac` ya existe, obtienes `song (2).flac`.
 
-**"Extraer la pista de audio"** es otra cosa distinta de convertir, y solo aparece con vídeos: el audio se copia fuera del contenedor sin recodificarlo, así que no se pierde nada y una película de dos horas tarda un segundo. Aterriza en el contenedor que le corresponde a ese códec — AAC en `.m4a`, Vorbis en `.ogg` — y el vídeo se queda como estaba. Un códec que no tiene contenedor propio lo dice en lugar de recodificar por su cuenta.
+**Una carpeta convierte todo lo que hay dentro.** Copia una carpeta — o varias, o una carpeta junto con algunos archivos — y las filas de conversión se ocupan de ella: "Convertir todo lo que hay en música a MP3", "Convertir song.wav y todo lo que hay en música a MP3". Las subcarpetas entran también, así que una discoteca entera o una temporada de episodios se hace de una sola pulsación.
+
+Nadie mira dentro de la carpeta hasta que pulsas intro. Es a propósito: construir la lista no toca el disco nunca, que es lo que evita que una carpeta en un recurso de red dormido deje el modo colgado, así que la fila no puede decir cuántos archivos convertirá y promete la carpeta en su lugar. Al pulsar intro, todo archivo cuyo *nombre* diga que es audio o vídeo se le pasa a ffmpeg sin comprobar nada antes: un nombre que miente sobre su contenido falla como cualquier otro, con una línea en el informe, y el resto del lote sigue adelante. Los archivos que ya están en el formato que has pedido se saltan, así que "convertir todo lo que hay en música a MP3" sobre una carpeta de MP3 no convierte nada en lugar de reescribirlos todos.
+
+Todo lo demás de una conversión sigue igual, **el borrado incluido**: cada archivo se verifica con ffprobe y luego se borra su original, que en una carpeta significa los originales de toda ella. Desmarca antes "Borrar el archivo original tras una conversión verificada" en los ajustes si no es lo que quieres. Cada resultado aterriza junto a su propio origen, en la subcarpeta de la que salió, y el modo pasa después a listar todo lo que ha escrito.
+
+Una carpeta que no se puede leer, o que no tiene nada que convertir, lo dice por su nombre. Las conversiones son las filas en las que participa una carpeta: transcribir, la información multimedia y las filas de Claude siguen siendo para los archivos que hayas copiado tú.
+
+**"Extraer la pista de audio"** es otra cosa distinta de convertir, y solo aparece con un vídeo que hayas copiado tú, nunca con una carpeta: el audio se copia fuera del contenedor sin recodificarlo, así que no se pierde nada y una película de dos horas tarda un segundo. Aterriza en el contenedor que le corresponde a ese códec — AAC en `.m4a`, Vorbis en `.ogg` — y el vídeo se queda como estaba. Un códec que no tiene contenedor propio lo dice en lugar de recodificar por su cuenta.
 
 ### Transcribir
 

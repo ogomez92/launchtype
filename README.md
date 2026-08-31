@@ -209,7 +209,7 @@ Press `/` (slash) in the input field and Launchtype looks at what you have copie
 
 Entering the mode announces what it found — the name when there is one file, the count when there are several, "nothing on the clipboard" when there is nothing. Copy something new and pick "Read the clipboard again" rather than leaving and coming back.
 
-Only rows that apply are listed. A folder of MP3s offers no "convert to MP3"; a text file offers no media conversions at all; a video is the only thing that offers "extract the audio track".
+Only rows that apply are listed. A clipboard of MP3s offers no "convert to MP3"; a text file offers no media conversions at all; a video is the only thing that offers "extract the audio track". A folder is the one exception: nothing looks inside one until you press Enter, so every conversion is offered for it.
 
 ### Converting audio
 
@@ -221,7 +221,15 @@ Once a conversion has passed that check the original is deleted, which is the po
 
 Nothing is ever overwritten. If `song.flac` already exists you get `song (2).flac`.
 
-**"Extract the audio track"** is a different thing from converting, and only shows up for video: the audio is copied out of the container without being re-encoded, so nothing is lost and a two-hour film takes a second. It lands in whatever container that codec belongs in — AAC into `.m4a`, Vorbis into `.ogg` — and the video is left alone. A codec with no container of its own says so rather than quietly re-encoding.
+**A folder converts everything inside it.** Copy a folder — or several, or a folder and some files together — and the conversion rows take it on: "Convert everything in music to MP3", "Convert song.wav and everything in music to MP3". Subfolders are included, so a whole library or a season of episodes goes in one press.
+
+Nothing looks inside the folder until you press Enter. That is deliberate — building the list never touches the disk, which is what keeps a folder on a sleeping network share from stalling the mode — so the row cannot say how many files it will convert and promises the folder instead. On Enter every file whose *name* says it is audio or video is handed to ffmpeg, with no probing first: a name that lies about its contents fails like any other, one line in the report, and the rest of the batch carries on. Files already in the format you asked for are skipped, so "convert everything in music to MP3" on a folder of MP3s converts nothing rather than rewriting every one of them.
+
+Everything else about a conversion is unchanged, **including the deletion**: each file is verified with ffprobe and then its original is deleted, which for a folder means the originals throughout it. Untick "Delete the original file after a verified conversion" in Settings first if that is not what you want. Each output lands beside its own source, in the subfolder it came from, and the mode then lists everything it wrote.
+
+A folder that cannot be read, or that holds nothing worth converting, says so by name. Conversions are the rows a folder takes part in: transcription, media information and the Claude rows still work on the files you copied yourself.
+
+**"Extract the audio track"** is a different thing from converting, and only shows up for a video you copied yourself, never for a folder: the audio is copied out of the container without being re-encoded, so nothing is lost and a two-hour film takes a second. It lands in whatever container that codec belongs in — AAC into `.m4a`, Vorbis into `.ogg` — and the video is left alone. A codec with no container of its own says so rather than quietly re-encoding.
 
 ### Transcribing
 
