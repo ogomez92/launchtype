@@ -77,6 +77,9 @@ pub enum ItemKind {
     /// A vault row that does something rather than holding a secret: set up,
     /// unlock, lock, add, or change the master password.
     VaultAction { action: &'static str },
+    /// One thing path mode can do to the files on the clipboard: convert,
+    /// transcribe, ask Claude, open somewhere (see [`launchtype_core::paths`]).
+    PathAction { action: &'static str },
 }
 
 pub struct ModeController {
@@ -104,6 +107,11 @@ pub struct ModeController {
     pub regions: Vec<(String, [f64; 4])>,
     /// SSH mode transcript: every echoed command and output line so far.
     pub ssh_output: Vec<String>,
+    /// What was on the clipboard when `/` was last entered. Held rather than
+    /// re-read on every keystroke: the list is rebuilt as you type, and going
+    /// back to the clipboard each time would mean the rows could change out
+    /// from under the arrow keys.
+    pub paths: Vec<launchtype_core::paths::Target>,
 }
 
 impl ModeController {
@@ -134,6 +142,7 @@ impl ModeController {
             clock: Arc::new(SystemClock),
             regions: Vec::new(),
             ssh_output: Vec::new(),
+            paths: Vec::new(),
         }
     }
 
@@ -144,6 +153,11 @@ impl ModeController {
     pub fn reload_variables(&mut self) {
         launchtype_services::placeholders::reload();
         self.variables = launchtype_services::placeholders::current();
+    }
+
+    /// Read the clipboard again: what `/` shows is whatever is on it now.
+    pub fn rescan_clipboard_paths(&mut self) {
+        self.paths = launchtype_services::clipboard::targets();
     }
 
     pub fn rescan_steam(&mut self) {
@@ -172,6 +186,7 @@ impl ModeController {
             UiMode::Emoji => self.emoji_items(search),
             UiMode::Units => self.conversion_items(search),
             UiMode::Vault => self.vault_items(search),
+            UiMode::Paths => self.path_items(search),
             UiMode::Stats => self.stats_items(),
             // The input field holds the command being typed, so it must not
             // filter the transcript away (same reasoning as screenshots mode).
@@ -510,6 +525,23 @@ impl ModeController {
             items.push(vault_action_item(tr("Change the master password"), "password"));
         }
         items
+    }
+
+    /// What can be done to the files on the clipboard. Like the screenshots
+    /// list, these are actions rather than data: numbered so a digit runs one
+    /// outright, and searchable by what they say they do.
+    fn path_items(&self, search: &str) -> Vec<Item> {
+        let items: Vec<Item> = launchtype_core::paths::rows(&self.paths)
+            .into_iter()
+            .enumerate()
+            .map(|(index, row)| Item {
+                name: row.label,
+                shortcut: (index + 1).to_string(),
+                id: String::new(),
+                kind: ItemKind::PathAction { action: row.action },
+            })
+            .collect();
+        self.shortcut_then_fuzzy(search, items, true)
     }
 
     fn stats_items(&self) -> Vec<Item> {

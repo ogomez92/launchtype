@@ -13,6 +13,7 @@ pub mod i18n;
 pub mod merge;
 pub mod mode;
 pub mod model;
+pub mod paths;
 pub mod placeholders;
 pub mod portable;
 pub mod query;

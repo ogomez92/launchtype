@@ -33,6 +33,12 @@ pub const DEFAULT_VAULT_LOCK_MINUTES: u32 = 5;
 /// not still sitting on the clipboard an hour later.
 pub const DEFAULT_VAULT_CLIPBOARD_SECONDS: u32 = 30;
 
+/// Whisper model used by path mode's transcription. For the OpenAI-style CLIs
+/// this is a model *name* they download for themselves; for whisper.cpp it has
+/// to be the path of a `ggml-*.bin` file, which is why it is free text rather
+/// than a dropdown.
+pub const DEFAULT_WHISPER_MODEL: &str = "base";
+
 /// Field order mirrors the Python DEFAULTS dict so the saved file keeps the
 /// same key order.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -73,6 +79,20 @@ pub struct Settings {
     /// Seconds after which a copied vault secret is taken back off the
     /// clipboard, provided nothing else has been copied since. 0 never clears.
     pub vault_clipboard_seconds: u32,
+    /// Path mode (`/`) conversions: where ffmpeg lives. Empty means "look on
+    /// PATH and in the usual install folders". Either binary of the pair, or
+    /// the folder holding them, is accepted.
+    pub ffmpeg_path: String,
+    /// Whether a conversion deletes the file it converted, once ffprobe has
+    /// confirmed the new one really is that recording. Off keeps both.
+    pub delete_original_after_convert: bool,
+    /// Path mode transcription: the speech recogniser to run. Empty looks for
+    /// `whisper-cli`, `whisper` and the rest on PATH. Claude itself has no
+    /// audio input, which is why this is a separate program.
+    pub whisper_path: String,
+    /// The model that recogniser should use: a name for the OpenAI-style CLIs,
+    /// a `ggml-*.bin` file for whisper.cpp.
+    pub whisper_model: String,
 }
 
 pub const DEFAULT_COMMANDS_FILE: &str = "commands.json";
@@ -98,6 +118,10 @@ impl Default for Settings {
             portability_check: true,
             vault_lock_minutes: DEFAULT_VAULT_LOCK_MINUTES,
             vault_clipboard_seconds: DEFAULT_VAULT_CLIPBOARD_SECONDS,
+            ffmpeg_path: String::new(),
+            delete_original_after_convert: true,
+            whisper_path: String::new(),
+            whisper_model: DEFAULT_WHISPER_MODEL.to_string(),
         }
     }
 }
@@ -114,7 +138,12 @@ impl Settings {
     /// moves to another machine. The portability scan covers these alongside
     /// the commands.
     pub fn machine_specific_paths(&self) -> Vec<String> {
-        [self.steam_library.clone(), self.ssh_key_path.clone()]
+        [
+            self.steam_library.clone(),
+            self.ssh_key_path.clone(),
+            self.ffmpeg_path.clone(),
+            self.whisper_path.clone(),
+        ]
             .into_iter()
             .filter(|value| !value.trim().is_empty())
             .collect()
@@ -223,6 +252,19 @@ mod tests {
         assert_eq!(settings.machine_specific_paths(), vec![settings.steam_library.clone()]);
         settings.ssh_key_path = r"C:\Users\me\.ssh\id".into();
         assert_eq!(settings.machine_specific_paths().len(), 2);
+    }
+
+    /// A settings.json written before path mode must not read as "never delete
+    /// the original": the default is the one the mode was asked for.
+    #[test]
+    fn a_file_from_before_path_mode_gets_the_path_mode_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        std::fs::write(&path, r#"{"enable_sounds": true}"#).unwrap();
+        let store = SettingsStore::load(&path);
+        assert!(store.settings.delete_original_after_convert);
+        assert_eq!(store.settings.whisper_model, DEFAULT_WHISPER_MODEL);
+        assert!(store.settings.ffmpeg_path.is_empty(), "empty means look it up");
     }
 
     #[test]

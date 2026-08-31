@@ -985,6 +985,51 @@ pub fn settings_dialog(
     commands_combo.set_value(&settings.settings.commands_file);
     sizer.add(&commands_combo, 0, SizerFlag::Expand, 5);
 
+    // Path mode (`/`). Both programs are external and neither is bundled, so
+    // an empty box means "find it on PATH" rather than "do not use it".
+    let path_label = StaticText::builder(&dialog)
+        .with_label(&tr(
+            "Path mode: leave these empty to look for the programs on PATH. Claude cannot listen to audio, so transcription needs Whisper.",
+        ))
+        .build();
+    sizer.add(&path_label, 0, SizerFlag::All, 5);
+
+    let ffmpeg_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let ffmpeg_static =
+        StaticText::builder(&dialog).with_label(&tr("&ffmpeg program or folder:")).build();
+    let ffmpeg_entry = TextCtrl::builder(&dialog).build();
+    ax_name(&ffmpeg_entry, &tr("&ffmpeg program or folder:"));
+    ffmpeg_entry.set_value(&settings.settings.ffmpeg_path);
+    let ffmpeg_browse = Button::builder(&dialog).with_label(&tr("Br&owse...")).build();
+    ffmpeg_row.add(&ffmpeg_static, 0, SizerFlag::All, 0);
+    ffmpeg_row.add(&ffmpeg_entry, 1, SizerFlag::Expand, 0);
+    ffmpeg_row.add(&ffmpeg_browse, 0, SizerFlag::All, 0);
+    sizer.add_sizer(&ffmpeg_row, 0, SizerFlag::Expand, 5);
+
+    let delete_cb =
+        checkbox(&dialog, &tr("&Delete the original file after a verified conversion"));
+    delete_cb.set_value(settings.settings.delete_original_after_convert);
+    sizer.add(&delete_cb, 0, SizerFlag::All, 5);
+
+    let whisper_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let whisper_static =
+        StaticText::builder(&dialog).with_label(&tr("&Whisper transcriber:")).build();
+    let whisper_entry = TextCtrl::builder(&dialog).build();
+    ax_name(&whisper_entry, &tr("&Whisper transcriber:"));
+    whisper_entry.set_value(&settings.settings.whisper_path);
+    let whisper_browse = Button::builder(&dialog).with_label(&tr("Brow&se...")).build();
+    whisper_row.add(&whisper_static, 0, SizerFlag::All, 0);
+    whisper_row.add(&whisper_entry, 1, SizerFlag::Expand, 0);
+    whisper_row.add(&whisper_browse, 0, SizerFlag::All, 0);
+    sizer.add_sizer(&whisper_row, 0, SizerFlag::Expand, 5);
+
+    let whisper_model_entry = labeled_row(
+        &dialog,
+        &sizer,
+        &tr("Whisper &model (a name, or a ggml file for whisper.cpp):"),
+    );
+    whisper_model_entry.set_value(&settings.settings.whisper_model);
+
     let ssh_label = StaticText::builder(&dialog)
         .with_label(&tr("SSH mode: key authentication is used when a key file is set."))
         .build();
@@ -1065,6 +1110,34 @@ pub fn settings_dialog(
         });
     }
     {
+        ffmpeg_browse.on_click(move |_| {
+            let file_dialog = FileDialog::builder(&dialog)
+                .with_message(&tr("Choose the ffmpeg program"))
+                .with_wildcard(&tr("All files (*.*)|*.*"))
+                .with_style(FileDialogStyle::Open | FileDialogStyle::FileMustExist)
+                .build();
+            if file_dialog.show_modal() == ID_OK {
+                if let Some(path) = file_dialog.get_path() {
+                    ffmpeg_entry.set_value(&portabilize(&path));
+                }
+            }
+        });
+    }
+    {
+        whisper_browse.on_click(move |_| {
+            let file_dialog = FileDialog::builder(&dialog)
+                .with_message(&tr("Choose the Whisper transcriber"))
+                .with_wildcard(&tr("All files (*.*)|*.*"))
+                .with_style(FileDialogStyle::Open | FileDialogStyle::FileMustExist)
+                .build();
+            if file_dialog.show_modal() == ID_OK {
+                if let Some(path) = file_dialog.get_path() {
+                    whisper_entry.set_value(&portabilize(&path));
+                }
+            }
+        });
+    }
+    {
         ok.on_click(move |_| dialog.end_modal(ID_OK));
     }
     {
@@ -1093,6 +1166,10 @@ pub fn settings_dialog(
     if !commands_file.is_empty() {
         settings.settings.commands_file = commands_file;
     }
+    settings.settings.ffmpeg_path = ffmpeg_entry.get_value().trim().to_string();
+    settings.settings.delete_original_after_convert = delete_cb.get_value();
+    settings.settings.whisper_path = whisper_entry.get_value().trim().to_string();
+    settings.settings.whisper_model = whisper_model_entry.get_value().trim().to_string();
     settings.settings.ssh_host = ssh_host_entry.get_value().trim().to_string();
     settings.settings.ssh_port = ssh_port_spin.value().clamp(1, 65535) as u16;
     settings.settings.ssh_user = ssh_user_entry.get_value().trim().to_string();
@@ -1697,6 +1774,45 @@ pub fn grab_region_dialog(parent: &Frame) -> Option<String> {
         ok.on_click(move |_| {
             if entry.get_value().trim().is_empty() {
                 error_box(&dialog, &tr("Please describe what you want to grab."), &tr("Error"));
+                return;
+            }
+            dialog.end_modal(ID_OK);
+        });
+    }
+    {
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
+    }
+
+    if dialog.show_modal() != ID_OK {
+        return None;
+    }
+    Some(entry.get_value().trim().to_string())
+}
+
+/// A one-line question path mode asks before sending files to Claude: what to
+/// ask about them, or which language to translate them into.
+///
+/// The caller supplies every string, because the two uses want different
+/// wording and neither is worth a dialog of its own.
+pub fn path_question_dialog(
+    parent: &Frame,
+    title: &str,
+    help: &str,
+    label: &str,
+) -> Option<String> {
+    let dialog = Dialog::builder(parent, title).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    let help_text = StaticText::builder(&dialog).with_label(help).build();
+    sizer.add(&help_text, 0, SizerFlag::All, 5);
+    let entry = labeled_row(&dialog, &sizer, label);
+    let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
+    dialog.set_sizer(sizer, true);
+
+    {
+        let empty = tr("Please fill this in first.");
+        ok.on_click(move |_| {
+            if entry.get_value().trim().is_empty() {
+                error_box(&dialog, &empty, &tr("Error"));
                 return;
             }
             dialog.end_modal(ID_OK);

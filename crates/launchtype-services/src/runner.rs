@@ -74,6 +74,55 @@ pub fn open_terminal_at(folder: &Path) -> Result<(), RunError> {
     }
 }
 
+/// Where Visual Studio Code installs itself when it is not on `PATH`.
+/// `Code.exe` is preferred over the `code.cmd` launcher: a batch file is a
+/// thornier thing to spawn safely, and the executable takes the same
+/// file-and-folder arguments.
+#[cfg(windows)]
+const VSCODE_CANDIDATES: &[&str] = &[
+    r"%local%\Programs\Microsoft VS Code\{name}.exe",
+    r"%pf%\Microsoft VS Code\{name}.exe",
+];
+
+/// Open files and folders in Visual Studio Code, all in one window, the way
+/// `code a b c` does from a shell.
+#[cfg(windows)]
+pub fn open_in_vscode(paths: &[String]) -> Result<(), RunError> {
+    let program = crate::media::find_program("Code", VSCODE_CANDIDATES)
+        // The install put its launcher on PATH but the executable somewhere
+        // this does not know about: `code` (a .cmd) still gets there.
+        .or_else(|| crate::media::find_program("code", &[]))
+        .ok_or_else(|| {
+            RunError(launchtype_core::i18n::tr(
+                "Visual Studio Code was not found on this machine.",
+            ))
+        })?;
+    std::process::Command::new(program)
+        .args(paths)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| RunError(e.to_string()))
+}
+
+/// The same on macOS, where the bundle is opened by name rather than by path:
+/// `open -a` finds it wherever it was installed.
+#[cfg(not(windows))]
+pub fn open_in_vscode(paths: &[String]) -> Result<(), RunError> {
+    let status = std::process::Command::new("/usr/bin/open")
+        .arg("-a")
+        .arg("Visual Studio Code")
+        .args(paths)
+        .status()
+        .map_err(|e| RunError(e.to_string()))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(RunError(launchtype_core::i18n::tr(
+            "Visual Studio Code was not found on this machine.",
+        )))
+    }
+}
+
 /// Hand the first argument to whatever the OS uses for it — the default
 /// browser for a URL. Used by `{{browser}}` and by a specific browser
 /// placeholder on a machine where that browser is not installed.

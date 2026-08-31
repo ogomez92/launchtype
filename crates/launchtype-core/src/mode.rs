@@ -31,6 +31,9 @@ pub enum UiMode {
     /// The `{{name}}` variables the user has written for themselves, which
     /// snippets and commands alike expand (see [`crate::placeholders`]).
     Variables,
+    /// The files and folders on the clipboard, and what can be done to them:
+    /// convert, transcribe, summarize, open (see [`crate::paths`]).
+    Paths,
     /// Entered programmatically after "explore regions" analysis, not by a
     /// trigger character: lists the AI-detected regions of the last screenshot.
     Regions,
@@ -57,6 +60,7 @@ impl UiMode {
             '=' => UiMode::Units,
             '*' => UiMode::Vault,
             '_' => UiMode::Variables,
+            '/' => UiMode::Paths,
             _ => return None,
         })
     }
@@ -81,13 +85,14 @@ impl UiMode {
             UiMode::Units => '=',
             UiMode::Vault => '*',
             UiMode::Variables => '_',
+            UiMode::Paths => '/',
             UiMode::Regions => return None,
         })
     }
 
     /// Every user-selectable mode, in the order shown by the modes menu. Kept
     /// in sync with [`from_trigger_char`]; Regions is excluded (no trigger).
-    pub const MENU_MODES: [UiMode; 16] = [
+    pub const MENU_MODES: [UiMode; 17] = [
         UiMode::Commands,
         UiMode::Snippets,
         UiMode::Clipboard,
@@ -104,6 +109,7 @@ impl UiMode {
         UiMode::Units,
         UiMode::Vault,
         UiMode::Variables,
+        UiMode::Paths,
     ];
 }
 
@@ -129,6 +135,7 @@ mod tests {
         assert_eq!(UiMode::from_trigger_char('='), Some(UiMode::Units));
         assert_eq!(UiMode::from_trigger_char('*'), Some(UiMode::Vault));
         assert_eq!(UiMode::from_trigger_char('_'), Some(UiMode::Variables));
+        assert_eq!(UiMode::from_trigger_char('/'), Some(UiMode::Paths));
         assert_eq!(UiMode::from_trigger_char('a'), None);
         assert_eq!(UiMode::from_trigger_char(' '), None);
     }

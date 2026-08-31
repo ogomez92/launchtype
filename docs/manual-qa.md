@@ -17,7 +17,7 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Typing into the input field echoes normally
 - [ ] The results list has no label of its own: arrowing through it speaks only
       the items, never a "Results" prefix (and never "Sort commands by:")
-- [ ] Every mode trigger speaks its announcement (- ? . , @ ' [ ] # + ! : $ = *)
+- [ ] Every mode trigger speaks its announcement (- ? . , @ ' [ ] # + ! : $ = * _ /)
 - [ ] Typing a search speaks the first result; multiple results speak
       "{first}, {n} search results shown, use down arrow..."
 - [ ] Down arrow in the input field focuses the result after the selected one
@@ -133,6 +133,63 @@ behavioral reference: when in doubt, compare side by side on the same data.
       "Connected"
 - [ ] SSH: `exit` as a command shows the error alert, and the next command
       reconnects
+
+## Path mode (`/`)
+Needs ffmpeg on PATH (or named in Settings), and Whisper for the transcription
+rows. Work on COPIES: a verified conversion deletes the original by design.
+
+- [ ] Copy a file in Explorer/Finder, press `/`: the mode announces the file's
+      name and the list is the actions for it. Copy two files and it announces
+      the count instead; copy nothing and it says so and offers only "Read the
+      clipboard again"
+- [ ] The text forms work too: "Copy as path" for one file and for several at
+      once, a path pasted out of a terminal, and a `file://` URL from a browser
+- [ ] Clipboard text that is NOT a path (a paragraph, a URL) finds nothing and
+      never hangs — especially with a network path in the clipboard
+- [ ] Copy something new while the mode is open, then "Read the clipboard
+      again": the list is rebuilt and the new file is announced
+- [ ] Every row names what it will act on ("Convert song.wav to FLAC",
+      "Summarize 3 files with Claude"), and rows that apply to nothing on the
+      clipboard are absent — no "convert to MP3" on an MP3, no media rows on a
+      text file, "extract the audio track" only for a video
+- [ ] Number keys jump straight to a row, as in screenshots mode
+- [ ] Convert a WAV to FLAC: the FLAC plays, the WAV is gone, and the list is
+      now showing the FLAC
+- [ ] Untick "Delete the original file after a verified conversion" in
+      Settings: the original survives the next conversion
+- [ ] Convert with `song.flac` already sitting there: you get `song (2).flac`
+      and the existing file is untouched
+- [ ] Convert an MKV to MP3: you get the soundtrack, and the video is unchanged
+- [ ] "Extract the audio track" of an MP4 is near-instant, lands as `.m4a`, and
+      leaves the video alone
+- [ ] Point a conversion at a file that is not really audio (rename a .txt to
+      .wav): it reports the failure, no half-written output is left behind, and
+      the original is still there
+- [ ] Media information reads out duration, codec, sample rate, channels,
+      bitrate and size, and the same line is on the clipboard
+- [ ] Text information and "Copy the contents" work on a .txt/.md; several
+      files are joined under their names
+- [ ] With ffmpeg NOT installed (rename it), a conversion says ffmpeg was not
+      found and points at Settings — and the mode is usable again afterwards
+- [ ] Transcribe a recording: the transcript is on the clipboard, a `.txt` is
+      saved beside the recording, the recording is NOT deleted, and the list
+      moves on to the transcript
+- [ ] With no Whisper installed, the transcribe row explains that Claude cannot
+      listen to audio and that Whisper is needed
+- [ ] Summarize a .txt and a PDF: the summary is spoken and copied
+- [ ] Summarize a recording: it transcribes first, then summarizes
+- [ ] "Ask Claude about..." and "Translate..." each ask in a dialog that takes
+      ONE Enter to open and one to accept; Cancel does nothing at all
+- [ ] Proofread a .txt with mistakes: the corrected text is on the clipboard and
+      only a short confirmation is spoken (not the whole document)
+- [ ] Open in Visual Studio Code opens every copied file in one window; with
+      VS Code not installed it says so
+- [ ] Open a terminal: a folder opens itself, a file opens its parent, and five
+      files from one folder open ONE terminal
+- [ ] While a conversion or transcription is running the window stays usable,
+      and a second Enter says "Still working on the last one"
+- [ ] Every failure is both spoken AND shown in a dialog (try it with the
+      window hidden)
 
 ## Encrypted vault (`*`)
 - [ ] First `*` on a machine with no `vault/` folder opens "Set up the vault",

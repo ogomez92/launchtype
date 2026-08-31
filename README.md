@@ -203,6 +203,53 @@ When Launchtype finds paths that only work on this machine it offers to replace 
 
 The same dialog also lists paths that no variable can rescue — a drive letter or a network share that only exists on the machine the command was added on. Those are shown for information only; edit or delete those commands yourself. They never open the dialog on their own, so a few dead drive letters will not nag you at every start.
 
+## Path mode
+
+Press `/` (slash) in the input field and Launchtype looks at what you have copied. Files copied in Explorer or Finder, a path from "Copy as path", several paths pasted out of a terminal, a `file://` URL from a browser — all of them arrive the same way. The results list then becomes the things worth doing to those files, and each row says which files it will do it to, so what you hear before pressing Enter is exactly what will happen: "Convert recording.wav to FLAC", "Summarize 3 files with Claude", "Open a terminal at music".
+
+Entering the mode announces what it found — the name when there is one file, the count when there are several, "nothing on the clipboard" when there is nothing. Copy something new and pick "Read the clipboard again" rather than leaving and coming back.
+
+Only rows that apply are listed. A folder of MP3s offers no "convert to MP3"; a text file offers no media conversions at all; a video is the only thing that offers "extract the audio track".
+
+### Converting audio
+
+`ffmpeg` does the work, so it has to be installed — on `PATH`, in one of the usual install folders, or named in Settings. MP3, FLAC, WAV, M4A and OGG are the targets, and a video converts just as readily as a sound file: point it at an MKV and ask for MP3 and you get the soundtrack.
+
+**Every conversion is checked before it is believed.** `ffprobe` reads the file that came out and it only counts as converted if it really has audio in it and lasts about as long as the original. ffmpeg exits successfully on plenty of files it only half wrote, and this is the difference between noticing that and not.
+
+Once a conversion has passed that check the original is deleted, which is the point of the mode — you converted it because you wanted the other format. Untick "Delete the original file after a verified conversion" in Settings to keep both. A conversion that fails the check deletes *the output* instead and leaves your file exactly where it was; you are told which file and why.
+
+Nothing is ever overwritten. If `song.flac` already exists you get `song (2).flac`.
+
+**"Extract the audio track"** is a different thing from converting, and only shows up for video: the audio is copied out of the container without being re-encoded, so nothing is lost and a two-hour film takes a second. It lands in whatever container that codec belongs in — AAC into `.m4a`, Vorbis into `.ogg` — and the video is left alone. A codec with no container of its own says so rather than quietly re-encoding.
+
+### Transcribing
+
+**Claude cannot listen to audio.** The API takes text, images and PDFs and nothing else, so transcription is done on your own machine by Whisper, which you install separately: whisper.cpp's `whisper-cli`, the OpenAI `whisper` command, `whisper-ctranslate2` or any of their work-alikes. Launchtype finds it on `PATH` or you name it in Settings, alongside the model to use — a name like `base` or `small` for the OpenAI-style commands, the path of a `ggml-*.bin` file for whisper.cpp.
+
+Whatever the recording is, ffmpeg decodes it first, so any format ffmpeg reads can be transcribed. The transcript goes on the clipboard *and* is saved as a `.txt` beside the recording, so a long transcription never has to be run twice — and the mode then lists that transcript, ready to be summarized or proofread.
+
+### Asking Claude
+
+These use the Claude Code subscription you are already logged in to, the same one the screenshot descriptions use, with the model you picked in Settings. They work on text files and PDFs; point one at a recording and it is transcribed first and the transcript is what Claude reads.
+
+- **Summarize** — what the files are and what is in them, read out and copied.
+- **Ask Claude about...** — you type a question, Claude answers it from the files. Read out and copied.
+- **Proofread** — spelling, grammar and punctuation, with the corrected text copied ready to paste. Text files only: it gives you back what you wrote, corrected.
+- **Translate...** — you type a language, the translation is copied with the layout of the original kept.
+
+Nothing is ever silently shortened. Too much text to send in one request, or a PDF too large, is reported as exactly that — a summary of the first fifth of a document, presented as a summary of the document, would be worse than no summary at all.
+
+### The rest
+
+- **Media information** reads out how long a file is, its codec, sample rate, channels, bitrate, size and video size if it has one, and copies the same line so you can paste it.
+- **Text information** is the same for a text file: lines, words, characters and kilobytes.
+- **Copy the contents** puts a text file on the clipboard; several files are joined under their names.
+- **Open in Visual Studio Code** opens everything in one window.
+- **Open a terminal** opens a folder — for a file that means the folder it sits in, and the row says which folder that is. Duplicates are collapsed, so five files from the same folder open one terminal.
+
+Conversions and transcriptions run in the background and the window stays usable while they do; a second Enter while one is running is refused rather than starting the same work twice.
+
 ## Settings
 
 The Settings button in the UI opens a dialog where you can persist the following preferences to `settings.json`:
@@ -217,6 +264,7 @@ The Settings button in the UI opens a dialog where you can persist the following
 - Commands file — a dropdown of every commands-shaped `.json` sitting next to the app, so you can keep separate sets (work, home, a game) and switch between them without restarting. You can also type a new name to start a fresh one.
 - SSH server, port, user name, private key file and password, used by SSH mode
 - Vault lock timeout in idle minutes, and how many seconds a copied vault secret may sit on the clipboard (see [Encrypted vault](#encrypted-vault))
+- ffmpeg program or folder, whether a verified conversion deletes the original, and the Whisper transcriber and model, all used by [path mode](#path-mode). Leave the two program boxes empty to look for them on `PATH`.
 
 Command line flags override these persisted settings for the current run (for example, passing `-q` disables sounds even if the setting is enabled, and passing `-m` starts minimized even if the setting is off).
 
@@ -557,6 +605,7 @@ The app has several modes, each accessed by typing a special character in the in
 | `=` | Unit conversion | Convert a typed number between units, shoe sizes included |
 | `*` | Encrypted vault | Passwords and other secrets, encrypted behind a master password |
 | `_` | Substitution variables | The `{{name}}` variables you write for yourself, used by snippets and commands alike |
+| `/` | Paths | Act on the files on the clipboard: convert, transcribe, ask Claude, open |
 | `.` | (any mode) | Return to Commands mode |
 
 ## Audio Feedback

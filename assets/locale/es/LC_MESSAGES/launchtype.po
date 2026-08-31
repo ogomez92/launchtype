@@ -2773,3 +2773,423 @@ msgstr "modo variables de sustitución"
 #: crates/launchtype-app/src/dialogs.rs
 msgid "Write {{name}} in a snippet, or in a command's path or arguments, and it is replaced by the text you give it here."
 msgstr "Escribe {{nombre}} en una sustitución, o en la ruta o los argumentos de un comando, y se sustituirá por el texto que le des aquí."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Path mode: leave these empty to look for the programs on PATH. Claude cannot listen to audio, so transcription needs Whisper."
+msgstr "Modo rutas: deja esto vacío para buscar los programas en el PATH. Claude no puede escuchar audio, así que la transcripción necesita Whisper."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&ffmpeg program or folder:"
+msgstr "Programa o carpeta de &ffmpeg:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Br&owse..."
+msgstr "Exa&minar..."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Delete the original file after a verified conversion"
+msgstr "&Borrar el archivo original tras una conversión verificada"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Whisper transcriber:"
+msgstr "Transcriptor &Whisper:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Brow&se..."
+msgstr "Examina&r..."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Whisper &model (a name, or a ggml file for whisper.cpp):"
+msgstr "&Modelo de Whisper (un nombre, o un archivo ggml para whisper.cpp):"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Choose the ffmpeg program"
+msgstr "Elige el programa ffmpeg"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Choose the Whisper transcriber"
+msgstr "Elige el transcriptor Whisper"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Please fill this in first."
+msgstr "Rellena esto primero."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Still working on the last one."
+msgstr "Todavía estoy con lo anterior."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Ask Claude"
+msgstr "Preguntar a Claude"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "What would you like to know about these files? Claude reads them and answers."
+msgstr "¿Qué quieres saber sobre estos archivos? Claude los lee y responde."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "&Question:"
+msgstr "&Pregunta:"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Translate with Claude"
+msgstr "Traducir con Claude"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Which language should these files be translated into?"
+msgstr "¿A qué idioma hay que traducir estos archivos?"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Answer this question about the files above: {question}\n\nAnswer in English, in plain prose meant to be read aloud, with no markdown."
+msgstr "Responde a esta pregunta sobre los archivos anteriores: {question}\n\nResponde en español, en prosa sencilla pensada para leerse en voz alta, sin markdown."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Translate the files above into {language}. Reply with the translation and nothing else, keeping the layout of the original."
+msgstr "Traduce los archivos anteriores a {language}. Responde solo con la traducción, conservando la disposición del original."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Summarize the files above. Say what they are and what they contain, covering the points that matter and leaving out the rest. Answer in English, in plain prose meant to be read aloud, with no markdown."
+msgstr "Resume los archivos anteriores. Di qué son y qué contienen, cubriendo lo que importa y dejando fuera lo demás. Responde en español, en prosa sencilla pensada para leerse en voz alta, sin markdown."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Correct the spelling, grammar and punctuation of the files above. Reply with the corrected text and nothing else: no commentary, no markdown fences, and no rewording beyond what the corrections need."
+msgstr "Corrige la ortografía, la gramática y la puntuación de los archivos anteriores. Responde solo con el texto corregido: sin comentarios, sin bloques de markdown y sin reescribir más de lo que exijan las correcciones."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Nothing on the clipboard."
+msgstr "No hay nada en el portapapeles."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "{count} files on the clipboard"
+msgstr "{count} archivos en el portapapeles"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Paths"
+msgstr "Rutas"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "There is nothing here to do that to."
+msgstr "Aquí no hay nada a lo que hacerle eso."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Extracting the audio, please wait"
+msgstr "Extrayendo el audio, espera"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Converting to {format}, please wait"
+msgstr "Convirtiendo a {format}, espera"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "{name} was converted but could not be deleted: {reason}"
+msgstr "{name} se ha convertido pero no se ha podido borrar: {reason}"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Nothing was converted."
+msgstr "No se ha convertido nada."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Audio extracted from {done} of {total}"
+msgstr "Audio extraído de {done} de {total}"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "{done} of {total} converted to {format}"
+msgstr "{done} de {total} convertidos a {format}"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "{count} originals deleted"
+msgstr "{count} originales borrados"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Reading, please wait"
+msgstr "Leyendo, espera"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Nothing was copied."
+msgstr "No se ha copiado nada."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "{count} characters copied"
+msgstr "{count} caracteres copiados"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "{name} could not be read: {reason}"
+msgstr "No se ha podido leer {name}: {reason}"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Transcribing, this can take a while"
+msgstr "Transcribiendo, esto puede tardar"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "The transcript of {name} could not be saved: {reason}"
+msgstr "No se ha podido guardar la transcripción de {name}: {reason}"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Nothing was transcribed."
+msgstr "No se ha transcrito nada."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Transcribed, {words} words. Copied, and saved as {name}."
+msgstr "Transcrito, {words} palabras. Copiado y guardado como {name}."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Transcribed {done} of {total}, {words} words. Copied, and saved beside the recordings."
+msgstr "Transcritos {done} de {total}, {words} palabras. Copiado y guardado junto a las grabaciones."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Asking Claude, please wait"
+msgstr "Preguntando a Claude, espera"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Claude answered, {count} characters. It is on the clipboard."
+msgstr "Claude ha respondido, {count} caracteres. Está en el portapapeles."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Claude could not answer."
+msgstr "Claude no ha podido responder."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "{name} is too big to send: {size:.1f} megabytes."
+msgstr "{name} es demasiado grande para enviarlo: {size:.1f} megabytes."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "transcript of {name}"
+msgstr "transcripción de {name}"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "That is too much text to send at once: {count} characters, and the limit is {limit}."
+msgstr "Es demasiado texto para enviarlo de una vez: {count} caracteres, y el límite es {limit}."
+
+#: crates/launchtype-app/src/shell.rs
+msgid "path mode"
+msgstr "modo rutas"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "{mode}. Nothing on the clipboard."
+msgstr "{mode}. No hay nada en el portapapeles."
+
+#: crates/launchtype-app/src/shell.rs
+msgid "{mode}. {name}"
+msgstr "{mode}. {name}"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "{mode}. {count} files on the clipboard"
+msgstr "{mode}. {count} archivos en el portapapeles"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Paths on the clipboard"
+msgstr "Rutas del portapapeles"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Nothing on the clipboard. Copy a file or a folder and press Enter."
+msgstr "No hay nada en el portapapeles. Copia un archivo o una carpeta y pulsa intro."
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Convert {name} to {format}"
+msgstr "Convertir {name} a {format}"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Convert {count} files to {format}"
+msgstr "Convertir {count} archivos a {format}"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Extract the audio track of {name}"
+msgstr "Extraer la pista de audio de {name}"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Extract the audio track of {count} videos"
+msgstr "Extraer la pista de audio de {count} vídeos"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Transcribe {name}"
+msgstr "Transcribir {name}"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Transcribe {count} files"
+msgstr "Transcribir {count} archivos"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Summarize {name} with Claude"
+msgstr "Resumir {name} con Claude"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Summarize {count} files with Claude"
+msgstr "Resumir {count} archivos con Claude"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Ask Claude about {name}..."
+msgstr "Preguntar a Claude sobre {name}..."
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Ask Claude about {count} files..."
+msgstr "Preguntar a Claude sobre {count} archivos..."
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Proofread {name} with Claude"
+msgstr "Corregir {name} con Claude"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Proofread {count} files with Claude"
+msgstr "Corregir {count} archivos con Claude"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Translate {name} with Claude..."
+msgstr "Traducir {name} con Claude..."
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Translate {count} files with Claude..."
+msgstr "Traducir {count} archivos con Claude..."
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Media information for {name}"
+msgstr "Información multimedia de {name}"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Media information for {count} files"
+msgstr "Información multimedia de {count} archivos"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Text information for {name}"
+msgstr "Información de texto de {name}"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Text information for {count} files"
+msgstr "Información de texto de {count} archivos"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Copy the contents of {name}"
+msgstr "Copiar el contenido de {name}"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Copy the contents of {count} files"
+msgstr "Copiar el contenido de {count} archivos"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Open {name} in Visual Studio Code"
+msgstr "Abrir {name} en Visual Studio Code"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Open {count} items in Visual Studio Code"
+msgstr "Abrir {count} elementos en Visual Studio Code"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Open a terminal at {name}"
+msgstr "Abrir una terminal en {name}"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Open a terminal at {count} folders"
+msgstr "Abrir una terminal en {count} carpetas"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "Read the clipboard again"
+msgstr "Volver a leer el portapapeles"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "{rate} hertz"
+msgstr "{rate} hercios"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "mono"
+msgstr "mono"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "stereo"
+msgstr "estéreo"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "{count} channels"
+msgstr "{count} canales"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "video {width} by {height}"
+msgstr "vídeo {width} por {height}"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "{rate} kilobits per second"
+msgstr "{rate} kilobits por segundo"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "{size:.1f} megabytes"
+msgstr "{size:.1f} megabytes"
+
+#: crates/launchtype-core/src/paths.rs
+msgid "{name}, {lines} lines, {words} words, {characters} characters, {size:.1f} kilobytes"
+msgstr "{name}, {lines} líneas, {words} palabras, {characters} caracteres, {size:.1f} kilobytes"
+
+#: crates/launchtype-services/src/ai/mod.rs
+msgid "There is nothing here for Claude to read."
+msgstr "Aquí no hay nada que Claude pueda leer."
+
+#: crates/launchtype-services/src/media.rs
+msgid "ffmpeg was not found. Install it, or name it in Settings."
+msgstr "No se ha encontrado ffmpeg. Instálalo o indícalo en las opciones."
+
+#: crates/launchtype-services/src/media.rs
+msgid "ffprobe was not found next to ffmpeg. Install the full ffmpeg build."
+msgstr "No se ha encontrado ffprobe junto a ffmpeg. Instala la versión completa de ffmpeg."
+
+#: crates/launchtype-services/src/media.rs
+msgid "Could not run {program}: {reason}"
+msgstr "No se ha podido ejecutar {program}: {reason}"
+
+#: crates/launchtype-services/src/media.rs
+msgid "ffprobe returned something unreadable"
+msgstr "ffprobe ha devuelto algo ilegible"
+
+#: crates/launchtype-services/src/media.rs
+msgid "{format} is not a format this can write"
+msgstr "{format} no es un formato que se pueda escribir"
+
+#: crates/launchtype-services/src/media.rs
+msgid "{name} has no audio in it."
+msgstr "{name} no tiene audio."
+
+#: crates/launchtype-services/src/media.rs
+msgid "The audio in {name} is {codec}, which cannot be copied out on its own. Convert it instead."
+msgstr "El audio de {name} es {codec}, y no se puede extraer tal cual. Conviértelo en su lugar."
+
+#: crates/launchtype-services/src/media.rs
+msgid "{name} could not be decoded: {reason}"
+msgstr "No se ha podido descodificar {name}: {reason}"
+
+#: crates/launchtype-services/src/media.rs
+msgid "{name} was not converted: {reason}"
+msgstr "No se ha convertido {name}: {reason}"
+
+#: crates/launchtype-services/src/media.rs
+msgid "what came out does not match the original"
+msgstr "lo que ha salido no coincide con el original"
+
+#: crates/launchtype-services/src/runner.rs
+msgid "Visual Studio Code was not found on this machine."
+msgstr "No se ha encontrado Visual Studio Code en este equipo."
+
+#: crates/launchtype-services/src/transcribe.rs
+msgid "No transcriber was found. Install Whisper, or name it in Settings — Claude itself cannot listen to audio."
+msgstr "No se ha encontrado ningún transcriptor. Instala Whisper o indícalo en las opciones: Claude no puede escuchar audio."
+
+#: crates/launchtype-services/src/transcribe.rs
+msgid "The transcriber named in Settings is not there: {path}"
+msgstr "El transcriptor indicado en las opciones no está ahí: {path}"
+
+#: crates/launchtype-services/src/transcribe.rs
+msgid "{program} needs a model file. Put the path of a ggml model in Settings, not the name {model}."
+msgstr "{program} necesita un archivo de modelo. Pon en las opciones la ruta de un modelo ggml, no el nombre {model}."
+
+#: crates/launchtype-services/src/transcribe.rs
+msgid "{name} could not be transcribed: {reason}"
+msgstr "No se ha podido transcribir {name}: {reason}"
+
+#: crates/launchtype-services/src/transcribe.rs
+msgid "No speech was found in {name}."
+msgstr "No se ha encontrado voz en {name}."
+
+#: crates/launchtype-services/src/transcribe.rs
+msgid "A working folder could not be made: {reason}"
+msgstr "No se ha podido crear una carpeta de trabajo: {reason}"
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Those PDFs come to {size:.1f} megabytes, which is too much to send at once."
+msgstr "Esos PDF suman {size:.1f} megabytes, demasiado para enviarlos de una vez."
+
+#: crates/launchtype-app/src/path_flows.rs
+msgid "Transcribing first, then asking Claude. This can take a while"
+msgstr "Primero transcribiendo y luego preguntando a Claude. Esto puede tardar"

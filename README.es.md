@@ -203,6 +203,53 @@ Cuando Launchtype encuentra rutas que solo funcionan en este equipo, ofrece reem
 
 El mismo diálogo lista también las rutas que ninguna variable puede rescatar: una letra de unidad o un recurso de red que solo existe en el equipo donde se añadió el comando. Se muestran solo a título informativo; esos comandos hay que editarlos o borrarlos a mano. Nunca abren el diálogo por sí solas, así que unas cuantas unidades muertas no te darán la lata en cada arranque.
 
+## Modo rutas
+
+Pulsa `/` (barra) en el campo de entrada y Launchtype mira lo que has copiado. Archivos copiados en el Explorador o en el Finder, una ruta de "Copiar como ruta de acceso", varias rutas pegadas desde una terminal, una URL `file://` del navegador: todo llega igual. La lista de resultados pasa entonces a ser lo que se puede hacer con esos archivos, y cada fila dice sobre cuáles lo hará, así que lo que oyes antes de pulsar intro es exactamente lo que va a pasar: "Convertir recording.wav a FLAC", "Resumir 3 archivos con Claude", "Abrir una terminal en música".
+
+Al entrar en el modo se anuncia lo que ha encontrado: el nombre si hay un archivo, cuántos si hay varios, y "no hay nada en el portapapeles" si no hay nada. Si copias algo nuevo, elige "Volver a leer el portapapeles" en lugar de salir y volver a entrar.
+
+Solo se listan las filas que tienen sentido. Una carpeta de MP3 no ofrece "convertir a MP3"; un archivo de texto no ofrece ninguna conversión; y solo un vídeo ofrece "extraer la pista de audio".
+
+### Convertir audio
+
+El trabajo lo hace `ffmpeg`, así que tiene que estar instalado: en el `PATH`, en alguna de las carpetas de instalación habituales, o indicado en los ajustes. Los formatos de destino son MP3, FLAC, WAV, M4A y OGG, y un vídeo se convierte igual de bien que un archivo de sonido: apúntalo a un MKV y pide MP3 y obtienes la banda sonora.
+
+**Cada conversión se comprueba antes de darla por buena.** `ffprobe` lee el archivo resultante, y solo cuenta como convertido si de verdad tiene audio y dura aproximadamente lo mismo que el original. ffmpeg termina correctamente con muchos archivos que solo ha escrito a medias, y esta es la diferencia entre darse cuenta y no darse cuenta.
+
+Cuando una conversión pasa esa comprobación se borra el original, que es el sentido del modo: lo has convertido porque querías el otro formato. Desmarca "Borrar el archivo original tras una conversión verificada" en los ajustes para quedarte con los dos. Una conversión que no pasa la comprobación borra *el resultado* y deja tu archivo exactamente donde estaba; se te dice qué archivo y por qué.
+
+Nunca se sobrescribe nada. Si `song.flac` ya existe, obtienes `song (2).flac`.
+
+**"Extraer la pista de audio"** es otra cosa distinta de convertir, y solo aparece con vídeos: el audio se copia fuera del contenedor sin recodificarlo, así que no se pierde nada y una película de dos horas tarda un segundo. Aterriza en el contenedor que le corresponde a ese códec — AAC en `.m4a`, Vorbis en `.ogg` — y el vídeo se queda como estaba. Un códec que no tiene contenedor propio lo dice en lugar de recodificar por su cuenta.
+
+### Transcribir
+
+**Claude no puede escuchar audio.** La API acepta texto, imágenes y PDF y nada más, así que la transcripción la hace en tu propio equipo Whisper, que se instala aparte: el `whisper-cli` de whisper.cpp, el comando `whisper` de OpenAI, `whisper-ctranslate2` o cualquiera equivalente. Launchtype lo busca en el `PATH`, o lo indicas en los ajustes junto con el modelo a usar: un nombre como `base` o `small` para los comandos estilo OpenAI, la ruta de un archivo `ggml-*.bin` para whisper.cpp.
+
+Sea cual sea la grabación, ffmpeg la descodifica primero, así que se puede transcribir cualquier formato que ffmpeg lea. La transcripción va al portapapeles *y* se guarda como un `.txt` junto a la grabación, de modo que una transcripción larga no haya que repetirla nunca; y el modo pasa entonces a listar esa transcripción, lista para resumirla o corregirla.
+
+### Preguntar a Claude
+
+Esto usa la suscripción de Claude Code con la que ya has iniciado sesión, la misma que usan las descripciones de capturas, con el modelo que hayas elegido en los ajustes. Funciona con archivos de texto y PDF; si lo apuntas a una grabación, primero se transcribe y lo que lee Claude es la transcripción.
+
+- **Resumir**: qué son los archivos y qué contienen, leído en voz alta y copiado.
+- **Preguntar a Claude sobre...**: escribes una pregunta y Claude la responde a partir de los archivos. Se lee en voz alta y se copia.
+- **Corregir**: ortografía, gramática y puntuación, con el texto corregido copiado y listo para pegar. Solo archivos de texto: te devuelve lo que escribiste, corregido.
+- **Traducir...**: escribes un idioma y se copia la traducción conservando la disposición del original.
+
+Nunca se recorta nada en silencio. Si hay demasiado texto para enviarlo de una vez, o el PDF es demasiado grande, se dice exactamente eso: un resumen de la primera quinta parte de un documento, presentado como el resumen del documento, sería peor que no tener resumen.
+
+### Lo demás
+
+- **Información multimedia** lee cuánto dura un archivo, su códec, frecuencia de muestreo, canales, tasa de bits, tamaño y el tamaño del vídeo si lo tiene, y copia esa misma línea para que puedas pegarla.
+- **Información de texto** es lo mismo para un archivo de texto: líneas, palabras, caracteres y kilobytes.
+- **Copiar el contenido** pone un archivo de texto en el portapapeles; si son varios, se unen bajo sus nombres.
+- **Abrir en Visual Studio Code** abre todo en una sola ventana.
+- **Abrir una terminal** abre una carpeta: si es un archivo, la carpeta donde está, y la fila dice de qué carpeta se trata. Las repetidas se agrupan, así que cinco archivos de la misma carpeta abren una sola terminal.
+
+Las conversiones y las transcripciones se hacen en segundo plano y la ventana sigue siendo utilizable mientras tanto; un segundo intro mientras hay algo en marcha se rechaza en lugar de empezar el mismo trabajo dos veces.
+
 ## Ajustes
 
 El botón Ajustes de la interfaz abre un diálogo donde puedes guardar estas preferencias en `settings.json`:
@@ -217,6 +264,7 @@ El botón Ajustes de la interfaz abre un diálogo donde puedes guardar estas pre
 - Archivo de comandos: una lista desplegable con todos los `.json` con forma de comandos que hay junto a la aplicación, para mantener conjuntos separados (trabajo, casa, un juego) y cambiar entre ellos sin reiniciar. También puedes escribir un nombre nuevo para empezar uno desde cero.
 - Servidor, puerto, usuario, archivo de clave privada y contraseña de SSH, que usa el modo SSH
 - Minutos sin usar tras los que se bloquea la caja fuerte, y segundos que un secreto copiado puede quedarse en el portapapeles (ver [Caja fuerte cifrada](#caja-fuerte-cifrada))
+- Programa o carpeta de ffmpeg, si una conversión verificada borra el original, y el transcriptor Whisper y su modelo, todo ello para el [modo rutas](#modo-rutas). Deja vacías las dos casillas de programa para que se busquen en el `PATH`.
 
 Los parámetros de línea de comandos tienen prioridad sobre estos ajustes durante la ejecución actual (por ejemplo, pasando `-q` se desactivan los sonidos aunque el ajuste esté habilitado, y pasando `-m` se arranca minimizado aunque el ajuste esté desactivado).
 
@@ -557,6 +605,7 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `=` | Conversión de unidades | Convertir un número entre unidades, tallas de calzado incluidas |
 | `*` | Caja fuerte cifrada | Contraseñas y otros secretos, cifrados tras una contraseña maestra |
 | `_` | Variables de sustitución | Las variables `{{nombre}}` que escribes tú, y que usan tanto las sustituciones como los comandos |
+| `/` | Rutas | Actúa sobre los archivos del portapapeles: convertir, transcribir, preguntar a Claude, abrir |
 | `.` | (cualquier modo) | Volver al modo Comandos |
 
 ## Retroalimentación de audio

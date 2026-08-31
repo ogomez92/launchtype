@@ -8,6 +8,7 @@ mod dialogs;
 mod hotkey;
 #[cfg(target_os = "macos")]
 mod macos;
+mod path_flows;
 mod shell;
 mod speech;
 mod ssh_flows;

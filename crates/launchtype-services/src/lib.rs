@@ -6,6 +6,7 @@ pub mod ai;
 pub mod alerts;
 pub mod apps;
 pub mod clipboard;
+pub mod media;
 pub mod notebrook;
 pub mod placeholders;
 pub mod poller;
@@ -19,6 +20,7 @@ pub mod sounds;
 pub mod ssh;
 pub mod steam;
 pub mod stores;
+pub mod transcribe;
 pub mod vault;
 
 /// Shared User-Agent for every outbound HTTP request (same string as the

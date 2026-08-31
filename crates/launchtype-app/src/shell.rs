@@ -72,6 +72,11 @@ pub struct Shell {
     pub ssh: Option<SshSession>,
     /// A command is in flight; the next Enter is ignored rather than queued.
     pub ssh_busy: bool,
+    /// A path-mode action is running on a background thread. Conversions and
+    /// transcriptions take real time, and the window stays up while they do,
+    /// so the next Enter is refused rather than starting a second one over the
+    /// same files.
+    pub path_busy: bool,
     pub poller: Option<ClipboardPoller>,
     pub scheduler: Option<Scheduler>,
     /// Wipes the vault key once it has gone unused for the configured time.
@@ -201,6 +206,7 @@ pub fn build_shell(
         pending_query: None,
         ssh: None,
         ssh_busy: false,
+        path_busy: false,
         poller: None,
         scheduler: None,
         vault_locker: None,
@@ -760,9 +766,10 @@ pub fn update_list(shell: &SharedShell) {
         // Stats, region and conversion lines are full sentences; don't clip
         // them so the screen reader announces the whole thing.
         let mut label: String = match item.kind {
-            ItemKind::Stat | ItemKind::Region { .. } | ItemKind::Conversion { .. } => {
-                item.name.clone()
-            }
+            ItemKind::Stat
+            | ItemKind::Region { .. }
+            | ItemKind::Conversion { .. }
+            | ItemKind::PathAction { .. } => item.name.clone(),
             _ => item.name.chars().take(40).collect(),
         };
         if !item.shortcut.is_empty() {
@@ -813,7 +820,17 @@ enum ModeEntry {
 fn apply_mode_switch(s: &mut Shell, new_mode: UiMode) -> ModeEntry {
     // Leaving for another mode abandons whatever command was mid-question.
     end_query(s);
-    speak_now(&mode_announcement(new_mode), true);
+    // Path mode is the one mode whose announcement reports something it had to
+    // go and find, so its look at the clipboard happens before the sentence
+    // rather than after it. Everywhere else the setup below runs while the
+    // announcement is still being spoken.
+    let announcement = if new_mode == UiMode::Paths {
+        s.controller.rescan_clipboard_paths();
+        path_announcement(&s.controller.paths)
+    } else {
+        mode_announcement(new_mode)
+    };
+    speak_now(&announcement, true);
     let mut entry = ModeEntry::Nothing;
     match new_mode {
         UiMode::Snippets => s.controller.reload_snippets(),
@@ -883,7 +900,33 @@ fn mode_announcement(mode: UiMode) -> String {
         UiMode::Units => tr("unit conversion mode, type a number and choose a conversion"),
         UiMode::Vault => tr("encrypted vault mode"),
         UiMode::Variables => tr("substitution variables mode"),
+        // Entering `/` always reports what it found; see [`path_announcement`].
+        UiMode::Paths => tr("path mode"),
         UiMode::Regions => unreachable!("no trigger char"),
+    }
+}
+
+/// What entering path mode says out loud.
+///
+/// The whole mode is about files the user cannot see listed anywhere, so the
+/// one thing worth saying on the way in is what was actually found — a name
+/// when there is one file, a count when there are several, and the way to fix
+/// it when there are none.
+fn path_announcement(targets: &[launchtype_core::paths::Target]) -> String {
+    let mode = mode_announcement(UiMode::Paths);
+    match targets.len() {
+        0 => format_args(
+            &tr("{mode}. Nothing on the clipboard."),
+            &[("mode", Arg::Str(&mode))],
+        ),
+        1 => format_args(
+            &tr("{mode}. {name}"),
+            &[("mode", Arg::Str(&mode)), ("name", Arg::Str(targets[0].name()))],
+        ),
+        count => format_args(
+            &tr("{mode}. {count} files on the clipboard"),
+            &[("mode", Arg::Str(&mode)), ("count", Arg::Int(count as i64))],
+        ),
     }
 }
 
@@ -893,6 +936,7 @@ fn mode_name(mode: UiMode) -> String {
         UiMode::Commands => tr("Commands"),
         UiMode::Snippets => tr("Snippets"),
         UiMode::Variables => tr("Substitution variables"),
+        UiMode::Paths => tr("Paths on the clipboard"),
         UiMode::Clipboard => tr("Clipboard history"),
         UiMode::Steam => tr("Steam games"),
         UiMode::Apps => tr("Applications"),
@@ -1074,6 +1118,10 @@ pub fn run_clicked(shell: &SharedShell) {
         // open dialogs and so must keep the window up.
         ItemKind::VaultEntry => crate::vault_flows::copy_secret(shell, &item.id, &item.name),
         ItemKind::VaultAction { action } => crate::vault_flows::run_action(shell, action),
+        // Path actions run over files rather than over a selection, report
+        // their own progress, and mostly finish long after this returns — so
+        // like the screenshot ones they keep the window and handle themselves.
+        ItemKind::PathAction { action } => crate::path_flows::run_action(shell, action),
         // A region: crop it out of the last screenshot, copy the crop, and
         // describe it. Keep the window open so more regions can be chosen.
         ItemKind::Region { r#box } => crate::ai_flows::crop_and_describe_region(shell, r#box),
