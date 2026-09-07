@@ -63,28 +63,109 @@ pub fn load_snippets(working_dir: &Path) -> Vec<Snippet> {
     snippets
 }
 
+/// Whether `name` is usable as a snippet's file name.
+///
+/// A shortcut is a word the user types to summon a snippet, and it is also,
+/// directly, a file name: `snippets/<name>.txt`. Nothing stopped a name from
+/// carrying `..` or a separator, which made "add a snippet" a way to write a
+/// chosen file anywhere the user can write — `../../commands.json`, or a
+/// script into the Startup folder — and made the rename half of
+/// [`update_snippet`] a way to *delete* one.
+///
+/// It is not only the user's own typing that gets here: shortcuts also come
+/// out of `apple_snippets.plist`, which the app reads but does not write.
+///
+/// So a name must be one plain file-name component: no separators, no drive
+/// letter, no `.`/`..`, and none of the characters Windows refuses in a name
+/// anyway.
+pub fn is_valid_shortcut(name: &str) -> bool {
+    let name = name.trim();
+    !name.is_empty()
+        && name != "."
+        && name != ".."
+        && !name.contains(['/', '\\', ':', '*', '?', '"', '<', '>', '|', '\0'])
+        // Windows drops a trailing dot from a file name, so `sig.` and `sig`
+        // would be one file wearing two shortcuts. (Trailing spaces, which it
+        // drops too, are gone already: the name is trimmed before it is used,
+        // so `"sig "` and `"sig"` are the same shortcut by then.)
+        && !name.ends_with('.')
+}
+
+fn checked_path(name: &str) -> std::io::Result<std::path::PathBuf> {
+    if !is_valid_shortcut(name) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("{name:?} is not a usable snippet name"),
+        ));
+    }
+    Ok(std::path::Path::new("snippets").join(format!("{}.txt", name.trim())))
+}
+
 /// Write (or overwrite) `snippets/<name>.txt` (DataManager.add_snippet).
 pub fn write_snippet(name: &str, contents: &str) -> std::io::Result<()> {
-    let dir = std::path::Path::new("snippets");
-    std::fs::create_dir_all(dir)?;
-    std::fs::write(dir.join(format!("{name}.txt")), contents)
+    let path = checked_path(name)?;
+    std::fs::create_dir_all("snippets")?;
+    std::fs::write(path, contents)
 }
 
 /// Rename-aware snippet update: removes the old file when the snippet was
 /// renamed so no stale duplicate is left behind, then writes the new one.
 pub fn update_snippet(original_shortcut: &str, name: &str, contents: &str) -> std::io::Result<()> {
+    // The new name is checked before the old file is touched, so a rejected
+    // rename does not delete the snippet it was renaming.
+    let new_path = checked_path(name)?;
     if !original_shortcut.is_empty() && !original_shortcut.eq_ignore_ascii_case(name) {
-        let old = std::path::Path::new("snippets").join(format!("{original_shortcut}.txt"));
-        if old.exists() {
-            let _ = std::fs::remove_file(old);
+        match checked_path(original_shortcut) {
+            Ok(old) if old.exists() => {
+                let _ = std::fs::remove_file(old);
+            }
+            Ok(_) => {}
+            // A stored shortcut that is not a usable file name names no file
+            // this wrote; there is nothing to remove and nothing to guess at.
+            Err(e) => log::warn!("not removing the old snippet file: {e}"),
         }
     }
-    write_snippet(name, contents)
+    std::fs::create_dir_all("snippets")?;
+    std::fs::write(new_path, contents)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The shortcut is the file name, so it has to name a file inside
+    /// `snippets/` and nowhere else.
+    #[test]
+    fn a_snippet_name_cannot_reach_out_of_the_folder() {
+        let bad = [
+            "../commands",
+            r"..\commands",
+            "..",
+            ".",
+            "sub/dir",
+            r"sub\dir",
+            r"C:\Windows\evil",
+            "trailing.",
+            "",
+            "   ",
+            "a\"quote",
+        ];
+        for name in bad {
+            assert!(!is_valid_shortcut(name), "{name:?} should be refused");
+            assert!(write_snippet(name, "x").is_err(), "{name:?} should not be written");
+            // And the rename path must refuse it before removing anything.
+            assert!(update_snippet("sig", name, "x").is_err(), "{name:?} should not be written");
+        }
+    }
+
+    #[test]
+    fn ordinary_shortcuts_are_still_accepted() {
+        for good in ["sig", "my.note", "correo-trabajo", "a b", "firma"] {
+            assert!(is_valid_shortcut(good), "{good:?} should be accepted");
+        }
+        // Stray spaces around a name are trimmed rather than refused.
+        assert!(is_valid_shortcut("  sig  "));
+    }
 
     #[test]
     fn txt_snippets_use_filename_up_to_first_dot_lowercased() {

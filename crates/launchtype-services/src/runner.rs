@@ -48,8 +48,14 @@ pub fn run_command(
 #[cfg(windows)]
 pub fn open_terminal_at(folder: &Path) -> Result<(), RunError> {
     // `wt.exe` is the per-user execution alias Windows Terminal installs on
-    // PATH; there is no stable absolute install location for a Store app.
-    std::process::Command::new("wt.exe")
+    // PATH; there is no stable absolute install location for a Store app. It
+    // is looked up on PATH explicitly rather than handed to `Command` as a
+    // name, which would search the app's own folder first (see
+    // [`crate::program`]).
+    let terminal = crate::program::on_path("wt").ok_or_else(|| {
+        RunError(launchtype_core::i18n::tr("Windows Terminal was not found on this machine."))
+    })?;
+    std::process::Command::new(terminal)
         .arg("-d")
         .arg(folder)
         .spawn()
@@ -180,20 +186,11 @@ fn shell_execute_runas(path: &str, args: &[String], cwd: &Path) -> Result<(), Ru
 
     let verb = wide("runas".as_ref());
     let file = wide(path.as_ref());
-    // ShellExecuteW takes one command-line string rather than a list, so an
-    // argument holding spaces has to be re-quoted here — the segments arrive
-    // already unquoted, which is what `spawn` needs on the non-elevated path.
-    let params_string = args
-        .iter()
-        .map(|arg| {
-            if arg.contains(' ') && !arg.starts_with('"') {
-                format!("\"{arg}\"")
-            } else {
-                arg.clone()
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ");
+    // ShellExecuteW takes one command-line string rather than a list, so the
+    // segments — which arrive already unquoted, which is what `spawn` needs on
+    // the non-elevated path — have to be quoted back into one here.
+    let params_string =
+        args.iter().map(|arg| quote_argument(arg)).collect::<Vec<_>>().join(" ");
     let params = wide(params_string.as_ref());
     let dir = wide(cwd.as_os_str());
 
@@ -213,6 +210,59 @@ fn shell_execute_runas(path: &str, args: &[String], cwd: &Path) -> Result<(), Ru
     } else {
         Err(RunError(format!("ShellExecuteW failed (code {})", result.0 as usize)))
     }
+}
+
+/// Quote one argument for a Windows command line, by the rules
+/// `CommandLineToArgvW` parses it back with — which is what every program the
+/// elevated path launches uses to split the string it is handed.
+///
+/// # Why the obvious version is not enough
+///
+/// Wrapping only arguments that hold a space, and leaving the rest alone, lets
+/// an argument that holds a `"` end the quoting early and have the rest of
+/// itself read as *further arguments*. That matters here and nowhere else in
+/// this file: this is the path that runs a command elevated, so the user has
+/// approved a UAC prompt naming one program and would then be handing it
+/// switches nobody agreed to. A `{{query}}` answer typed into a stored admin
+/// command is enough to do it — `x" --other-flag "y` used to arrive as three
+/// arguments.
+///
+/// So: quote whenever the argument could otherwise be misread, double the run
+/// of backslashes that precedes a quote (and the run at the very end, which
+/// would otherwise escape the closing quote), and escape the quotes
+/// themselves. An empty argument becomes `""`, which is the only way to pass
+/// one at all.
+#[cfg(windows)]
+fn quote_argument(arg: &str) -> String {
+    if !arg.is_empty() && !arg.contains([' ', '\t', '"']) {
+        return arg.to_string();
+    }
+    let mut out = String::with_capacity(arg.len() + 2);
+    out.push('"');
+    let mut backslashes = 0;
+    for c in arg.chars() {
+        match c {
+            '\\' => {
+                backslashes += 1;
+                continue;
+            }
+            '"' => {
+                // Every backslash before a quote is doubled, then the quote
+                // itself is escaped.
+                out.extend(std::iter::repeat_n('\\', backslashes * 2 + 1));
+                out.push('"');
+            }
+            _ => {
+                out.extend(std::iter::repeat_n('\\', backslashes));
+                out.push(c);
+            }
+        }
+        backslashes = 0;
+    }
+    // A trailing run would escape the closing quote if it were not doubled.
+    out.extend(std::iter::repeat_n('\\', backslashes * 2));
+    out.push('"');
+    out
 }
 
 #[cfg(not(windows))]
@@ -285,6 +335,73 @@ fn open_app_bundle(bundle: &str, args: &[String], cwd: &Path) -> Result<(), RunE
 mod tests {
     use super::*;
     use launchtype_core::portable::VarValue;
+
+    /// Split a command line the way a launched program does, by asking Windows
+    /// itself. Asserting against a hand-written expected string would only
+    /// prove the quoting matches this test's idea of the rules; this proves it
+    /// matches the parser on the other end.
+    #[cfg(windows)]
+    fn windows_argv(command_line: &str) -> Vec<String> {
+        use std::os::windows::ffi::OsStrExt;
+        use windows::core::PCWSTR;
+        use windows::Win32::UI::Shell::CommandLineToArgvW;
+
+        let wide: Vec<u16> = std::ffi::OsStr::new(command_line)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let mut count = 0i32;
+        let argv = unsafe { CommandLineToArgvW(PCWSTR(wide.as_ptr()), &mut count) };
+        assert!(!argv.is_null(), "CommandLineToArgvW rejected {command_line:?}");
+        let parsed = (0..count as usize)
+            .map(|i| unsafe { (*argv.add(i)).to_string().unwrap() })
+            .collect::<Vec<_>>();
+        unsafe {
+            let _ = windows::Win32::Foundation::LocalFree(Some(
+                windows::Win32::Foundation::HLOCAL(argv as *mut _),
+            ));
+        }
+        // argv[0] is the program name the caller prepended.
+        parsed[1..].to_vec()
+    }
+
+    /// The elevated path builds one string; whatever it builds has to split
+    /// back into exactly the arguments it was given, or a UAC prompt the user
+    /// approved for one thing ran it with something else.
+    #[cfg(windows)]
+    #[test]
+    fn elevated_arguments_survive_the_round_trip_intact() {
+        let cases: &[&[&str]] = &[
+            &["/c", "exit 0"],
+            &["a b", "c"],
+            // The injection: a query answer that closes the quoting and adds
+            // switches of its own.
+            &[r#"x" --other-flag "y"#],
+            &[r#"say "hi""#],
+            &[r"C:\Program Files\app\", "next"],
+            &[r"ends\with\backslashes\\"],
+            &["", "after an empty one"],
+            &["plain", "--flag=value", "tab\there"],
+        ];
+        for args in cases {
+            let owned: Vec<String> = args.iter().map(|a| a.to_string()).collect();
+            let line = format!(
+                "prog.exe {}",
+                owned.iter().map(|a| quote_argument(a)).collect::<Vec<_>>().join(" ")
+            );
+            assert_eq!(windows_argv(&line), owned, "built {line:?}");
+        }
+    }
+
+    /// The specific regression: an answer holding a quote used to reach the
+    /// elevated process as extra arguments.
+    #[cfg(windows)]
+    #[test]
+    fn a_quote_in_an_argument_cannot_add_arguments() {
+        let injected = r#"target" --run-as-something-else "rest"#;
+        let line = format!("prog.exe {}", quote_argument(injected));
+        assert_eq!(windows_argv(&line), vec![injected.to_string()], "one argument, not three");
+    }
 
     fn quiet_sounds() -> SoundPlayer {
         SoundPlayer::new("nonexistent-sounds-dir", false)

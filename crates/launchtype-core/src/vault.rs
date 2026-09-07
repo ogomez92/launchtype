@@ -331,7 +331,7 @@ impl VaultSession {
         if password.chars().count() < MIN_PASSWORD_LEN {
             return Err(VaultError::PasswordTooShort);
         }
-        std::fs::create_dir_all(&self.dir)?;
+        crate::storage::create_private_dir(&self.dir)?;
         let vault_key = Zeroizing::new(<[u8; KEY_LEN]>::generate());
         self.write_meta(password, &vault_key)?;
         self.key = Some(vault_key);
@@ -403,7 +403,7 @@ impl VaultSession {
         let plaintext = Zeroizing::new(serde_json::to_vec(&data).map_err(|_| VaultError::Damaged)?);
         let sealed = seal(key, &plaintext, id.as_bytes())?;
 
-        std::fs::create_dir_all(&self.dir)?;
+        crate::storage::create_private_dir(&self.dir)?;
         let mut file = Vec::with_capacity(HEADER_LEN + sealed.len());
         file.extend_from_slice(&MAGIC);
         file.extend_from_slice(&sealed);
@@ -457,7 +457,7 @@ impl VaultSession {
             salt: BASE64.encode(salt),
             wrapped_key: BASE64.encode(&wrapped),
         };
-        std::fs::create_dir_all(&self.dir)?;
+        crate::storage::create_private_dir(&self.dir)?;
         atomic_write_json(&self.meta_path(), &meta, Some(2))?;
         Ok(())
     }

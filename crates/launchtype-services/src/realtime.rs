@@ -166,7 +166,10 @@ fn fetch_openai_usage() -> Result<String, RealtimeError> {
 }
 
 fn fetch_temperatures() -> Result<String, RealtimeError> {
-    let nvidia = run_command("nvidia-smi", &NVIDIA_SMI_ARGS)
+    // Off PATH, never by bare name: see [`crate::program`] for why the folder
+    // the app runs from must not get to answer for a tool name.
+    let nvidia = crate::program::on_path("nvidia-smi")
+        .and_then(|program| run_command(&program.to_string_lossy(), &NVIDIA_SMI_ARGS))
         .as_deref()
         .and_then(parse_nvidia_smi);
     let blob = read_windows_sensors();
@@ -178,8 +181,12 @@ fn fetch_temperatures() -> Result<String, RealtimeError> {
 fn read_windows_sensors() -> serde_json::Map<String, serde_json::Value> {
     let encoded =
         base64::engine::general_purpose::STANDARD.encode(utf16_le_bytes(SENSORS_POWERSHELL));
+    // The real Windows PowerShell, by its fixed location. A bare "powershell"
+    // would be resolved starting from the app's own folder.
+    let powershell =
+        crate::program::in_windows_dir(r"System32\WindowsPowerShell\v1.0\powershell.exe");
     match run_command(
-        "powershell",
+        &powershell.to_string_lossy(),
         &[
             "-NoProfile",
             "-NonInteractive",

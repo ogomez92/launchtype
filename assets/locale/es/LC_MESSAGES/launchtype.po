@@ -3396,3 +3396,23 @@ msgstr "Có&digo de verificación en dos pasos:"
 #: crates/launchtype-app/src/dialogs.rs
 msgid "YubiKey OTP"
 msgstr "OTP de YubiKey"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "A snippet name is a single word, not a path: it cannot contain \\ / : * ? \" < > or |."
+msgstr "El nombre de un fragmento es una sola palabra, no una ruta: no puede contener \\ / : * ? \" < > ni |."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "The snippet could not be saved."
+msgstr "No se ha podido guardar el fragmento."
+
+#: crates/launchtype-services/src/runner.rs
+msgid "Windows Terminal was not found on this machine."
+msgstr "No se ha encontrado Windows Terminal en este equipo."
+
+#: crates/launchtype-services/src/ssh.rs
+msgid "The identity of {host} is not the one on record. Somebody may be intercepting the connection. Its key is now {fingerprint}; remove line {line} of {file} only if you know why it changed."
+msgstr "La identidad de {host} no es la que hay registrada. Puede que alguien esté interceptando la conexión. Su clave ahora es {fingerprint}; borra la línea {line} de {file} solo si sabes por qué ha cambiado."
+
+#: crates/launchtype-services/src/ssh.rs
+msgid "The identity of {host} could not be written to {file}, so it cannot be checked next time: {reason}"
+msgstr "No se ha podido escribir la identidad de {host} en {file}, así que no se podrá comprobar la próxima vez: {reason}"

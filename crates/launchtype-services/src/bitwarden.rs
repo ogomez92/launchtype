@@ -118,11 +118,18 @@ pub enum BwAuth {
 
 /// Where the `bw` executable is. Resolved once so a missing CLI is reported
 /// before the user is asked for a master password.
+///
+/// Resolved to an absolute path off `PATH` rather than left as a bare name for
+/// `Command` to look up: on Windows that lookup starts in the folder the app
+/// is running from, so a `bw.exe` dropped beside a portable install — a
+/// Downloads folder, say — would be the one handed the master password. See
+/// [`crate::program`].
 pub fn find_cli() -> Option<String> {
-    // `Command` already searches PATH, so asking it for a version is both the
-    // existence check and the "is it runnable" check in one.
-    let candidates = ["bw", "bw.exe"];
-    candidates.iter().find(|name| version(name).is_some()).map(|name| name.to_string())
+    let found = crate::program::on_path("bw")?;
+    let found = found.to_string_lossy().into_owned();
+    // Found by name is not the same as runnable; asking for a version is both
+    // checks in one.
+    version(&found).is_some().then_some(found)
 }
 
 pub fn version(program: &str) -> Option<String> {

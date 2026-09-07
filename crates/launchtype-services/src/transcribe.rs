@@ -185,6 +185,18 @@ fn last_line(stderr: &[u8]) -> String {
 /// `tempfile` is a dev-dependency of this crate rather than a real one, and
 /// this needs a handful of lines rather than a dependency for the shipped
 /// build.
+///
+/// # Why it is owner-only, and directly under the temp folder
+///
+/// What passes through here is the user's recording, decoded to a WAV, and the
+/// transcript of every word in it. The system temp folder is world-writable on
+/// macOS and Linux, so this used to be readable by every other account on the
+/// machine.
+///
+/// The random name also sits directly under the temp folder rather than under
+/// a shared `launchtype-transcribe/` parent: a fixed name is one another user
+/// can create first — as their own directory, or as a symlink pointing
+/// somewhere else — and then own everything written beneath it.
 struct TempDir {
     path: PathBuf,
 }
@@ -192,9 +204,8 @@ struct TempDir {
 impl TempDir {
     fn new() -> Result<TempDir, TranscribeError> {
         let path = std::env::temp_dir()
-            .join("launchtype-transcribe")
-            .join(uuid::Uuid::new_v4().to_string());
-        std::fs::create_dir_all(&path).map_err(|error| {
+            .join(format!("launchtype-transcribe-{}", uuid::Uuid::new_v4()));
+        launchtype_core::storage::create_private_dir(&path).map_err(|error| {
             TranscribeError(format_args(
                 &tr("A working folder could not be made: {reason}"),
                 &[("reason", Arg::Str(&error.to_string()))],

@@ -12,6 +12,7 @@ pub mod notebrook;
 pub mod placeholders;
 pub mod poller;
 pub mod portable;
+pub mod program;
 pub mod realtime;
 pub mod runner;
 pub mod scheduler;

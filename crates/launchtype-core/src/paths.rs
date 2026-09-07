@@ -194,6 +194,22 @@ pub fn is_convertible_to(path: &str, format: &str) -> bool {
 /// manager puts there). Anything that is not an absolute location is dropped —
 /// most clipboard text is prose, and probing prose against the disk is exactly
 /// the kind of work that hangs on an unreachable share.
+///
+/// # Why network paths are dropped here
+///
+/// Everything this returns is about to be handed to `fs::metadata` the moment
+/// `/` mode opens. For a local path that is a disk read; for `\\host\share` on
+/// Windows it is an outbound SMB login to `host`, which sends the user's
+/// account name and a response derived from their password to whoever answers.
+///
+/// The text this reads is not the user's: "copy this" buttons on web pages,
+/// chat messages and emails all put text on the clipboard, and a single
+/// `file://attacker/share` line in it would turn the next `/` into a
+/// credential handout. So a share named in *text* is not probed.
+///
+/// Files copied in Explorer or Finder are unaffected — they arrive as file
+/// objects, not as text, and never come through here — so a file opened from
+/// a NAS the normal way still works.
 pub fn parse_paths(text: &str) -> Vec<String> {
     let mut found: Vec<String> = Vec::new();
     for line in text.lines() {
@@ -202,12 +218,27 @@ pub fn parse_paths(text: &str) -> Vec<String> {
             if cleaned.is_empty() || !is_absolute_location(&cleaned) {
                 continue;
             }
+            if is_network_location(&cleaned) {
+                log::info!("ignoring the network path on the clipboard");
+                continue;
+            }
             if !found.contains(&cleaned) {
                 found.push(cleaned);
             }
         }
     }
     found
+}
+
+/// Whether `value` names a location on another machine — a UNC share, in
+/// either slash direction.
+///
+/// `//` is a POSIX absolute path with a redundant slash rather than a share,
+/// but [`clean`] produces exactly that shape for `file://host/share`, and no
+/// real POSIX path is written that way, so both are treated as remote.
+pub fn is_network_location(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    matches!(bytes, [b'\\', b'\\', rest @ ..] | [b'/', b'/', rest @ ..] if !rest.is_empty())
 }
 
 /// One line into candidates: the quoted runs if there are any, else the line.
@@ -804,7 +835,36 @@ mod tests {
     fn file_urls_become_paths_again() {
         assert_eq!(parse_paths("file:///C:/music/my%20song.mp3"), vec!["C:/music/my song.mp3"]);
         assert_eq!(parse_paths("file:///home/me/a.flac"), vec!["/home/me/a.flac"]);
-        assert_eq!(parse_paths("file://server/share/a.flac"), vec!["//server/share/a.flac"]);
+    }
+
+    /// Probing `\\host\share` is an SMB login to `host`, which hands over the
+    /// user's account name and a response derived from their password. The
+    /// clipboard is full of text other people wrote — a "copy this" button on
+    /// a web page, a chat message — so a share named in text is never probed.
+    #[test]
+    fn network_paths_in_clipboard_text_are_never_probed() {
+        assert!(parse_paths(r"\\attacker.example.com\share\a.flac").is_empty());
+        assert!(parse_paths("file://attacker.example.com/share/a.flac").is_empty());
+        assert!(parse_paths("//attacker.example.com/share/a.flac").is_empty());
+        assert!(
+            parse_paths("here is a file: \\\\attacker\\share\\x.mp3").is_empty(),
+            "a share mentioned mid-sentence is still a share"
+        );
+        // The local paths beside one are still picked up.
+        assert_eq!(
+            parse_paths("\\\\attacker\\share\\a.mp3\nC:\\music\\b.mp3"),
+            vec![r"C:\music\b.mp3"]
+        );
+    }
+
+    #[test]
+    fn network_locations_are_recognised_in_both_slash_directions() {
+        assert!(is_network_location(r"\\server\share"));
+        assert!(is_network_location("//server/share"));
+        assert!(!is_network_location(r"C:\music"));
+        assert!(!is_network_location("/home/me"));
+        assert!(!is_network_location("//"), "nothing after the slashes names no host");
+        assert!(!is_network_location(""));
     }
 
     /// Most clipboard text is prose, and probing prose against the disk is

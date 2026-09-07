@@ -25,6 +25,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
+use launchtype_core::i18n::{format_args, tr, Arg};
 use russh::keys::{load_secret_key, PrivateKeyWithHashAlg};
 use russh::{client, Channel, ChannelMsg, Disconnect};
 use tokio::sync::mpsc::{self, error::SendError, UnboundedSender};
@@ -168,20 +169,159 @@ impl Drop for SshSession {
     }
 }
 
-struct Client;
+/// Where a host key this app learned is written down. Beside the app rather
+/// than in `~/.ssh`, like every other file Launchtype keeps: the install is
+/// portable, and an app that types a password into a server has no business
+/// editing the configuration of the user's real SSH client.
+///
+/// `~/.ssh/known_hosts` is still *read* first, so a server already accepted
+/// with `ssh` needs no second approval here.
+pub const KNOWN_HOSTS_FILE: &str = "ssh_known_hosts";
+
+/// What checking the host key against what is on record produced.
+enum HostKeyVerdict {
+    /// On record, and this is it.
+    Known,
+    /// Never seen before. Trust-on-first-use: recorded and accepted.
+    Learned,
+    /// On record, and this is *not* it. The one case that must never connect.
+    Changed { file: String, line: usize },
+    /// Never seen before, and it could not be written down. Also refused —
+    /// see [`Client::verify`].
+    CannotRecord(String),
+}
+
+struct Client {
+    host: String,
+    port: u16,
+    /// Set when the key is refused, so the failure reaches the user as the
+    /// reason it happened rather than russh's generic "Unknown server key".
+    rejection: Arc<std::sync::Mutex<Option<String>>>,
+}
+
+impl Client {
+    fn new(host: &str, port: u16) -> (Self, Arc<std::sync::Mutex<Option<String>>>) {
+        let rejection = Arc::new(std::sync::Mutex::new(None));
+        let client =
+            Client { host: host.to_string(), port, rejection: Arc::clone(&rejection) };
+        (client, rejection)
+    }
+
+    fn verify(&self, key: &russh::keys::ssh_key::PublicKey) -> HostKeyVerdict {
+        use russh::keys::known_hosts::{check_known_hosts_path, learn_known_hosts_path};
+
+        // The user's own known_hosts first: a host they have already accepted
+        // in a terminal must not be asked about again here.
+        let mut files: Vec<std::path::PathBuf> = Vec::new();
+        if let Some(home) = dirs::home_dir() {
+            files.push(home.join(".ssh").join("known_hosts"));
+        }
+        let ours = std::path::PathBuf::from(KNOWN_HOSTS_FILE);
+        files.push(ours.clone());
+
+        for file in &files {
+            match check_known_hosts_path(&self.host, self.port, key, file) {
+                Ok(true) => return HostKeyVerdict::Known,
+                // Not in this file; the next one may still know it.
+                Ok(false) => {}
+                // A recorded key for this host that is not this one. This is
+                // the man-in-the-middle case, and no other file may overrule
+                // it: refuse the connection outright.
+                Err(russh::keys::Error::KeyChanged { line }) => {
+                    return HostKeyVerdict::Changed { file: file.display().to_string(), line }
+                }
+                // An unreadable known_hosts is not a reason to trust anything;
+                // fall through to the remaining files and, failing those, to
+                // first-use recording below.
+                Err(e) => log::warn!("could not read {}: {e}", file.display()),
+            }
+        }
+
+        match learn_known_hosts_path(&self.host, self.port, key, &ours) {
+            Ok(()) => HostKeyVerdict::Learned,
+            // Refuse rather than connect: a key that cannot be written down is
+            // a key that will not be checked next time either, which would
+            // make this whole check theatre.
+            Err(e) => HostKeyVerdict::CannotRecord(e.to_string()),
+        }
+    }
+}
 
 impl client::Handler for Client {
     type Error = russh::Error;
 
-    /// Launchtype keeps no known_hosts file, so every host key is accepted.
+    /// Trust on first use, and refuse a key that has changed since.
+    ///
     /// The mode is a convenience console for servers the user already owns,
-    /// not a hardened SSH client.
+    /// but "accept every key" meant anything sitting between this app and the
+    /// server could present its own and be handed the password in
+    /// [`connect_and_authenticate`]'s `authenticate_password` — the whole
+    /// point of checking the key is that the password is only ever typed at
+    /// the machine it belongs to.
     async fn check_server_key(
         &mut self,
-        _server_public_key: &russh::keys::ssh_key::PublicKey,
+        server_public_key: &russh::keys::ssh_key::PublicKey,
     ) -> Result<bool, Self::Error> {
-        Ok(true)
+        match self.verify(server_public_key) {
+            HostKeyVerdict::Known => Ok(true),
+            HostKeyVerdict::Learned => {
+                log::info!(
+                    "recorded the host key for {}:{} ({})",
+                    self.host,
+                    self.port,
+                    fingerprint(server_public_key)
+                );
+                Ok(true)
+            }
+            HostKeyVerdict::Changed { file, line } => {
+                log::warn!(
+                    "refused the host key for {}:{}: does not match {file} line {line}",
+                    self.host,
+                    self.port
+                );
+                self.refuse(format_args(
+                    &tr(
+                        "The identity of {host} is not the one on record. Somebody may be intercepting the connection. Its key is now {fingerprint}; remove line {line} of {file} only if you know why it changed.",
+                    ),
+                    &[
+                        ("host", Arg::Str(&self.host)),
+                        ("fingerprint", Arg::Str(&fingerprint(server_public_key))),
+                        ("line", Arg::Int(line as i64)),
+                        ("file", Arg::Str(&file)),
+                    ],
+                ));
+                Ok(false)
+            }
+            HostKeyVerdict::CannotRecord(reason) => {
+                log::warn!("could not record the host key for {}: {reason}", self.host);
+                self.refuse(format_args(
+                    &tr(
+                        "The identity of {host} could not be written to {file}, so it cannot be checked next time: {reason}",
+                    ),
+                    &[
+                        ("host", Arg::Str(&self.host)),
+                        ("file", Arg::Str(KNOWN_HOSTS_FILE)),
+                        ("reason", Arg::Str(&reason)),
+                    ],
+                ));
+                Ok(false)
+            }
+        }
     }
+}
+
+impl Client {
+    /// Record why the handshake is about to fail, so the user reads that
+    /// rather than russh's generic "Unknown server key".
+    fn refuse(&self, message: String) {
+        *self.rejection.lock().unwrap() = Some(message);
+    }
+}
+
+/// The SHA-256 fingerprint OpenSSH would print, so a key the user is being
+/// asked about can be compared with what the server itself reports.
+fn fingerprint(key: &russh::keys::ssh_key::PublicKey) -> String {
+    key.fingerprint(russh::keys::HashAlg::Sha256).to_string()
 }
 
 /// Connect, authenticate, start the login shell and run its rc files.
@@ -207,10 +347,16 @@ async fn connect_and_authenticate(config: &SshConfig) -> Result<client::Handle<C
         ..Default::default()
     });
     let address = (config.host.trim().to_string(), config.port);
-    let connecting = client::connect(client_config, address, Client);
+    let (client, rejection) = Client::new(config.host.trim(), config.port);
+    let connecting = client::connect(client_config, address, client);
     let mut handle = match tokio::time::timeout(CONNECT_TIMEOUT, connecting).await {
         Ok(Ok(handle)) => handle,
-        Ok(Err(e)) => return Err(SshError::new(e.to_string())),
+        // A refused host key surfaces here as russh's generic "Unknown server
+        // key"; say what actually happened instead.
+        Ok(Err(e)) => {
+            let refused = rejection.lock().unwrap().take();
+            return Err(SshError::new(refused.unwrap_or_else(|| e.to_string())));
+        }
         Err(_) => return Err(SshError::new("timed out while connecting")),
     };
 

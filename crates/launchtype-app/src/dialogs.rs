@@ -1560,6 +1560,18 @@ pub fn snippet_dialog(parent: &Frame, existing: Option<(String, String)>) -> boo
                 );
                 return;
             }
+            // The name *is* the file name (`snippets/<name>.txt`), so it has
+            // to be one this can write without naming somewhere else.
+            if !launchtype_services::snippets::is_valid_shortcut(&name_entry.get_value()) {
+                error_box(
+                    &dialog,
+                    &tr(
+                        "A snippet name is a single word, not a path: it cannot contain \\ / : * ? \" < > or |.",
+                    ),
+                    "Error",
+                );
+                return;
+            }
             dialog.end_modal(ID_OK);
         });
     }
@@ -1578,6 +1590,8 @@ pub fn snippet_dialog(parent: &Frame, existing: Option<(String, String)>) -> boo
     };
     if let Err(e) = result {
         log::warn!("snippet save failed: {e}");
+        error_box(&dialog, &tr("The snippet could not be saved."), "Error");
+        return false;
     }
     true
 }

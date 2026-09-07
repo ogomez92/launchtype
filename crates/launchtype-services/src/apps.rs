@@ -37,7 +37,12 @@ pub fn launch(target: &AppTarget) -> Result<(), LaunchError> {
         // control-panel entries alike, and — because Explorer is the one doing
         // the starting — the app comes up unelevated even when Launchtype is
         // running as administrator.
-        AppTarget::AppUserModelId(id) => std::process::Command::new("explorer.exe")
+        // By its fixed location under %SystemRoot%, not by name: a bare
+        // "explorer.exe" is resolved starting from the app's own folder (see
+        // [`crate::program`]).
+        AppTarget::AppUserModelId(id) => std::process::Command::new(
+            crate::program::in_windows_dir("explorer.exe"),
+        )
             .arg(format!("shell:AppsFolder\\{id}"))
             .spawn()
             .map(|_| ())
