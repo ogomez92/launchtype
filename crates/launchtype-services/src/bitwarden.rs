@@ -314,13 +314,66 @@ fn run_bw(
 /// before giving up and saying something generic.
 fn cli_message(stderr: &[u8], stdout: &[u8]) -> String {
     for stream in [stderr, stdout] {
-        let text = String::from_utf8_lossy(stream).trim().to_string();
-        if !text.is_empty() {
-            // `bw` prefixes some failures; the user does not need to see that.
-            return text.lines().next().unwrap_or(&text).trim_start_matches("Error: ").to_string();
+        if let Some(message) = first_useful_line(&String::from_utf8_lossy(stream)) {
+            return message;
         }
     }
     "the Bitwarden CLI failed without saying why".to_string()
+}
+
+/// The one line of `bw`'s output that is worth putting in front of someone.
+///
+/// Usually that is the first line, and `bw` writes its refusals as
+/// `Error: Username or password is incorrect.` — the name is stripped, since
+/// a dialog saying so is already an error.
+///
+/// But `bw` does not always fail; sometimes it *crashes*, and then what comes
+/// out is Node's uncaught-exception dump, which leads with the file and line
+/// inside the packaged bundle rather than with the problem:
+///
+/// ```text
+/// C:\snapshot\clients\apps\cli\build\bw.js:7523
+///         throw new Error(getStringFromWasm0(arg0, arg1));
+///         ^
+///
+/// Error: <the part that says what actually went wrong>
+///     at ...
+/// ```
+///
+/// Reporting the first line of that is reporting a path into a bundle the
+/// user does not have, for a line number that means nothing without it. So
+/// the `Error:` line is looked for first, wherever in the output it sits, and
+/// only a stream with nothing of the sort falls back to reading from the top
+/// — skipping the scaffolding, which is never the message.
+fn first_useful_line(text: &str) -> Option<String> {
+    let lines = || text.lines().map(str::trim).filter(|line| !line.is_empty());
+    if let Some(message) = lines().find_map(error_line) {
+        return Some(message.to_string());
+    }
+    lines().find(|line| !is_crash_scaffolding(line)).map(str::to_string)
+}
+
+/// The message out of a `Error: ...` or `TypeError: ...` line, if that is what
+/// this is.
+///
+/// The separator is deliberately a colon *and a space*: `C:\snapshot\...` and
+/// the `bw.js:7523` on the end of it both carry colons, and neither is an
+/// error name.
+fn error_line(line: &str) -> Option<&str> {
+    let (name, message) = line.split_once(": ")?;
+    name.ends_with("Error").then(|| message.trim())
+}
+
+/// The parts of a Node crash dump that are not the message: the
+/// `...bw.js:7523` header, the caret under the offending source, the stack
+/// frames, and the `Node.js v22.11.0` footer.
+fn is_crash_scaffolding(line: &str) -> bool {
+    line.starts_with("at ")
+        || line.starts_with("Node.js v")
+        || line.chars().all(|c| c == '^')
+        || line
+            .rsplit_once(':')
+            .is_some_and(|(_, tail)| !tail.is_empty() && tail.bytes().all(|b| b.is_ascii_digit()))
 }
 
 /// A `Command` that does not flash a console window on Windows, where the app
@@ -360,6 +413,44 @@ mod tests {
     #[test]
     fn a_silent_failure_still_says_something() {
         assert!(!cli_message(b"   ", b"").is_empty());
+    }
+
+    /// The shape that started this: `bw` did not fail, it crashed, and Node
+    /// leads its dump with a path into a bundle that only exists inside
+    /// `bw.exe`. Reporting that first line put "C:\snapshot\...\bw.js:7523" in
+    /// a dialog box and threw the actual message away.
+    #[test]
+    fn a_node_crash_reports_the_error_and_not_the_bundle_path() {
+        let dump = br#"C:\snapshot\clients\apps\cli\build\bw.js:7523
+        throw new Error(getStringFromWasm0(arg0, arg1));
+        ^
+
+Error: Failed to decrypt cipher
+    at __wbg___wbindgen_throw_6ddd609b62940d55 (C:\snapshot\clients\apps\cli\build\bw.js:7523:11)
+
+Node.js v22.11.0
+"#;
+        assert_eq!(cli_message(dump, b""), "Failed to decrypt cipher");
+    }
+
+    /// Even a crash that never gets as far as an `Error:` line should not be
+    /// reported as a file name and a line number.
+    #[test]
+    fn the_crash_header_is_never_the_message() {
+        let dump = br#"C:\snapshot\clients\apps\cli\build\bw.js:7523
+        throw new Error(getStringFromWasm0(arg0, arg1));
+        ^
+"#;
+        let message = cli_message(dump, b"");
+        assert!(!message.contains("bw.js"), "got {message:?}");
+    }
+
+    /// A message ending in something colon-shaped is still a message; only the
+    /// crash header looks like a path with a line number on the end.
+    #[test]
+    fn an_ordinary_message_is_not_mistaken_for_scaffolding() {
+        assert_eq!(cli_message(b"You are not logged in.", b""), "You are not logged in.");
+        assert_eq!(cli_message(b"Session key is invalid.", b""), "Session key is invalid.");
     }
 
     #[test]

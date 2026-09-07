@@ -4,11 +4,24 @@ use std::path::{Path, PathBuf};
 /// `vendor/prism-sdk`, relative to this crate. Holds the Windows and macOS slices
 /// the build actually links, so a plain `cargo build` needs no external SDK.
 /// Set `PRISM_SDK_DIR` to a full `prism-sdk-vX.Y.Z` for other targets or a newer version.
+///
+/// `CARGO_MANIFEST_DIR` is read from the environment rather than baked in with
+/// `env!`. That macro freezes the path this build script was *compiled* at, and
+/// cargo will happily re-run a cached script binary after a checkout has moved
+/// — to another drive, or under a renamed parent — leaving it looking for the
+/// SDK where the crate used to be.
+///
+/// Canonicalized because the answer is handed to the linker, which runs from
+/// the workspace root and not from this crate: a relative `../../vendor` means
+/// two different directories to the two of them, and the linker's is the one
+/// that is not there. Falling back to the uncanonicalized path keeps it
+/// absolute, so a genuinely missing SDK is reported by the check in `main` —
+/// by name, before anything compiles — rather than hours later as a `prism.lib`
+/// the linker cannot find.
 fn vendored_sdk_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../vendor/prism-sdk")
-        .canonicalize()
-        .unwrap_or_else(|_| PathBuf::from("../../vendor/prism-sdk"))
+    let manifest = env::var("CARGO_MANIFEST_DIR").expect("cargo always sets CARGO_MANIFEST_DIR");
+    let vendored = Path::new(&manifest).join("../../vendor/prism-sdk");
+    vendored.canonicalize().unwrap_or(vendored)
 }
 
 fn main() {
