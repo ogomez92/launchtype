@@ -4,6 +4,7 @@
 
 pub mod ai;
 pub mod alerts;
+pub mod bitwarden;
 pub mod apps;
 pub mod clipboard;
 pub mod media;

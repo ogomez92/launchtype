@@ -16,6 +16,9 @@ plist = "1"
 clipboard-rs = "0.3"
 ureq = "2"
 base64 = "0.22"
+# The bw session key and master password are held in Zeroizing buffers on
+# their way to the child process (see bitwarden.rs).
+zeroize = { version = "1", features = ["alloc"] }
 dirs = "6"
 open = "5"
 xcap = "0.8"

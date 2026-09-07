@@ -523,6 +523,10 @@ impl ModeController {
             }
             items.push(vault_action_item(tr("Lock the vault now"), "lock"));
             items.push(vault_action_item(tr("Change the master password"), "password"));
+            items.push(vault_action_item(
+                tr("Import passwords and codes from Bitwarden"),
+                "import",
+            ));
         }
         items
     }

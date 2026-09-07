@@ -3224,3 +3224,175 @@ msgstr "Comando cancelado"
 #: crates/launchtype-app/src/shell.rs
 msgid "Substitution cancelled"
 msgstr "Sustitución cancelada"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Email address:"
+msgstr "Dirección de &correo electrónico:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&This entry holds:"
+msgstr "&Esta entrada contiene:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Two-step code (leave empty if not used):"
+msgstr "Código de &verificación en dos pasos (déjalo vacío si no lo usas):"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "A password or other secret text"
+msgstr "Una contraseña u otro texto secreto"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Add them to the vault now?"
+msgstr "¿Añadirlos ahora a la caja fuerte?"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "An authenticator seed (Enter copies the current code)"
+msgstr "Una semilla de autenticación (Intro copia el código actual)"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Bitwarden &master password:"
+msgstr "Contraseña &maestra de Bitwarden:"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Contacting the server, this can take a moment"
+msgstr "Conectando con el servidor, esto puede tardar un momento"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Copy passwords and authenticator codes out of a Bitwarden or Vaultwarden account into this vault. Nothing already here is changed or overwritten, and only the server address is remembered afterwards."
+msgstr "Copia las contraseñas y los códigos de autenticación de una cuenta de Bitwarden o Vaultwarden a esta caja fuerte. No se cambia ni se sobrescribe nada de lo que ya hay, y después solo se recuerda la dirección del servidor."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Found {passwords} passwords and {codes} authenticator codes to add."
+msgstr "Se han encontrado {passwords} contraseñas y {codes} códigos de autenticación para añadir."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Import from Bitwarden"
+msgstr "Importar desde Bitwarden"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Import passwords and codes from Bitwarden"
+msgstr "Importar contraseñas y códigos desde Bitwarden"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Nothing new to import: all {count} logins found are already in this vault."
+msgstr "No hay nada nuevo que importar: los {count} inicios de sesión encontrados ya están en esta caja fuerte."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Nothing to import: that account holds no logins with a password or an authenticator seed in them."
+msgstr "No hay nada que importar: esa cuenta no tiene ningún inicio de sesión con contraseña ni con semilla de autenticación."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Nothing to import: the {count} items found are cards, identities or secure notes, which this vault has no room for."
+msgstr "No hay nada que importar: los {count} elementos encontrados son tarjetas, identidades o notas seguras, que no caben en esta caja fuerte."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Please enter the address of your Bitwarden or Vaultwarden server."
+msgstr "Escribe la dirección de tu servidor de Bitwarden o Vaultwarden."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Please enter the email address and master password of the account to import from."
+msgstr "Escribe la dirección de correo y la contraseña maestra de la cuenta desde la que quieres importar."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "That authenticator code length is not supported; it must be 6, 7 or 8 digits."
+msgstr "Esa longitud de código de autenticación no es compatible; debe ser de 6, 7 u 8 dígitos."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "That authenticator hash algorithm is not supported; only SHA-1, SHA-256 and SHA-512 work."
+msgstr "Ese algoritmo de hash de autenticación no es compatible; solo funcionan SHA-1, SHA-256 y SHA-512."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "That authenticator time step is not supported."
+msgstr "Ese intervalo de tiempo de autenticación no es compatible."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "That is not a valid authenticator seed. It should be the letters and digits the site showed next to its QR code, or the whole otpauth:// link."
+msgstr "Esa no es una semilla de autenticación válida. Deben ser las letras y los dígitos que el sitio mostró junto a su código QR, o el enlace otpauth:// completo."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "That otpauth link does not contain a secret."
+msgstr "Ese enlace otpauth no contiene ningún secreto."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "The Bitwarden command line tool (bw) is not installed, or is not on the PATH. Install it from bitwarden.com/help/cli and try again."
+msgstr "La herramienta de línea de comandos de Bitwarden (bw) no está instalada, o no está en el PATH. Instálala desde bitwarden.com/help/cli e inténtalo de nuevo."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "The authenticator seed could not be read for: {names}. Everything else about those items still comes across."
+msgstr "No se ha podido leer la semilla de autenticación de: {names}. Todo lo demás de esos elementos sí se importa."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "There is no authenticator seed here to read."
+msgstr "Aquí no hay ninguna semilla de autenticación que leer."
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "Untitled"
+msgstr "Sin título"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "{count} added to the vault"
+msgstr "{count} añadidos a la caja fuerte"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "{count} are already in this vault under the same name and will be left alone."
+msgstr "{count} ya están en esta caja fuerte con el mismo nombre y se dejarán tal cual."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "{count} could not be saved."
+msgstr "No se han podido guardar {count}."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "{count} items are cards, identities or secure notes, which this vault has no room for, and will be skipped."
+msgstr "{count} elementos son tarjetas, identidades o notas seguras, que no caben en esta caja fuerte, y se omitirán."
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "{name} (code)"
+msgstr "{name} (código)"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "{name} ({user})"
+msgstr "{name} ({user})"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "{name}, code {code}, {seconds} seconds left"
+msgstr "{name}, código {code}, quedan {seconds} segundos"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Authenticator app"
+msgstr "Aplicación de autenticación"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Code sent by email"
+msgstr "Código enviado por correo electrónico"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "If you already use the bw command line tool, run \"bw unlock --raw\" and paste the key it prints. That works whatever second factor your account uses, and your own login is left signed in afterwards."
+msgstr "Si ya usas la herramienta de línea de comandos bw, ejecuta \"bw unlock --raw\" y pega la clave que muestra. Eso funciona sea cual sea el segundo factor de tu cuenta, y tu propia sesión se queda iniciada después."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "If your account uses a second factor that cannot be typed in here, such as Duo or a passkey, run \"bw unlock --raw\" in a terminal and paste the session key it prints into the import instead."
+msgstr "Si tu cuenta usa un segundo factor que no se puede escribir aquí, como Duo o una clave de acceso, ejecuta \"bw unlock --raw\" en una terminal y pega en la importación la clave de sesión que muestra."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Not used on this account"
+msgstr "No se usa en esta cuenta"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Please enter your two-step login code, or set the two-step login to \"Not used on this account\"."
+msgstr "Escribe tu código de verificación en dos pasos, o cambia la verificación en dos pasos a \"No se usa en esta cuenta\"."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Session &key (fill this in and the rest is ignored):"
+msgstr "Cla&ve de sesión (si la rellenas, se ignora el resto):"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "T&wo-step login:"
+msgstr "V&erificación en dos pasos:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Two-step &code:"
+msgstr "Có&digo de verificación en dos pasos:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "YubiKey OTP"
+msgstr "OTP de YubiKey"

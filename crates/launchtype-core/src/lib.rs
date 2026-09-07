@@ -5,6 +5,7 @@
 pub mod ai_auth;
 pub mod alarms;
 pub mod apps;
+pub mod bitwarden;
 pub mod clipboard_history;
 pub mod imaging;
 pub mod clock;
@@ -26,5 +27,6 @@ pub mod stats;
 pub mod steam;
 pub mod storage;
 pub mod timers;
+pub mod totp;
 pub mod units;
 pub mod vault;

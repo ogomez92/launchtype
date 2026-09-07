@@ -118,6 +118,21 @@ pub enum VaultError {
 
 type Result<T> = std::result::Result<T, VaultError>;
 
+/// What kind of secret an entry holds, which decides what Enter puts on the
+/// clipboard: the stored text itself, or the six digits derived from it.
+///
+/// Serialised as a string and defaulted on read, so entries written before
+/// this field existed load as passwords instead of failing to open.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EntryKind {
+    #[default]
+    Password,
+    /// The secret is an `otpauth://` URI or a bare base32 seed; see
+    /// [`crate::totp`].
+    Totp,
+}
+
 /// What the results list shows for one entry. Deliberately has no `secret`
 /// field: the list is rebuilt on every keystroke and read out loud, and the
 /// secret has no business being anywhere near it.
@@ -128,6 +143,7 @@ pub struct EntryInfo {
     pub name: String,
     /// Optional lowercase shortcut; an exact match jumps straight to the entry.
     pub shortcut: String,
+    pub kind: EntryKind,
 }
 
 /// The sealed payload of an entry file.
@@ -137,6 +153,9 @@ struct EntryData {
     #[serde(default)]
     shortcut: String,
     secret: String,
+    /// Absent in vaults written before authenticator entries existed.
+    #[serde(default)]
+    kind: EntryKind,
 }
 
 /// `vault/vault.meta`.
@@ -355,6 +374,7 @@ impl VaultSession {
             id: id.to_string(),
             name: data.name.clone(),
             shortcut: data.shortcut.clone(),
+            kind: data.kind,
         };
         Ok((info, Zeroizing::new(data.secret.clone())))
     }
@@ -367,6 +387,7 @@ impl VaultSession {
         name: &str,
         shortcut: &str,
         secret: &str,
+        kind: EntryKind,
     ) -> Result<String> {
         let key = self.key.as_ref().ok_or(VaultError::Locked)?;
         let id = match id {
@@ -377,6 +398,7 @@ impl VaultSession {
             name: name.trim().to_string(),
             shortcut: shortcut.trim().to_lowercase(),
             secret: secret.to_string(),
+            kind,
         };
         let plaintext = Zeroizing::new(serde_json::to_vec(&data).map_err(|_| VaultError::Damaged)?);
         let sealed = seal(key, &plaintext, id.as_bytes())?;
@@ -387,7 +409,8 @@ impl VaultSession {
         file.extend_from_slice(&sealed);
         atomic_write(&self.entry_path(&id), &file)?;
 
-        let info = EntryInfo { id: id.clone(), name: data.name, shortcut: data.shortcut };
+        let info =
+            EntryInfo { id: id.clone(), name: data.name, shortcut: data.shortcut, kind: data.kind };
         match self.entries.iter_mut().find(|e| e.id == id) {
             Some(existing) => *existing = info,
             None => self.entries.push(info),
@@ -464,9 +487,12 @@ impl VaultSession {
         let mut entries: Vec<EntryInfo> = entry_ids(&self.dir)
             .into_iter()
             .filter_map(|id| match self.read_entry(&id) {
-                Ok(data) => {
-                    Some(EntryInfo { id, name: data.name, shortcut: data.shortcut })
-                }
+                Ok(data) => Some(EntryInfo {
+                    id,
+                    name: data.name,
+                    shortcut: data.shortcut,
+                    kind: data.kind,
+                }),
                 Err(e) => {
                     log::warn!("vault entry {id} could not be read: {e}");
                     None
@@ -532,8 +558,8 @@ mod tests {
     fn entries_round_trip_through_a_lock_and_a_fresh_unlock() {
         let dir = tempfile::tempdir().unwrap();
         let mut session = vault(dir.path());
-        let id = session.save(None, "github", "gh", "hunter2").unwrap();
-        session.save(None, "bank", "", "1234-5678").unwrap();
+        let id = session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
+        session.save(None, "bank", "", "1234-5678", EntryKind::Password).unwrap();
 
         session.lock();
         assert!(session.entries().is_empty(), "locking wipes the entry list");
@@ -550,7 +576,7 @@ mod tests {
     fn the_wrong_password_is_rejected_and_changes_nothing() {
         let dir = tempfile::tempdir().unwrap();
         let mut session = vault(dir.path());
-        session.save(None, "github", "gh", "hunter2").unwrap();
+        session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
         session.lock();
 
         assert!(matches!(session.unlock("not it at all", now()), Err(VaultError::WrongPassword)));
@@ -563,7 +589,7 @@ mod tests {
     fn nothing_readable_is_left_on_disk() {
         let dir = tempfile::tempdir().unwrap();
         let mut session = vault(dir.path());
-        let id = session.save(None, "github", "gh", "hunter2").unwrap();
+        let id = session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
 
         let path = dir.path().join(VAULT_DIR).join(format!("{id}.enc"));
         let raw = std::fs::read(&path).unwrap();
@@ -582,7 +608,7 @@ mod tests {
     fn a_tampered_entry_is_refused_rather_than_trusted() {
         let dir = tempfile::tempdir().unwrap();
         let mut session = vault(dir.path());
-        let id = session.save(None, "github", "gh", "hunter2").unwrap();
+        let id = session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
         let path = dir.path().join(VAULT_DIR).join(format!("{id}.enc"));
 
         let mut raw = std::fs::read(&path).unwrap();
@@ -594,7 +620,7 @@ mod tests {
         // ...and so is an entry file moved onto another entry's name: the id
         // is authenticated alongside the ciphertext.
         std::fs::write(&path, std::fs::read(&path).unwrap()).unwrap();
-        let other = session.save(None, "bank", "", "1234").unwrap();
+        let other = session.save(None, "bank", "", "1234", EntryKind::Password).unwrap();
         let sealed = std::fs::read(dir.path().join(VAULT_DIR).join(format!("{other}.enc"))).unwrap();
         std::fs::write(&path, sealed).unwrap();
         assert!(matches!(session.secret(&id), Err(VaultError::Damaged)));
@@ -604,8 +630,8 @@ mod tests {
     fn saving_over_an_entry_replaces_it_instead_of_adding_a_second() {
         let dir = tempfile::tempdir().unwrap();
         let mut session = vault(dir.path());
-        let id = session.save(None, "github", "gh", "hunter2").unwrap();
-        let same = session.save(Some(&id), "github work", "gh", "hunter3").unwrap();
+        let id = session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
+        let same = session.save(Some(&id), "github work", "gh", "hunter3", EntryKind::Password).unwrap();
 
         assert_eq!(same, id);
         assert_eq!(session.entries().len(), 1);
@@ -617,7 +643,7 @@ mod tests {
     fn deleting_takes_the_file_with_it() {
         let dir = tempfile::tempdir().unwrap();
         let mut session = vault(dir.path());
-        let id = session.save(None, "github", "gh", "hunter2").unwrap();
+        let id = session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
         let path = dir.path().join(VAULT_DIR).join(format!("{id}.enc"));
 
         session.delete(&id).unwrap();
@@ -630,7 +656,7 @@ mod tests {
     fn changing_the_master_password_leaves_the_entries_alone() {
         let dir = tempfile::tempdir().unwrap();
         let mut session = vault(dir.path());
-        let id = session.save(None, "github", "gh", "hunter2").unwrap();
+        let id = session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
         let before = std::fs::read(dir.path().join(VAULT_DIR).join(format!("{id}.enc"))).unwrap();
 
         assert!(matches!(
@@ -654,7 +680,7 @@ mod tests {
     fn a_vault_is_never_created_on_top_of_an_existing_one() {
         let dir = tempfile::tempdir().unwrap();
         let mut session = vault(dir.path());
-        let id = session.save(None, "github", "gh", "hunter2").unwrap();
+        let id = session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
 
         assert!(matches!(
             session.create("a different password", now()),
@@ -683,7 +709,7 @@ mod tests {
     fn the_vault_locks_itself_once_the_idle_time_has_passed() {
         let dir = tempfile::tempdir().unwrap();
         let mut session = vault(dir.path());
-        session.save(None, "github", "gh", "hunter2").unwrap();
+        session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
 
         assert!(!session.expire(now() + chrono::Duration::minutes(4)));
         assert!(session.is_unlocked());
@@ -715,7 +741,7 @@ mod tests {
     fn entry_files_without_a_key_file_are_counted_rather_than_stranded_silently() {
         let dir = tempfile::tempdir().unwrap();
         let mut session = vault(dir.path());
-        session.save(None, "github", "gh", "hunter2").unwrap();
+        session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
         std::fs::remove_file(dir.path().join(VAULT_DIR).join(META_NAME)).unwrap();
 
         let session = VaultSession::with_kdf(dir.path().join(VAULT_DIR), 5, Kdf::WEAK);
@@ -736,7 +762,7 @@ mod tests {
         let mut session = VaultSession::new(dir.path().join(VAULT_DIR), 5);
         let started = std::time::Instant::now();
         session.create(PASSWORD, now()).unwrap();
-        let id = session.save(None, "github", "gh", "hunter2").unwrap();
+        let id = session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
         session.lock();
         session.unlock(PASSWORD, now()).unwrap();
         println!("Argon2id at {:?}: {:?} for create + unlock", Kdf::STRONG, started.elapsed());
@@ -747,8 +773,8 @@ mod tests {
     fn one_damaged_entry_does_not_take_the_others_down() {
         let dir = tempfile::tempdir().unwrap();
         let mut session = vault(dir.path());
-        let broken = session.save(None, "github", "gh", "hunter2").unwrap();
-        session.save(None, "bank", "", "1234").unwrap();
+        let broken = session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
+        session.save(None, "bank", "", "1234", EntryKind::Password).unwrap();
         std::fs::write(
             dir.path().join(VAULT_DIR).join(format!("{broken}.enc")),
             b"LTV1 not a vault file at all",
@@ -759,5 +785,45 @@ mod tests {
         session.unlock(PASSWORD, now()).unwrap();
         assert_eq!(session.entries().len(), 1);
         assert_eq!(session.entries()[0].name, "bank");
+    }
+
+    /// Every entry already in a user's vault was written before `kind`
+    /// existed. They must keep opening, as passwords, or the authenticator
+    /// feature would eat the vault it was added to.
+    #[test]
+    fn an_entry_written_before_kinds_existed_still_opens_as_a_password() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let id = session.save(None, "github", "gh", "placeholder", EntryKind::Password).unwrap();
+
+        // Reseal the payload in the old shape: no `kind` field at all.
+        let legacy = br#"{"name":"github","shortcut":"gh","secret":"hunter2"}"#;
+        let key = session.key.as_ref().unwrap();
+        let sealed = seal(key, legacy, id.as_bytes()).unwrap();
+        let mut file = MAGIC.to_vec();
+        file.extend_from_slice(&sealed);
+        std::fs::write(dir.path().join(VAULT_DIR).join(format!("{id}.enc")), file).unwrap();
+
+        session.lock();
+        session.unlock(PASSWORD, now()).unwrap();
+        assert_eq!(session.entries().len(), 1);
+        assert_eq!(session.entries()[0].kind, EntryKind::Password);
+        assert_eq!(&*session.secret(&id).unwrap(), "hunter2");
+    }
+
+    #[test]
+    fn an_authenticator_entry_keeps_its_kind_across_a_lock() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let id = session
+            .save(None, "github code", "ghc", "JBSWY3DPEHPK3PXP", EntryKind::Totp)
+            .unwrap();
+
+        session.lock();
+        session.unlock(PASSWORD, now()).unwrap();
+        assert_eq!(session.entries()[0].kind, EntryKind::Totp);
+        let (info, secret) = session.entry(&id).unwrap();
+        assert_eq!(info.kind, EntryKind::Totp);
+        assert_eq!(&*secret, "JBSWY3DPEHPK3PXP");
     }
 }

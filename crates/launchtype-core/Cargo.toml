@@ -11,6 +11,10 @@ rust-version.workspace = true
 aes-gcm = { version = "0.11", features = ["zeroize"] }
 argon2 = { version = "0.6.0-rc.8", default-features = false, features = ["alloc", "zeroize"] }
 sha2 = "0.11"
+# TOTP for vault entries that hold a second factor: RFC 6238 is HMAC over a
+# time step, and SHA-1 is still what almost every issuer asks for.
+hmac = "0.13"
+sha1 = "0.11"
 zeroize = { version = "1", features = ["alloc"] }
 base64 = "0.22"
 gettext = "0.4"

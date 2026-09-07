@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 use launchtype_core::alarms::AlarmDef;
+use launchtype_core::bitwarden::ImportPlan;
 use launchtype_core::i18n::{format_args, tr, Arg};
 use launchtype_core::merge;
 use launchtype_core::model::Command;
@@ -14,6 +15,9 @@ use launchtype_core::portable::{self, Target, VarSpec};
 use launchtype_core::query;
 use launchtype_core::snippet_vars;
 use launchtype_core::timers::TimerDef;
+use launchtype_core::totp::{Totp, TotpError};
+use launchtype_core::vault::EntryKind;
+use launchtype_services::bitwarden::TwoFactor;
 use launchtype_services::sounds::{SoundPlayer, ALARM_SOUNDS, TIMER_SOUNDS};
 use wxdragon::dialogs::dir_dialog::DirDialog;
 use wxdragon::dialogs::file_dialog::{FileDialog, FileDialogStyle};
@@ -1680,7 +1684,12 @@ pub struct VaultEntryFields {
     pub name: String,
     pub shortcut: String,
     pub secret: String,
+    pub kind: EntryKind,
 }
+
+/// The kind rows, in the order the Choice lists them. Index 0 is the default
+/// so a new entry starts as a password, which is what almost all of them are.
+const ENTRY_KINDS: [EntryKind; 2] = [EntryKind::Password, EntryKind::Totp];
 
 /// Add or edit a vault entry. `existing` seeds the fields when editing.
 ///
@@ -1689,12 +1698,28 @@ pub struct VaultEntryFields {
 /// what was typed or what is stored — and the vault is already open by the
 /// time this dialog is up, so masking here would buy shoulder-surfing cover
 /// and nothing else. It is multi-line so recovery codes and keys fit.
+///
+/// The kind decides what Enter copies later: the secret itself, or the code
+/// derived from it. An authenticator seed typed in here is checked before the
+/// dialog closes, because a seed that cannot produce a code is a lot easier to
+/// fix now than the next time the user needs to log in somewhere.
 pub fn vault_entry_dialog(parent: &Frame, existing: Option<VaultEntryFields>) -> Option<VaultEntryFields> {
     let title = if existing.is_some() { tr("Edit vault entry") } else { tr("Add to the vault") };
     let dialog = Dialog::builder(parent, &title).build();
     let sizer = BoxSizer::builder(Orientation::Vertical).build();
     let name_entry = labeled_row(&dialog, &sizer, &tr("&Name:"));
     let shortcut_entry = labeled_row(&dialog, &sizer, &tr("&Shortcut (optional):"));
+
+    let kind_title = tr("&This entry holds:");
+    let kind_label = StaticText::builder(&dialog).with_label(&kind_title).build();
+    sizer.add(&kind_label, 0, SizerFlag::All, 0);
+    let kind_choice = Choice::builder(&dialog).build();
+    ax_name(&kind_choice, &kind_title);
+    kind_choice.append(&tr("A password or other secret text"));
+    kind_choice.append(&tr("An authenticator seed (Enter copies the current code)"));
+    kind_choice.set_selection(0);
+    sizer.add(&kind_choice, 0, SizerFlag::Expand, 0);
+
     let secret_title = tr("Sec&ret (shown here, never written to disk unencrypted):");
     let secret_label = StaticText::builder(&dialog).with_label(&secret_title).build();
     sizer.add(&secret_label, 0, SizerFlag::All, 0);
@@ -1710,6 +1735,8 @@ pub fn vault_entry_dialog(parent: &Frame, existing: Option<VaultEntryFields>) ->
         name_entry.set_value(&seed.name);
         shortcut_entry.set_value(&seed.shortcut);
         secret_entry.set_value(&seed.secret);
+        let index = ENTRY_KINDS.iter().position(|k| *k == seed.kind).unwrap_or(0);
+        kind_choice.set_selection(index as u32);
     }
 
     {
@@ -1721,6 +1748,12 @@ pub fn vault_entry_dialog(parent: &Frame, existing: Option<VaultEntryFields>) ->
                     &tr("Error"),
                 );
                 return;
+            }
+            if chosen_kind(&kind_choice) == EntryKind::Totp {
+                if let Err(e) = Totp::parse(&secret_entry.get_value()) {
+                    error_box(&dialog, &totp_error_text(&e), &tr("Error"));
+                    return;
+                }
             }
             dialog.end_modal(ID_OK);
         });
@@ -1736,7 +1769,218 @@ pub fn vault_entry_dialog(parent: &Frame, existing: Option<VaultEntryFields>) ->
         name: name_entry.get_value().trim().to_string(),
         shortcut: shortcut_entry.get_value().trim().to_lowercase(),
         secret: secret_entry.get_value(),
+        kind: chosen_kind(&kind_choice),
     })
+}
+
+fn chosen_kind(choice: &Choice) -> EntryKind {
+    let index = choice.get_selection().unwrap_or(0) as usize;
+    ENTRY_KINDS.get(index).copied().unwrap_or_default()
+}
+
+/// The wording for a seed the TOTP parser would not take. The error lives in
+/// the core crate next to the parser; the sentences belong here with the rest
+/// of the translated text.
+pub fn totp_error_text(error: &TotpError) -> String {
+    match error {
+        TotpError::Empty => tr("There is no authenticator seed here to read."),
+        TotpError::BadSecret => {
+            tr("That is not a valid authenticator seed. It should be the letters and digits the site showed next to its QR code, or the whole otpauth:// link.")
+        }
+        TotpError::NoSecret => tr("That otpauth link does not contain a secret."),
+        TotpError::BadDigits => tr("That authenticator code length is not supported; it must be 6, 7 or 8 digits."),
+        TotpError::BadPeriod => tr("That authenticator time step is not supported."),
+        TotpError::BadAlgorithm => tr("That authenticator hash algorithm is not supported; only SHA-1, SHA-256 and SHA-512 work."),
+    }
+}
+
+/// What the Bitwarden import needs to reach a server and log in.
+///
+/// A non-empty `session` wins outright: the login fields are then ignored, and
+/// nothing is asked of the server beyond reading the vault.
+pub struct BitwardenImportFields {
+    pub session: String,
+    pub server: String,
+    pub email: String,
+    pub password: String,
+    pub two_factor: TwoFactor,
+    pub code: String,
+}
+
+/// The two-step rows, in the order the Choice lists them.
+const TWO_FACTOR_METHODS: [TwoFactor; 4] =
+    [TwoFactor::None, TwoFactor::Authenticator, TwoFactor::Email, TwoFactor::YubiKey];
+
+/// Ask for the Bitwarden / Vaultwarden account to import from.
+///
+/// # The two ways in, in one dialog
+///
+/// The session key comes first because it is the shortest way through and the
+/// only one that works for every account: `bw unlock --raw` in a terminal
+/// answers whatever second factor the account uses — including Duo and
+/// WebAuthn, which cannot be answered by typing a code into a box — and prints
+/// a key that needs no factor at all. Filling it in makes the rest of the
+/// dialog irrelevant, which is what its label says.
+///
+/// wxWidgets 0.9 has no `enable()` on plain windows here, so the login fields
+/// cannot be greyed out while a key is present. Saying so in the label is the
+/// honest alternative to a box that silently ignores what was typed into it.
+///
+/// # Masking
+///
+/// The master password is masked; the session key is not, matching the
+/// Notebrook token field. A key is pasted rather than typed and is worth being
+/// able to read back to check — and a masked field is announced by a screen
+/// reader as nothing at all, which would leave no way to tell a truncated
+/// paste from a good one.
+///
+/// Nothing typed here is saved except the server address.
+pub fn bitwarden_import_dialog(parent: &Frame, server: &str) -> Option<BitwardenImportFields> {
+    let dialog = Dialog::builder(parent, &tr("Import from Bitwarden")).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    let help = StaticText::builder(&dialog)
+        .with_label(&tr(
+            "Copy passwords and authenticator codes out of a Bitwarden or Vaultwarden account into this vault. Nothing already here is changed or overwritten, and only the server address is remembered afterwards.",
+        ))
+        .build();
+    sizer.add(&help, 0, SizerFlag::All, 5);
+
+    let session_help = StaticText::builder(&dialog)
+        .with_label(&tr(
+            "If you already use the bw command line tool, run \"bw unlock --raw\" and paste the key it prints. That works whatever second factor your account uses, and your own login is left signed in afterwards.",
+        ))
+        .build();
+    sizer.add(&session_help, 0, SizerFlag::All, 5);
+    let session_entry =
+        labeled_row(&dialog, &sizer, &tr("Session &key (fill this in and the rest is ignored):"));
+
+    let server_entry = labeled_row(&dialog, &sizer, &tr("Server &URL:"));
+    server_entry.set_value(server);
+    let email_entry = labeled_row(&dialog, &sizer, &tr("&Email address:"));
+    let password_entry = labeled_password_row(&dialog, &sizer, &tr("Bitwarden &master password:"));
+
+    let method_title = tr("T&wo-step login:");
+    let method_label = StaticText::builder(&dialog).with_label(&method_title).build();
+    sizer.add(&method_label, 0, SizerFlag::All, 0);
+    let method_choice = Choice::builder(&dialog).build();
+    ax_name(&method_choice, &method_title);
+    method_choice.append(&tr("Not used on this account"));
+    method_choice.append(&tr("Authenticator app"));
+    method_choice.append(&tr("Code sent by email"));
+    method_choice.append(&tr("YubiKey OTP"));
+    method_choice.set_selection(0);
+    sizer.add(&method_choice, 0, SizerFlag::Expand, 0);
+
+    let code_entry = labeled_row(&dialog, &sizer, &tr("Two-step &code:"));
+    let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
+    dialog.set_sizer(sizer, true);
+
+    {
+        ok.on_click(move |_| {
+            // A session key answers everything; none of the rest is needed.
+            if !session_entry.get_value().trim().is_empty() {
+                dialog.end_modal(ID_OK);
+                return;
+            }
+            if server_entry.get_value().trim().is_empty() {
+                error_box(
+                    &dialog,
+                    &tr("Please enter the address of your Bitwarden or Vaultwarden server."),
+                    &tr("Error"),
+                );
+                return;
+            }
+            if email_entry.get_value().trim().is_empty() || password_entry.get_value().is_empty() {
+                error_box(
+                    &dialog,
+                    &tr("Please enter the email address and master password of the account to import from."),
+                    &tr("Error"),
+                );
+                return;
+            }
+            // Caught here rather than by the server: a method with no code is
+            // a login that cannot possibly succeed.
+            if chosen_two_factor(&method_choice) != TwoFactor::None
+                && code_entry.get_value().trim().is_empty()
+            {
+                error_box(
+                    &dialog,
+                    &tr("Please enter your two-step login code, or set the two-step login to \"Not used on this account\"."),
+                    &tr("Error"),
+                );
+                return;
+            }
+            dialog.end_modal(ID_OK);
+        });
+    }
+    {
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
+    }
+
+    if dialog.show_modal() != ID_OK {
+        return None;
+    }
+    Some(BitwardenImportFields {
+        session: session_entry.get_value().trim().to_string(),
+        server: server_entry.get_value().trim().to_string(),
+        email: email_entry.get_value().trim().to_string(),
+        password: password_entry.get_value(),
+        two_factor: chosen_two_factor(&method_choice),
+        code: code_entry.get_value().trim().to_string(),
+    })
+}
+
+fn chosen_two_factor(choice: &Choice) -> TwoFactor {
+    let index = choice.get_selection().unwrap_or(0) as usize;
+    TWO_FACTOR_METHODS.get(index).copied().unwrap_or_default()
+}
+
+/// Show what the import found and ask before any of it is written.
+///
+/// Worth a confirmation even though the import never overwrites anything: a
+/// mistyped server or the wrong account can turn up hundreds of entries that
+/// belong to something else, and finding that out before they are in the vault
+/// is much better than deleting them one at a time afterwards.
+pub fn confirm_bitwarden_import(parent: &Frame, plan: &ImportPlan) -> bool {
+    let mut body = format_args(
+        &tr("Found {passwords} passwords and {codes} authenticator codes to add."),
+        &[
+            ("passwords", Arg::Int(plan.passwords() as i64)),
+            ("codes", Arg::Int(plan.codes() as i64)),
+        ],
+    );
+    if plan.already_there > 0 {
+        body.push_str("
+
+");
+        body.push_str(&format_args(
+            &tr("{count} are already in this vault under the same name and will be left alone."),
+            &[("count", Arg::Int(plan.already_there as i64))],
+        ));
+    }
+    if plan.unsupported > 0 {
+        body.push_str("
+
+");
+        body.push_str(&format_args(
+            &tr("{count} items are cards, identities or secure notes, which this vault has no room for, and will be skipped."),
+            &[("count", Arg::Int(plan.unsupported as i64))],
+        ));
+    }
+    if !plan.unreadable_codes.is_empty() {
+        body.push_str("
+
+");
+        body.push_str(&format_args(
+            &tr("The authenticator seed could not be read for: {names}. Everything else about those items still comes across."),
+            &[("names", Arg::Str(&plan.unreadable_codes.join(", ")))],
+        ));
+    }
+    body.push_str("
+
+");
+    body.push_str(&tr("Add them to the vault now?"));
+    question_box(parent, &body, &tr("Import from Bitwarden"))
 }
 
 /// Warn before setting up a vault on top of encrypted files whose key file is
