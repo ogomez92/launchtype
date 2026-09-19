@@ -326,6 +326,8 @@ fn cli_message(stderr: &[u8], stdout: &[u8]) -> String {
 /// A `Command` that does not flash a console window on Windows, where the app
 /// is a GUI process with no console of its own.
 fn hidden(program: &str) -> Command {
+    // Only the Windows block below changes it.
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut command = Command::new(program);
     #[cfg(windows)]
     {
