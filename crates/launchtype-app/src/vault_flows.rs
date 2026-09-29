@@ -314,7 +314,7 @@ pub fn copy_secret(shell: &SharedShell, id: &str, name: &str) {
     let s = shell.borrow();
     s.sounds.play("copy");
     speak_now(&spoken, true);
-    s.frame.show(false);
+    crate::shell::dismiss(&s.frame);
     drop(s);
     schedule_clipboard_clear(&secret, clear_seconds);
 }

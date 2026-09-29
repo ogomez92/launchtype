@@ -632,7 +632,7 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
                     close_event.veto();
                     let s = shell.borrow();
                     s.sounds.play("hide");
-                    s.frame.show(false);
+                    dismiss(&s.frame);
                     return;
                 }
             }
@@ -673,7 +673,7 @@ fn bind_hide_on_escape<W: WindowEvents>(shell: &SharedShell, target: &W) {
                 let cancelled = end_query(&mut s);
                 if cancelled.is_none() {
                     s.sounds.play("hide");
-                    s.frame.show(false);
+                    dismiss(&s.frame);
                 }
                 cancelled
             };
@@ -712,6 +712,19 @@ fn is_escape(event: &WindowEventData) -> bool {
 const WXK_UP: i32 = 315;
 const WXK_DOWN: i32 = 317;
 
+/// Hide the window and, on macOS, hand the keyboard back to the app the user
+/// summoned Launchtype from. Windows does that by itself when a window hides;
+/// an accessory app on macOS just stays active with nothing to type into.
+///
+/// Only for hides where nothing else takes the foreground next: running a
+/// command or opening a terminal hides with a plain `show(false)` and lets the
+/// launched app claim the keyboard.
+pub fn dismiss(frame: &Frame) {
+    frame.show(false);
+    #[cfg(target_os = "macos")]
+    crate::macos::return_to_previous_app();
+}
+
 pub fn toggle_visibility(shell: &SharedShell) {
     let visible = {
         let s = shell.borrow();
@@ -720,7 +733,7 @@ pub fn toggle_visibility(shell: &SharedShell) {
     if visible {
         let mut s = shell.borrow_mut();
         end_query(&mut s);
-        s.frame.show(false);
+        dismiss(&s.frame);
         s.sounds.play("hide");
     } else {
         {
@@ -1176,7 +1189,14 @@ pub fn run_clicked(shell: &SharedShell) {
 
 /// Hide the window and run, reporting a failure once it is back up.
 fn run_and_report(shell: &SharedShell, item: &Item, kind: ItemKind) {
-    shell.borrow().frame.show(false);
+    // A copy is meant to be pasted where the user came from; anything else
+    // launches something that takes the foreground itself.
+    let frame = shell.borrow().frame;
+    if matches!(kind, ItemKind::Snippet | ItemKind::Emoji { .. } | ItemKind::Clip) {
+        dismiss(&frame);
+    } else {
+        frame.show(false);
+    }
     if let Err(message) = run_hidden_action(shell, item, kind) {
         // Python interpolated this inside _() as an f-string, so the msgid
         // never existed in the catalog: always English there too.
@@ -1416,7 +1436,7 @@ fn send_notebrook_note(shell: &SharedShell) {
             speak_now(&tr("Note sent to {}").replacen("{}", NOTEBROOK_CHANNEL, 1), true);
             s.mode = UiMode::Commands;
             s.edit.change_value("");
-            s.frame.show(false);
+            dismiss(&s.frame);
         }
         Err(e) => {
             if e.unauthorized {
