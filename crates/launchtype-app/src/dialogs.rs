@@ -355,7 +355,7 @@ pub fn variable_dialog(parent: &Frame, existing: Option<(String, String)>) -> bo
     sizer.add_sizer(&variable_row, 0, SizerFlag::All, 0);
 
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     let original_name = existing.as_ref().map(|(name, _)| name.clone());
     if let Some((name, text)) = &existing {
@@ -522,7 +522,7 @@ pub fn command_edition_dialog(
     let admin_checkbox = checkbox(&dialog, &tr("Run as &administrator"));
     sizer.add(&admin_checkbox, 0, SizerFlag::All, 0);
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     if let Some(command) = &seed {
         path_entry.set_value(&command.path);
@@ -741,7 +741,7 @@ pub fn portability_dialog(
         button_row.add(button, 0, SizerFlag::All, 0);
     }
     sizer.add_sizer(&button_row, 0, SizerFlag::All, 5);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     const ID_NEVER: i32 = 6500;
     {
@@ -867,7 +867,7 @@ pub fn merge_dialog(parent: &Frame, file_name: &str, plan: &merge::Plan) -> Vec<
         button_row.add(button, 0, SizerFlag::All, 0);
     }
     sizer.add_sizer(&button_row, 0, SizerFlag::All, 5);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     all.on_click(move |_| {
         for index in 0..list.get_count() {
@@ -1093,7 +1093,10 @@ pub fn settings_dialog(
     sizer.add(&hint, 0, SizerFlag::All, 5);
 
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    // Fitting matters beyond looks: at the default size everything past the
+    // fold is piled onto the same spot, and VoiceOver orders controls by where
+    // they sit on screen, so labels ended up nowhere near their fields.
+    dialog.set_sizer_and_fit(sizer, true);
 
     {
         browse.on_click(move |_| {
@@ -1363,7 +1366,7 @@ pub fn timer_dialog(
     let seeded_sound = existing.as_ref().and_then(|t| t.sound.clone()).unwrap_or_default();
     let sound = sound_picker(&dialog, &sizer, TIMER_SOUNDS, &controller.sounds, &seeded_sound);
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     {
         ok.on_click(move |_| {
@@ -1459,7 +1462,7 @@ pub fn alarm_dialog(
     let seeded_sound = existing.as_ref().and_then(|a| a.sound.clone()).unwrap_or_default();
     let sound = sound_picker(&dialog, &sizer, ALARM_SOUNDS, &controller.sounds, &seeded_sound);
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     {
         ok.on_click(move |_| {
@@ -1542,7 +1545,7 @@ pub fn snippet_dialog(parent: &Frame, existing: Option<(String, String)>) -> boo
     sizer.add_sizer(&variable_row, 0, SizerFlag::All, 0);
 
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     let original_shortcut = existing.as_ref().map(|(shortcut, _)| shortcut.clone());
     if let Some((shortcut, contents)) = &existing {
@@ -1602,7 +1605,7 @@ pub fn vault_unlock_dialog(parent: &Frame) -> Option<String> {
     let sizer = BoxSizer::builder(Orientation::Vertical).build();
     let entry = labeled_password_row(&dialog, &sizer, &tr("&Master password:"));
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     {
         ok.on_click(move |_| {
@@ -1652,7 +1655,7 @@ pub fn vault_password_dialog(parent: &Frame, changing: bool) -> Option<VaultPass
     let new_entry = labeled_password_row(&dialog, &sizer, &tr("&New master password:"));
     let confirm_entry = labeled_password_row(&dialog, &sizer, &tr("&Type it again:"));
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     {
         ok.on_click(move |_| {
@@ -1743,7 +1746,7 @@ pub fn vault_entry_dialog(parent: &Frame, existing: Option<VaultEntryFields>) ->
     ax_name(&secret_entry, &secret_title);
     sizer.add(&secret_entry, 1, SizerFlag::Expand, 0);
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     if let Some(seed) = &existing {
         name_entry.set_value(&seed.name);
@@ -1887,7 +1890,7 @@ pub fn bitwarden_import_dialog(parent: &Frame, server: &str) -> Option<Bitwarden
 
     let code_entry = labeled_row(&dialog, &sizer, &tr("Two-step &code:"));
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     {
         ok.on_click(move |_| {
@@ -2042,7 +2045,7 @@ pub fn grab_region_dialog(parent: &Frame) -> Option<String> {
     sizer.add(&help, 0, SizerFlag::All, 5);
     let entry = labeled_row(&dialog, &sizer, &tr("&What to grab:"));
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     {
         ok.on_click(move |_| {
@@ -2080,7 +2083,7 @@ pub fn path_question_dialog(
     sizer.add(&help_text, 0, SizerFlag::All, 5);
     let entry = labeled_row(&dialog, &sizer, label);
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     {
         let empty = tr("Please fill this in first.");
@@ -2121,7 +2124,7 @@ pub fn notebrook_credentials_dialog(
     let token_entry = labeled_row(&dialog, &sizer, &tr("&Token:"));
     token_entry.set_value(current_token);
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
-    dialog.set_sizer(sizer, true);
+    dialog.set_sizer_and_fit(sizer, true);
 
     {
         ok.on_click(move |_| {
