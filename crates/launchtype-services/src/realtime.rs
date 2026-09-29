@@ -9,7 +9,7 @@ use std::time::Duration;
 #[cfg(windows)]
 use base64::Engine;
 use chrono::Local;
-use launchtype_core::ai_auth::{claude_access_token, jwt_is_expired};
+use launchtype_core::ai_auth::jwt_is_expired;
 use launchtype_core::realtime::history::{HistoryStore, HISTORY_FILE};
 use launchtype_core::realtime::market::{
     bitcoin_sentence, brent_sentence, coingecko_price_url, ethereum_sentence, eur_usd_sentence,
@@ -32,7 +32,10 @@ use launchtype_core::realtime::weather::{
 };
 use launchtype_core::realtime::{RealtimeError, TIMEOUT_SECONDS, USER_AGENT};
 
-use crate::ai::{load_codex_auth_for_usage, refresh_codex_tokens_for_usage};
+use crate::ai::{
+    claude_token_from_disk, load_codex_auth_for_usage, refresh_claude_session,
+    refresh_codex_tokens_for_usage,
+};
 
 fn now_epoch() -> f64 {
     std::time::SystemTime::now()
@@ -110,27 +113,35 @@ pub fn fetch_value(key: &str) -> Result<String, RealtimeError> {
 }
 
 fn fetch_claude_usage() -> Result<String, RealtimeError> {
-    let token = dirs::home_dir()
-        .map(|home| home.join(".claude").join(".credentials.json"))
-        .and_then(|path| std::fs::read_to_string(path).ok())
-        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
-        .and_then(|credentials| claude_access_token(&credentials))
-        .ok_or(RealtimeError::ClaudeCredentialsMissing)?;
+    let query = || {
+        let token = claude_token_from_disk().ok_or(RealtimeError::ClaudeCredentialsMissing)?;
+        http_get(
+            CLAUDE_USAGE_URL,
+            &[
+                ("Authorization", &format!("Bearer {token}")),
+                ("anthropic-beta", CLAUDE_OAUTH_BETA),
+            ],
+        )
+    };
 
-    let body = http_get(
-        CLAUDE_USAGE_URL,
-        &[
-            ("Authorization", &format!("Bearer {token}")),
-            ("anthropic-beta", CLAUDE_OAUTH_BETA),
-        ],
-    )
-    .map_err(|e| {
-        if e.code() == Some(401) {
-            RealtimeError::ClaudeSessionExpired
-        } else {
-            e
+    let body = match query() {
+        Ok(body) => body,
+        // The token has most likely just gone stale: have Claude Code renew
+        // it, then ask again with whatever it wrote back.
+        Err(e) if e.code() == Some(401) => {
+            if !refresh_claude_session() {
+                return Err(RealtimeError::ClaudeSessionExpired);
+            }
+            query().map_err(|e| {
+                if e.code() == Some(401) {
+                    RealtimeError::ClaudeSessionExpired
+                } else {
+                    e
+                }
+            })?
         }
-    })?;
+        Err(e) => return Err(e),
+    };
     claude_usage_sentence(&body, &Local::now())
 }
 
@@ -247,5 +258,28 @@ fn run_command(program: &str, args: &[&str]) -> Option<String> {
         None
     } else {
         Some(text)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Live: reads the real Claude Code login and asks for the usage limits,
+    /// renewing the session through the CLI if the token has gone stale.
+    #[test]
+    #[ignore]
+    fn claude_usage_over_the_subscription() {
+        let sentence = fetch_value("claude").expect("claude usage");
+        println!("{sentence}");
+        assert!(!sentence.is_empty());
+    }
+
+    /// Live: the CLI renews the session and the token on disk is still usable.
+    #[test]
+    #[ignore]
+    fn claude_code_renews_its_session() {
+        assert!(refresh_claude_session(), "claude -p did not exit cleanly");
+        assert!(claude_token_from_disk().is_some());
     }
 }

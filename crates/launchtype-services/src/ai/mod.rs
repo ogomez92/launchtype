@@ -7,7 +7,10 @@ mod claude;
 mod codex;
 mod parse;
 
-pub use claude::{ask_claude, describe_with_claude, DOCUMENT_TOKENS};
+pub use claude::{
+    ask_claude, claude_token_from_disk, describe_with_claude, refresh_claude_session,
+    DOCUMENT_TOKENS,
+};
 pub use codex::describe_with_openai;
 pub(crate) use codex::{
     load_codex_auth as load_codex_auth_for_usage,
