@@ -19,11 +19,28 @@
 //! app activates, every announcement is silently dropped.
 //!
 //! wxWidgets exposes neither call, so both are made here directly.
+//!
+//! Going away has the mirror problem. Hiding the last window of an accessory
+//! app leaves the app active with nothing to type into, so the keyboard and
+//! the VoiceOver cursor are stranded until the user clicks or Cmd+Tabs back.
+//! [`return_to_previous_app`] hands activation back to whoever had it.
+
+use std::cell::RefCell;
 
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
 use objc2::{MainThreadMarker, Message};
-use objc2_app_kit::{NSApplication, NSView, NSWindow};
+use objc2_app_kit::{
+    NSApplication, NSApplicationActivationOptions, NSRunningApplication, NSView, NSWindow,
+    NSWorkspace,
+};
+
+thread_local! {
+    /// The app that was frontmost when Launchtype was summoned. Only touched on
+    /// the main thread, where AppKit lives.
+    static PREVIOUS_APP: RefCell<Option<Retained<NSRunningApplication>>> =
+        const { RefCell::new(None) };
+}
 
 /// Bring Launchtype to the front and make `native_handle`'s window key.
 ///
@@ -40,6 +57,9 @@ pub unsafe fn activate_window(native_handle: *mut std::ffi::c_void) {
         return;
     };
 
+    // Must be read before activating, which makes us the frontmost app.
+    remember_frontmost_app();
+
     let app = NSApplication::sharedApplication(mtm);
     // Deprecated since macOS 14 in favour of `activate`, but the replacement
     // defers to whichever app is currently active, and an accessory app
@@ -50,6 +70,48 @@ pub unsafe fn activate_window(native_handle: *mut std::ffi::c_void) {
 
     if let Some(window) = unsafe { window_for(native_handle) } {
         window.makeKeyAndOrderFront(None);
+    }
+}
+
+/// Note the frontmost app so [`return_to_previous_app`] can go back to it.
+/// Launchtype itself is skipped: a second hotkey press while the window is up
+/// must not overwrite the app the user actually came from.
+fn remember_frontmost_app() {
+    let Some(front) = NSWorkspace::sharedWorkspace().frontmostApplication() else { return };
+    if front == NSRunningApplication::currentApplication() {
+        return;
+    }
+    log::info!("summoned from {:?}", front.localizedName());
+    PREVIOUS_APP.with(|previous| *previous.borrow_mut() = Some(front));
+}
+
+/// Give activation back to the app that was in front when Launchtype was
+/// summoned, so its focused control gets the keyboard again. Call right after
+/// hiding the window, and only where nothing else is about to take the
+/// foreground — a launched app activates itself, and racing it would hand the
+/// keyboard to the wrong one.
+///
+/// Does nothing when Launchtype is no longer active: the user has already gone
+/// somewhere else, and pulling them back would be worse than not helping.
+pub fn return_to_previous_app() {
+    let Some(mtm) = MainThreadMarker::new() else { return };
+    let app = NSApplication::sharedApplication(mtm);
+    if !app.isActive() {
+        return;
+    }
+    let previous = PREVIOUS_APP.with(|previous| previous.borrow_mut().take());
+    match previous {
+        Some(previous) if !previous.isTerminated() => {
+            let activated = previous.activateWithOptions(NSApplicationActivationOptions::empty());
+            log::info!("returning to {:?}: activated={activated}", previous.localizedName());
+        }
+        // Nobody to return to (or they quit meanwhile): stepping aside still
+        // lets the window server pick the next app instead of leaving the
+        // keyboard with a windowless one.
+        _ => {
+            log::info!("no previous app to return to; deactivating");
+            app.deactivate();
+        }
     }
 }
 
