@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use chrono::{DateTime, Local};
 use launchtype_core::alarms::{load_alarm_defs, AlarmDef, AlarmEngine};
+use launchtype_core::apps::AppShortcuts;
 use launchtype_core::model::{Command, CommandsFile};
 use launchtype_core::storage::atomic_write_json;
 use launchtype_core::timers::{load_timer_defs, TimerDef, TimerEngine};
@@ -115,6 +116,30 @@ impl CommandsStore {
             commands.sort_by_key(|command| std::cmp::Reverse(command.run_count()));
         }
         commands
+    }
+}
+
+/// The shortcuts given to installed apps, in `app_shortcuts.json`. Unlike the
+/// stores above, nothing is written until the first shortcut is: most people
+/// never set one, and an empty file beside their data says nothing.
+pub struct AppShortcutsStore {
+    path: PathBuf,
+    pub shortcuts: AppShortcuts,
+}
+
+impl AppShortcutsStore {
+    pub fn load(path: impl Into<PathBuf>) -> Self {
+        let path = path.into();
+        let shortcuts = std::fs::read_to_string(&path)
+            .map(|text| AppShortcuts::from_json(&text))
+            .unwrap_or_default();
+        AppShortcutsStore { path, shortcuts }
+    }
+
+    /// Give `target` a shortcut, or take its away with an empty one, and save.
+    pub fn set(&mut self, target: &str, shortcut: &str) -> std::io::Result<()> {
+        self.shortcuts.set(target, shortcut);
+        launchtype_core::storage::atomic_write(&self.path, self.shortcuts.to_json().as_bytes())
     }
 }
 

@@ -21,7 +21,7 @@ use launchtype_core::placeholders::Placeholders;
 use launchtype_services::snippets::{load_snippets, Snippet};
 use launchtype_services::sounds::SoundPlayer;
 use launchtype_services::steam::scan_games;
-use launchtype_services::stores::{AlarmStore, CommandsStore, TimerStore};
+use launchtype_services::stores::{AlarmStore, AppShortcutsStore, CommandsStore, TimerStore};
 
 /// How many emoji the list will show at once. There are close to two thousand,
 /// and a single common letter matches most of them; past a couple of hundred
@@ -100,6 +100,8 @@ pub struct ModeController {
     /// for the keystrokes that follow — the scan costs a few hundred
     /// milliseconds, which is fine once per visit and not once per letter.
     apps: Vec<App>,
+    /// The shortcuts the user has given some of those apps.
+    pub app_shortcuts: AppShortcutsStore,
     pub sounds: Arc<SoundPlayer>,
     pub clock: Arc<dyn Clock>,
     /// Transient "explore regions" state: AI-space size + labeled boxes of
@@ -124,6 +126,7 @@ impl ModeController {
         timers: TimerStore,
         alarms: AlarmStore,
         steam_library: PathBuf,
+        app_shortcuts: AppShortcutsStore,
         sounds: Arc<SoundPlayer>,
     ) -> Self {
         ModeController {
@@ -138,6 +141,7 @@ impl ModeController {
             steam_library,
             steam_games: Vec::new(),
             apps: Vec::new(),
+            app_shortcuts,
             sounds,
             clock: Arc::new(SystemClock),
             regions: Vec::new(),
@@ -331,6 +335,11 @@ impl ModeController {
     /// the OS's language — a Spanish Windows lists "Administración de equipos"
     /// and "Álbumes compartidos en iCloud" — and nobody reaches for the accent
     /// keys while searching a launcher (same reasoning as emoji and units).
+    ///
+    /// A shortcut the user has given an app wins outright, as in commands
+    /// mode: with hundreds of apps installed, a fuzzy search for a short name
+    /// can keep a dozen rows above the one wanted. The row's id is its target,
+    /// which is what the shortcut is filed under.
     fn app_items(&mut self, search: &str) -> Vec<Item> {
         if self.apps.is_empty() {
             self.rescan_apps();
@@ -340,13 +349,17 @@ impl ModeController {
             .iter()
             .map(|app| Item {
                 name: app.name.clone(),
-                shortcut: String::new(),
-                id: String::new(),
+                shortcut: self.app_shortcuts.shortcuts.get(app.target.as_str()).to_string(),
+                id: app.target.as_str().to_string(),
                 kind: ItemKind::App { target: app.target.clone() },
             })
             .collect();
         if search.is_empty() {
             return items;
+        }
+        if let Some(index) = exact_shortcut_match(search, &items, |i| i.shortcut.clone()) {
+            self.sounds.play("match");
+            return vec![items[index].clone()];
         }
         let results = fuzzy_search(&fold(search), items, |item| fold(&item.name));
         self.sounds.play("type");

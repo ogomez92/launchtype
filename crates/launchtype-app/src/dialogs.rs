@@ -1509,6 +1509,82 @@ pub fn alarm_dialog(
     }
 }
 
+/// Give an installed app a shortcut, or change or clear the one it has.
+/// `target` is the app's [`launchtype_core::apps::AppTarget::as_str`]. Returns
+/// whether anything was saved.
+///
+/// Apps come from the OS and are not the user's to rename or repoint, so the
+/// shortcut is the one thing there is to edit and the dialog holds nothing
+/// else. Clearing the field and pressing OK takes the shortcut away.
+pub fn app_shortcut_dialog(
+    parent: &Frame,
+    controller: &mut ModeController,
+    name: &str,
+    target: &str,
+) -> bool {
+    let title = format_args(&tr("Shortcut for {name}"), &[("name", Arg::Str(name))]);
+    let dialog = Dialog::builder(parent, &title).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+
+    let help = tr(
+        "Type this shortcut in applications mode and this app is the only result. Leave it \
+         empty to remove the shortcut.",
+    );
+    sizer.add(&StaticText::builder(&dialog).with_label(&help).build(), 0, SizerFlag::All, 0);
+    let shortcut_entry = labeled_row(&dialog, &sizer, &tr("&Shortcut (optional):"));
+    shortcut_entry.set_value(controller.app_shortcuts.shortcuts.get(target));
+
+    let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
+    dialog.set_sizer_and_fit(sizer, true);
+
+    // Who holds what, worked out before the modal so the OK handler needs no
+    // borrow of the controller.
+    let taken: Vec<(String, String)> = controller
+        .items_for("", launchtype_core::mode::UiMode::Apps)
+        .into_iter()
+        .filter(|item| !item.shortcut.is_empty() && item.id != target)
+        .map(|item| (item.shortcut, item.name))
+        .collect();
+    let own_target = target.to_string();
+    let stored = controller.app_shortcuts.shortcuts.clone();
+    {
+        ok.on_click(move |_| {
+            let shortcut = shortcut_entry.get_value().trim().to_lowercase();
+            // An app the last scan did not list can still hold a shortcut in
+            // the file; it is named by its target then.
+            let owner = taken
+                .iter()
+                .find(|(held, _)| *held == shortcut)
+                .map(|(_, owner)| owner.clone())
+                .or_else(|| stored.owner(&shortcut, &own_target).map(str::to_string));
+            if let Some(owner) = owner {
+                error_box(
+                    &dialog,
+                    &format_args(
+                        &tr("The shortcut {shortcut} already belongs to {owner}."),
+                        &[("shortcut", Arg::Str(&shortcut)), ("owner", Arg::Str(&owner))],
+                    ),
+                    &tr("Shortcut taken"),
+                );
+                return;
+            }
+            dialog.end_modal(ID_OK);
+        });
+    }
+    {
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
+    }
+
+    if dialog.show_modal() != ID_OK {
+        return false;
+    }
+    if let Err(error) = controller.app_shortcuts.set(target, &shortcut_entry.get_value()) {
+        log::warn!("app shortcut save failed: {error}");
+        return false;
+    }
+    true
+}
+
 /// Add/edit snippet dialog. `existing` = (shortcut, contents) when editing.
 /// Returns true when saved (caller reloads snippets).
 pub fn snippet_dialog(parent: &Frame, existing: Option<(String, String)>) -> bool {

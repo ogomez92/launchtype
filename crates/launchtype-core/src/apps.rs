@@ -117,6 +117,74 @@ pub fn without_steam(apps: Vec<App>) -> Vec<App> {
     apps.into_iter().filter(|app| !app.target.as_str().starts_with("steam://")).collect()
 }
 
+/// The file [`AppShortcuts`] is kept in, beside `commands.json`.
+pub const SHORTCUTS_FILE: &str = "app_shortcuts.json";
+
+/// Shortcuts the user has given installed apps, the way commands have them:
+/// type one exactly in `@` mode and that app is the only row left.
+///
+/// Apps are rescanned on every visit and carry no id of their own, so a
+/// shortcut is keyed by the app's target ([`AppTarget::as_str`]) — the one part
+/// of a row that stays put across scans. A shortcut whose app has since been
+/// uninstalled simply never matches; it costs a line in the file and comes back
+/// to life if the app does.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AppShortcuts {
+    by_target: std::collections::BTreeMap<String, String>,
+}
+
+impl AppShortcuts {
+    /// Read the file's contents: a flat object of target to shortcut. Anything
+    /// unreadable is an empty set rather than an error — losing a shortcut is
+    /// a nuisance, refusing to open the mode over one would be worse.
+    pub fn from_json(text: &str) -> Self {
+        let mut shortcuts = AppShortcuts::default();
+        let Ok(serde_json::Value::Object(object)) = serde_json::from_str(text) else {
+            return shortcuts;
+        };
+        for (target, value) in object {
+            if let Some(shortcut) = value.as_str() {
+                shortcuts.set(&target, shortcut);
+            }
+        }
+        shortcuts
+    }
+
+    /// The file's contents: sorted and indented, so it reads well by hand.
+    pub fn to_json(&self) -> String {
+        serde_json::to_string_pretty(&self.by_target).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    /// The shortcut for `target`, or `""` when it has none.
+    pub fn get(&self, target: &str) -> &str {
+        self.by_target.get(target).map(String::as_str).unwrap_or("")
+    }
+
+    /// Give `target` a shortcut, stored trimmed and lowercased like a
+    /// command's. An empty one removes it.
+    pub fn set(&mut self, target: &str, shortcut: &str) {
+        let shortcut = shortcut.trim().to_lowercase();
+        if target.trim().is_empty() || shortcut.is_empty() {
+            self.by_target.remove(target);
+        } else {
+            self.by_target.insert(target.to_string(), shortcut);
+        }
+    }
+
+    /// The target already holding `shortcut`, other than `except` — the app
+    /// being edited may of course keep its own.
+    pub fn owner(&self, shortcut: &str, except: &str) -> Option<&str> {
+        let shortcut = shortcut.trim().to_lowercase();
+        if shortcut.is_empty() {
+            return None;
+        }
+        self.by_target
+            .iter()
+            .find(|(target, held)| **held == shortcut && target.as_str() != except)
+            .map(|(target, _)| target.as_str())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,5 +293,46 @@ mod tests {
             normalize(vec![path("Help", "/c.lnk"), path("Help", "/a.lnk"), path("Help", "/b.lnk")]);
         assert_eq!(first, second);
         assert_eq!(first[0].target, AppTarget::Path("/a.lnk".to_string()));
+    }
+
+    #[test]
+    fn shortcuts_are_stored_lowercase_and_cleared_by_an_empty_one() {
+        let firefox = r"{GUID}\Mozilla Firefox\firefox.exe";
+        let mut shortcuts = AppShortcuts::default();
+        shortcuts.set(firefox, "  FF ");
+        assert_eq!(shortcuts.get(firefox), "ff");
+        shortcuts.set(firefox, "   ");
+        assert_eq!(shortcuts.get(firefox), "");
+        assert_eq!(shortcuts, AppShortcuts::default());
+    }
+
+    #[test]
+    fn shortcuts_survive_a_round_trip_through_the_file() {
+        let mut shortcuts = AppShortcuts::default();
+        shortcuts.set("Microsoft.WindowsCalculator_8wekyb3d8bbwe!App", "calc");
+        shortcuts.set("/Applications/Safari.app", "s");
+        assert_eq!(AppShortcuts::from_json(&shortcuts.to_json()), shortcuts);
+    }
+
+    /// A hand-edited file with a mistake in it loses the bad line, not the rest.
+    #[test]
+    fn unreadable_shortcut_files_keep_what_they_can() {
+        assert_eq!(AppShortcuts::from_json("not json"), AppShortcuts::default());
+        assert_eq!(AppShortcuts::from_json("[1, 2]"), AppShortcuts::default());
+        let shortcuts = AppShortcuts::from_json(r#"{"a": "x", "b": null, "c": 3, "d": "Y"}"#);
+        assert_eq!(shortcuts.get("a"), "x");
+        assert_eq!(shortcuts.get("b"), "");
+        assert_eq!(shortcuts.get("d"), "y");
+    }
+
+    /// One shortcut, one app; the app being edited does not clash with itself.
+    #[test]
+    fn a_shortcut_has_one_owner() {
+        let mut shortcuts = AppShortcuts::default();
+        shortcuts.set("firefox", "ff");
+        assert_eq!(shortcuts.owner("FF", "chrome"), Some("firefox"));
+        assert_eq!(shortcuts.owner("ff", "firefox"), None);
+        assert_eq!(shortcuts.owner("gg", "chrome"), None);
+        assert_eq!(shortcuts.owner("", "chrome"), None);
     }
 }

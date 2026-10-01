@@ -3416,3 +3416,19 @@ msgstr "La identidad de {host} no es la que hay registrada. Puede que alguien es
 #: crates/launchtype-services/src/ssh.rs
 msgid "The identity of {host} could not be written to {file}, so it cannot be checked next time: {reason}"
 msgstr "No se ha podido escribir la identidad de {host} en {file}, así que no se podrá comprobar la próxima vez: {reason}"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Shortcut for {name}"
+msgstr "Acceso abreviado para {name}"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Type this shortcut in applications mode and this app is the only result. Leave it empty to remove the shortcut."
+msgstr "Escribe este acceso abreviado en el modo aplicaciones y esta aplicación será el único resultado. Déjalo vacío para quitar el acceso abreviado."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "The shortcut {shortcut} already belongs to {owner}."
+msgstr "El acceso abreviado {shortcut} ya pertenece a {owner}."
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Shortcut removed"
+msgstr "Acceso abreviado eliminado"

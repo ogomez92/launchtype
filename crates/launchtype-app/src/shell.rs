@@ -351,6 +351,16 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
                 let mut s = shell.borrow_mut();
                 let frame = s.frame;
                 match &item.kind {
+                    // An installed app's shortcut is the one thing about it
+                    // the user can change.
+                    ItemKind::App { .. } => {
+                        crate::dialogs::app_shortcut_dialog(
+                            &frame,
+                            &mut s.controller,
+                            &item.name,
+                            &item.id,
+                        );
+                    }
                     ItemKind::Snippet => {
                         if crate::dialogs::snippet_dialog(
                             &frame,
@@ -500,6 +510,21 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
             // it opens a dialog to do it.
             if matches!(item.kind, ItemKind::VaultEntry) {
                 crate::vault_flows::delete_entry(&shell, &item.id, &item.name);
+                return;
+            }
+            // An app cannot be deleted from here, only its shortcut; one
+            // without a shortcut has nothing to delete.
+            if matches!(item.kind, ItemKind::App { .. }) {
+                if item.shortcut.is_empty() {
+                    return;
+                }
+                let mut s = shell.borrow_mut();
+                match s.controller.app_shortcuts.set(&item.id, "") {
+                    Ok(()) => speak_now(&tr("Shortcut removed"), true),
+                    Err(error) => log::warn!("app shortcut delete failed: {error}"),
+                }
+                drop(s);
+                update_list(&shell);
                 return;
             }
             // A variable lives in its own file, and its id is its name.
