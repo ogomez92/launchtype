@@ -10,13 +10,14 @@ use launchtype_core::apps::{without_steam, App, AppTarget};
 use launchtype_core::clipboard_history::ClipboardHistory;
 use launchtype_core::clock::{Clock, SystemClock};
 use launchtype_core::emoji;
-use launchtype_core::i18n::{fold, tr};
+use launchtype_core::i18n::{fold, format_args, tr, Arg};
 use launchtype_core::mode::UiMode;
 use launchtype_core::search::{exact_shortcut_match, fuzzy_search};
 use launchtype_core::stats::stats_labels;
 use launchtype_core::units;
 use launchtype_core::vault::VaultSession;
 use launchtype_services::apps::scan_apps;
+use launchtype_services::audio_devices::{self, Direction};
 use launchtype_core::placeholders::Placeholders;
 use launchtype_services::snippets::{load_snippets, Snippet};
 use launchtype_services::sounds::SoundPlayer;
@@ -80,6 +81,11 @@ pub enum ItemKind {
     /// One thing path mode can do to the files on the clipboard: convert,
     /// transcribe, ask Claude, open somewhere (see [`launchtype_core::paths`]).
     PathAction { action: &'static str },
+    /// A sound device, identified by `Item::id` the way the OS knows it;
+    /// Enter makes it the system default for its direction. The item's name
+    /// is the device's, with "current" on the default one; `device` is the
+    /// device's name alone, for saying what was switched to.
+    AudioDevice { direction: Direction, device: String },
 }
 
 pub struct ModeController {
@@ -114,6 +120,9 @@ pub struct ModeController {
     /// back to the clipboard each time would mean the rows could change out
     /// from under the arrow keys.
     pub paths: Vec<launchtype_core::paths::Target>,
+    /// The sound devices `{` or `}` lists, read on entering the mode and
+    /// again after a switch, for the same reason as `apps`.
+    audio_devices: Vec<audio_devices::Device>,
 }
 
 impl ModeController {
@@ -147,6 +156,7 @@ impl ModeController {
             regions: Vec::new(),
             ssh_output: Vec::new(),
             paths: Vec::new(),
+            audio_devices: Vec::new(),
         }
     }
 
@@ -173,6 +183,12 @@ impl ModeController {
         self.apps = without_steam(scan_apps());
     }
 
+    /// Read the sound devices again: one may have been plugged in, or made
+    /// the default from somewhere else, since the list was last shown.
+    pub fn rescan_audio_devices(&mut self, direction: Direction) {
+        self.audio_devices = audio_devices::list(direction);
+    }
+
     pub fn items_for(&mut self, search: &str, mode: UiMode) -> Vec<Item> {
         match mode {
             UiMode::Commands => self.command_items(search),
@@ -191,6 +207,8 @@ impl ModeController {
             UiMode::Units => self.conversion_items(search),
             UiMode::Vault => self.vault_items(search),
             UiMode::Paths => self.path_items(search),
+            UiMode::AudioInputs => self.audio_device_items(search, Direction::Input),
+            UiMode::AudioOutputs => self.audio_device_items(search, Direction::Output),
             UiMode::Stats => self.stats_items(),
             // The input field holds the command being typed, so it must not
             // filter the transcript away (same reasoning as screenshots mode).
@@ -559,6 +577,31 @@ impl ModeController {
             })
             .collect();
         self.shortcut_then_fuzzy(search, items, true)
+    }
+
+    /// Sound devices, matched like apps: by name with accents folded off,
+    /// because the OS names them in its own language.
+    fn audio_device_items(&self, search: &str, direction: Direction) -> Vec<Item> {
+        let items: Vec<Item> = self
+            .audio_devices
+            .iter()
+            .map(|device| Item {
+                name: if device.is_default {
+                    format_args(&tr("{name}, current"), &[("name", Arg::Str(&device.name))])
+                } else {
+                    device.name.clone()
+                },
+                shortcut: String::new(),
+                id: device.id.clone(),
+                kind: ItemKind::AudioDevice { direction, device: device.name.clone() },
+            })
+            .collect();
+        if search.is_empty() {
+            return items;
+        }
+        let results = fuzzy_search(&fold(search), items, |item| fold(&item.name));
+        self.sounds.play("type");
+        results
     }
 
     fn stats_items(&self) -> Vec<Item> {

@@ -34,6 +34,12 @@ pub enum UiMode {
     /// The files and folders on the clipboard, and what can be done to them:
     /// convert, transcribe, summarize, open (see [`crate::paths`]).
     Paths,
+    /// The sound devices that can record, to pick the system default from.
+    AudioInputs,
+    /// The sound devices that can play, to pick the system default from. Each
+    /// one sounds a short tone as it is selected, so you can tell which is
+    /// which before switching.
+    AudioOutputs,
     /// Entered programmatically after "explore regions" analysis, not by a
     /// trigger character: lists the AI-detected regions of the last screenshot.
     Regions,
@@ -61,6 +67,8 @@ impl UiMode {
             '*' => UiMode::Vault,
             '_' => UiMode::Variables,
             '/' => UiMode::Paths,
+            '{' => UiMode::AudioInputs,
+            '}' => UiMode::AudioOutputs,
             _ => return None,
         })
     }
@@ -86,13 +94,15 @@ impl UiMode {
             UiMode::Vault => '*',
             UiMode::Variables => '_',
             UiMode::Paths => '/',
+            UiMode::AudioInputs => '{',
+            UiMode::AudioOutputs => '}',
             UiMode::Regions => return None,
         })
     }
 
     /// Every user-selectable mode, in the order shown by the modes menu. Kept
     /// in sync with [`from_trigger_char`]; Regions is excluded (no trigger).
-    pub const MENU_MODES: [UiMode; 17] = [
+    pub const MENU_MODES: [UiMode; 19] = [
         UiMode::Commands,
         UiMode::Snippets,
         UiMode::Clipboard,
@@ -110,6 +120,8 @@ impl UiMode {
         UiMode::Vault,
         UiMode::Variables,
         UiMode::Paths,
+        UiMode::AudioInputs,
+        UiMode::AudioOutputs,
     ];
 }
 
@@ -136,6 +148,8 @@ mod tests {
         assert_eq!(UiMode::from_trigger_char('*'), Some(UiMode::Vault));
         assert_eq!(UiMode::from_trigger_char('_'), Some(UiMode::Variables));
         assert_eq!(UiMode::from_trigger_char('/'), Some(UiMode::Paths));
+        assert_eq!(UiMode::from_trigger_char('{'), Some(UiMode::AudioInputs));
+        assert_eq!(UiMode::from_trigger_char('}'), Some(UiMode::AudioOutputs));
         assert_eq!(UiMode::from_trigger_char('a'), None);
         assert_eq!(UiMode::from_trigger_char(' '), None);
     }
