@@ -51,10 +51,6 @@ pub struct Settings {
     /// Notebrook credentials. Stored locally only, never committed.
     pub notebrook_url: String,
     pub notebrook_token: String,
-    /// The Bitwarden or Vaultwarden server the vault import last pointed at,
-    /// so the URL does not have to be retyped. Only the address is kept —
-    /// never the account, the master password or a session key.
-    pub bitwarden_server: String,
     /// Claude model used for the AI screenshot description / region features.
     pub ai_model: String,
     /// Commands mode sort order: false = last modified (default), true = by uses.
@@ -110,7 +106,6 @@ impl Default for Settings {
             steam_library: DEFAULT_STEAM_LIBRARY.to_string(),
             notebrook_url: String::new(),
             notebrook_token: String::new(),
-            bitwarden_server: String::new(),
             ai_model: DEFAULT_AI_MODEL.to_string(),
             command_sort_by_uses: false,
             language: LANGUAGE_SYSTEM.to_string(),

@@ -6,6 +6,7 @@ pub mod ai_auth;
 pub mod alarms;
 pub mod apps;
 pub mod bitwarden;
+pub mod bitwarden_export;
 pub mod clipboard_history;
 pub mod imaging;
 pub mod clock;

@@ -2074,13 +2074,17 @@ dependencies = [
 name = "launchtype-core"
 version = "9.0.0"
 dependencies = [
+ "aes",
  "aes-gcm",
  "argon2",
  "base64",
+ "cbc",
  "chrono",
  "gettext",
+ "hkdf",
  "hmac",
  "log",
+ "pbkdf2",
  "quick-xml 0.36.2",
  "serde",
  "serde_json",

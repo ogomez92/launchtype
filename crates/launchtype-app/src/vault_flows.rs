@@ -14,16 +14,17 @@
 
 use std::sync::{Arc, Mutex};
 
-use launchtype_core::bitwarden::{plan_import, ImportPlan};
+use launchtype_core::bitwarden::{plan_import, BwItem, ImportPlan};
+use launchtype_core::bitwarden_export::{read_export, Export, ExportError, ProtectedExport};
 use launchtype_core::i18n::{format_args, tr, Arg};
 use launchtype_core::totp::Totp;
 use launchtype_core::vault::{EntryKind, VaultError, VaultSession};
-use launchtype_services::bitwarden::{BwAuth, BwCredentials, BwError, BwSession};
 use launchtype_services::clipboard;
+use wxdragon::dialogs::file_dialog::{FileDialog, FileDialogStyle};
 use zeroize::Zeroizing;
 
 use crate::dialogs::{self, VaultEntryFields};
-use crate::shell::{report_error, update_list, with_shell, SharedShell};
+use crate::shell::{report_error, update_list, SharedShell};
 use crate::speech::speak_now;
 
 /// The message shown for a vault failure. The error type lives in the core
@@ -81,7 +82,7 @@ pub fn run_action(shell: &SharedShell, action: &str) {
         "lock" => lock_now(shell),
         "add" => add_entry(shell),
         "password" => change_password(shell),
-        "import" => import_from_bitwarden(shell),
+        "import" => import_bitwarden_export(shell),
         other => log::warn!("unknown vault action {other:?}"),
     }
 }
@@ -355,141 +356,104 @@ fn ensure_unlocked(shell: &SharedShell) -> bool {
     session(shell).lock().unwrap().is_unlocked()
 }
 
-/// Copy an account's passwords and authenticator seeds out of Bitwarden (or a
-/// self-hosted Vaultwarden) and into this vault.
+/// Copy everything out of a file made by Bitwarden's "Export vault" and into
+/// this vault. See [`launchtype_core::bitwarden`] for what each item becomes,
+/// and [`launchtype_core::bitwarden_export`] for the file formats.
 ///
-/// # Why it shells out to `bw`
+/// # Keeping the file's contents short-lived
 ///
-/// Reading someone's Bitwarden vault means their key hierarchy, their KDF
-/// settings and the per-item unwrapping, against a server this app has no
-/// control over. Bitwarden's own CLI already does all of that and is the only
-/// thing that can be trusted to keep doing it as the format moves; see
-/// [`launchtype_services::bitwarden`].
-///
-/// # Why the network half runs on a thread
-///
-/// `bw login` and `bw sync` take seconds against a remote server and can take
-/// a great deal longer against a slow one. The vault's own Argon2 stretch is
-/// done on the UI thread because it is bounded and short; this is neither, and
-/// a frozen window with no explanation is exactly the failure a screen reader
-/// user cannot diagnose. So the user is told it has started, the work happens
-/// off the UI thread, and the result comes back through `call_after`.
+/// An unencrypted export is the user's whole password list in the clear. The
+/// file is read into a [`Zeroizing`] buffer that is wiped as soon as the items
+/// have been read out of it, and nothing about its contents is logged.
 ///
 /// # What it will not do
 ///
 /// It never overwrites. Anything whose name is already in the vault is left
 /// exactly as it is, so importing twice is harmless and a password changed
-/// here is never quietly replaced by an older one from the server.
-pub fn import_from_bitwarden(shell: &SharedShell) {
+/// here is never quietly replaced by an older one from the export.
+pub fn import_bitwarden_export(shell: &SharedShell) {
     if !ensure_unlocked(shell) {
         return;
     }
-
-    // Checked before the user is asked for anything: being told at the end
-    // that the tool was never installed would waste a password prompt.
-    let Some(program) = launchtype_services::bitwarden::find_cli() else {
-        shell.borrow().sounds.play("error");
-        return report_error(
-            shell,
-            &tr("Import from Bitwarden"),
-            &tr("The Bitwarden command line tool (bw) is not installed, or is not on the PATH. Install it from bitwarden.com/help/cli and try again."),
-        );
-    };
-
-    let (frame, server) = {
-        let s = shell.borrow();
-        (s.frame, s.settings.settings.bitwarden_server.clone())
-    };
-    let Some(fields) = dialogs::bitwarden_import_dialog(&frame, &server) else { return };
-
-    // Remembered before the import runs, so a server that turns out to need a
-    // second attempt does not have to be retyped.
-    {
-        let mut s = shell.borrow_mut();
-        s.settings.settings.bitwarden_server = fields.server.clone();
-        let _ = s.settings.save();
+    let frame = shell.borrow().frame;
+    let file_dialog = FileDialog::builder(&frame)
+        .with_message(&tr("Choose a Bitwarden export file"))
+        .with_wildcard(&tr("Bitwarden exports (*.json;*.csv)|*.json;*.csv|All files (*.*)|*.*"))
+        .with_style(FileDialogStyle::Open | FileDialogStyle::FileMustExist)
+        .build();
+    if file_dialog.show_modal() != wxdragon::id::ID_OK {
+        return;
     }
+    let Some(path) = file_dialog.get_path() else { return };
 
-    speak_now(&tr("Contacting the server, this can take a moment"), true);
-
-    // A pasted session key means the user has already done the logging in, so
-    // the account fields are not consulted at all.
-    let auth = if fields.session.is_empty() {
-        BwAuth::Login(BwCredentials {
-            server: fields.server,
-            email: fields.email,
-            password: Zeroizing::new(fields.password),
-            two_factor: fields.two_factor,
-            code: fields.code,
-        })
-    } else {
-        BwAuth::Session(Zeroizing::new(fields.session))
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => Zeroizing::new(bytes),
+        Err(error) => return import_failed(shell, &error.to_string()),
     };
+    let export = read_export(&bytes);
+    drop(bytes);
 
-    std::thread::spawn(move || {
-        let fetched = fetch_items(&program, &auth);
-        // `auth` dies here, with the master password or session key in it,
-        // rather than riding back to the UI thread inside the closure below.
-        drop(auth);
-        wxdragon::call_after(Box::new(move || match fetched {
-            Ok(items) => with_shell(|shell| apply_import(shell, items)),
-            Err(message) => with_shell(|shell| {
-                shell.borrow().sounds.play("error");
-                report_error(shell, &tr("Import from Bitwarden"), &message);
-            }),
-        }));
-    });
+    let items = match export {
+        Ok(Export::Items(items)) => items,
+        Ok(Export::PasswordProtected(sealed)) => match unlock_export(shell, &sealed) {
+            Some(items) => items,
+            None => return,
+        },
+        Err(error) => return import_failed(shell, &export_error_text(error)),
+    };
+    apply_import(shell, items);
 }
 
-/// The whole of the off-thread half: get a session, pull, read. A session this
-/// made is logged out on the way out of this function, whichever branch is
-/// taken; a borrowed one is left alone.
-fn fetch_items(
-    program: &str,
-    auth: &BwAuth,
-) -> Result<Vec<launchtype_core::bitwarden::BwItem>, String> {
-    let session = BwSession::open(program, auth).map_err(login_error_text)?;
-    session.sync().map_err(login_error_text)?;
-    session.items().map_err(login_error_text)
-}
-
-/// `bw` says why it refused in its own words, which are usually the clearest
-/// thing available — a wrong password, a missing two-step code, a server that
-/// did not answer. Only the cases where it says nothing useful get replaced.
-///
-/// A two-step refusal gets one sentence added rather than rewritten: that
-/// failure is the one with a way out the user cannot guess at, and the message
-/// is the only place they will be looking when they hit it.
-fn login_error_text(error: BwError) -> String {
-    match error {
-        BwError::NotInstalled => tr(
-            "The Bitwarden command line tool (bw) is not installed, or is not on the PATH. Install it from bitwarden.com/help/cli and try again.",
-        ),
-        BwError::Cli(message) => {
-            if mentions_two_step(&message) {
-                format!("{message}\n\n{}", tr("If your account uses a second factor that cannot be typed in here, such as Duo or a passkey, run \"bw unlock --raw\" in a terminal and paste the session key it prints into the import instead."))
-            } else {
-                message
+/// Ask for the export password until it opens the file or the user gives up.
+fn unlock_export(shell: &SharedShell, sealed: &ProtectedExport) -> Option<Vec<BwItem>> {
+    let frame = shell.borrow().frame;
+    loop {
+        let password = Zeroizing::new(dialogs::export_password_dialog(&frame)?);
+        // Stretching takes a second or so at Bitwarden's defaults; like the
+        // vault's own unlock it is bounded, so it runs here.
+        match sealed.unlock(&password) {
+            Ok(items) => return Some(items),
+            // Said in a box rather than spoken: the password prompt comes
+            // straight back, and its own announcement would talk over speech.
+            Err(error) => {
+                import_failed(shell, &export_error_text(error));
+                if error != ExportError::WrongPassword {
+                    return None;
+                }
             }
         }
-        other => other.to_string(),
     }
 }
 
-/// Whether `bw` is complaining about a second factor. Matched loosely and used
-/// only to *add* a hint: a miss costs nothing, so there is no need to keep this
-/// in step with Bitwarden's exact wording.
-fn mentions_two_step(message: &str) -> bool {
-    let lowered = message.to_lowercase();
-    ["two-step", "two step", "twofactor", "two-factor", "two factor"]
-        .iter()
-        .any(|needle| lowered.contains(needle))
+fn import_failed(shell: &SharedShell, message: &str) {
+    shell.borrow().sounds.play("error");
+    report_error(shell, &tr("Import a Bitwarden export"), message);
 }
 
-/// Back on the UI thread with the vault contents: work out what would be
-/// added, ask, and write it.
-fn apply_import(shell: &SharedShell, items: Vec<launchtype_core::bitwarden::BwItem>) {
-    // The vault may have auto-locked while the download was running.
+/// Each refusal says what to do about it, which for most of them is to export
+/// again in a form that can be read.
+fn export_error_text(error: ExportError) -> String {
+    match error {
+        ExportError::NotAnExport => tr(
+            "That file is not a Bitwarden export. In Bitwarden, use Export vault and choose the .json or .csv format.",
+        ),
+        ExportError::AccountRestricted => tr(
+            "That export is account restricted, so only Bitwarden itself can open it. Export again and choose either the unencrypted .json format or a password-protected export.",
+        ),
+        ExportError::Zip => tr(
+            "That is the .zip export with attachments, which cannot be read here. Export again in the .json format.",
+        ),
+        ExportError::UnsupportedKdf => tr(
+            "That export is protected with settings this version cannot open. Export again, either unencrypted or protected with a password.",
+        ),
+        ExportError::WrongPassword => tr("That is not the password this export was protected with."),
+        ExportError::Damaged => tr("That export is damaged and could not be read."),
+    }
+}
+
+/// Work out what would be added, ask, and write it.
+fn apply_import(shell: &SharedShell, items: Vec<BwItem>) {
+    // The vault may have auto-locked while the file dialog was open.
     if !ensure_unlocked(shell) {
         return;
     }
@@ -501,7 +465,7 @@ fn apply_import(shell: &SharedShell, items: Vec<launchtype_core::bitwarden::BwIt
 
     if plan.is_empty() {
         shell.borrow().sounds.play("error");
-        return report_error(shell, &tr("Import from Bitwarden"), &nothing_to_import_text(&plan));
+        return report_error(shell, &tr("Import a Bitwarden export"), &nothing_to_import_text(&plan));
     }
 
     let frame = shell.borrow().frame;
@@ -545,20 +509,20 @@ fn apply_import(shell: &SharedShell, items: Vec<launchtype_core::bitwarden::BwIt
 }
 
 /// Why an import found nothing. "Nothing to import" on its own would leave the
-/// user guessing between an empty account, a vault that already holds it all,
-/// and an account full of things this vault cannot store.
+/// user guessing between an empty export, a vault that already holds it all,
+/// and an export full of things this vault cannot store.
 fn nothing_to_import_text(plan: &ImportPlan) -> String {
     if plan.already_there > 0 {
         return format_args(
-            &tr("Nothing new to import: all {count} logins found are already in this vault."),
+            &tr("Nothing new to import: all {count} entries found are already in this vault."),
             &[("count", Arg::Int(plan.already_there as i64))],
         );
     }
     if plan.unsupported > 0 {
         return format_args(
-            &tr("Nothing to import: the {count} items found are cards, identities or secure notes, which this vault has no room for."),
+            &tr("Nothing to import: the {count} items found are of a kind this version does not know."),
             &[("count", Arg::Int(plan.unsupported as i64))],
         );
     }
-    tr("Nothing to import: that account holds no logins with a password or an authenticator seed in them.")
+    tr("Nothing to import: that export holds no passwords, codes or other details to copy.")
 }

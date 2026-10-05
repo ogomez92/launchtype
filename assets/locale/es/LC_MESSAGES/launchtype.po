@@ -3226,10 +3226,6 @@ msgid "Substitution cancelled"
 msgstr "Sustitución cancelada"
 
 #: crates/launchtype-app/src/dialogs.rs
-msgid "&Email address:"
-msgstr "Dirección de &correo electrónico:"
-
-#: crates/launchtype-app/src/dialogs.rs
 msgid "&This entry holds:"
 msgstr "&Esta entrada contiene:"
 
@@ -3250,50 +3246,6 @@ msgid "An authenticator seed (Enter copies the current code)"
 msgstr "Una semilla de autenticación (Intro copia el código actual)"
 
 #: crates/launchtype-app/src/dialogs.rs
-msgid "Bitwarden &master password:"
-msgstr "Contraseña &maestra de Bitwarden:"
-
-#: crates/launchtype-app/src/vault_flows.rs
-msgid "Contacting the server, this can take a moment"
-msgstr "Conectando con el servidor, esto puede tardar un momento"
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "Copy passwords and authenticator codes out of a Bitwarden or Vaultwarden account into this vault. Nothing already here is changed or overwritten, and only the server address is remembered afterwards."
-msgstr "Copia las contraseñas y los códigos de autenticación de una cuenta de Bitwarden o Vaultwarden a esta caja fuerte. No se cambia ni se sobrescribe nada de lo que ya hay, y después solo se recuerda la dirección del servidor."
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "Found {passwords} passwords and {codes} authenticator codes to add."
-msgstr "Se han encontrado {passwords} contraseñas y {codes} códigos de autenticación para añadir."
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "Import from Bitwarden"
-msgstr "Importar desde Bitwarden"
-
-#: crates/launchtype-app/src/controller.rs
-msgid "Import passwords and codes from Bitwarden"
-msgstr "Importar contraseñas y códigos desde Bitwarden"
-
-#: crates/launchtype-app/src/vault_flows.rs
-msgid "Nothing new to import: all {count} logins found are already in this vault."
-msgstr "No hay nada nuevo que importar: los {count} inicios de sesión encontrados ya están en esta caja fuerte."
-
-#: crates/launchtype-app/src/vault_flows.rs
-msgid "Nothing to import: that account holds no logins with a password or an authenticator seed in them."
-msgstr "No hay nada que importar: esa cuenta no tiene ningún inicio de sesión con contraseña ni con semilla de autenticación."
-
-#: crates/launchtype-app/src/vault_flows.rs
-msgid "Nothing to import: the {count} items found are cards, identities or secure notes, which this vault has no room for."
-msgstr "No hay nada que importar: los {count} elementos encontrados son tarjetas, identidades o notas seguras, que no caben en esta caja fuerte."
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "Please enter the address of your Bitwarden or Vaultwarden server."
-msgstr "Escribe la dirección de tu servidor de Bitwarden o Vaultwarden."
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "Please enter the email address and master password of the account to import from."
-msgstr "Escribe la dirección de correo y la contraseña maestra de la cuenta desde la que quieres importar."
-
-#: crates/launchtype-app/src/dialogs.rs
 msgid "That authenticator code length is not supported; it must be 6, 7 or 8 digits."
 msgstr "Esa longitud de código de autenticación no es compatible; debe ser de 6, 7 u 8 dígitos."
 
@@ -3312,10 +3264,6 @@ msgstr "Esa no es una semilla de autenticación válida. Deben ser las letras y 
 #: crates/launchtype-app/src/dialogs.rs
 msgid "That otpauth link does not contain a secret."
 msgstr "Ese enlace otpauth no contiene ningún secreto."
-
-#: crates/launchtype-app/src/vault_flows.rs
-msgid "The Bitwarden command line tool (bw) is not installed, or is not on the PATH. Install it from bitwarden.com/help/cli and try again."
-msgstr "La herramienta de línea de comandos de Bitwarden (bw) no está instalada, o no está en el PATH. Instálala desde bitwarden.com/help/cli e inténtalo de nuevo."
 
 #: crates/launchtype-app/src/dialogs.rs
 msgid "The authenticator seed could not be read for: {names}. Everything else about those items still comes across."
@@ -3341,10 +3289,6 @@ msgstr "{count} ya están en esta caja fuerte con el mismo nombre y se dejarán 
 msgid "{count} could not be saved."
 msgstr "No se han podido guardar {count}."
 
-#: crates/launchtype-app/src/dialogs.rs
-msgid "{count} items are cards, identities or secure notes, which this vault has no room for, and will be skipped."
-msgstr "{count} elementos son tarjetas, identidades o notas seguras, que no caben en esta caja fuerte, y se omitirán."
-
 #: crates/launchtype-core/src/bitwarden.rs
 msgid "{name} (code)"
 msgstr "{name} (código)"
@@ -3356,46 +3300,6 @@ msgstr "{name} ({user})"
 #: crates/launchtype-app/src/vault_flows.rs
 msgid "{name}, code {code}, {seconds} seconds left"
 msgstr "{name}, código {code}, quedan {seconds} segundos"
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "Authenticator app"
-msgstr "Aplicación de autenticación"
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "Code sent by email"
-msgstr "Código enviado por correo electrónico"
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "If you already use the bw command line tool, run \"bw unlock --raw\" and paste the key it prints. That works whatever second factor your account uses, and your own login is left signed in afterwards."
-msgstr "Si ya usas la herramienta de línea de comandos bw, ejecuta \"bw unlock --raw\" y pega la clave que muestra. Eso funciona sea cual sea el segundo factor de tu cuenta, y tu propia sesión se queda iniciada después."
-
-#: crates/launchtype-app/src/vault_flows.rs
-msgid "If your account uses a second factor that cannot be typed in here, such as Duo or a passkey, run \"bw unlock --raw\" in a terminal and paste the session key it prints into the import instead."
-msgstr "Si tu cuenta usa un segundo factor que no se puede escribir aquí, como Duo o una clave de acceso, ejecuta \"bw unlock --raw\" en una terminal y pega en la importación la clave de sesión que muestra."
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "Not used on this account"
-msgstr "No se usa en esta cuenta"
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "Please enter your two-step login code, or set the two-step login to \"Not used on this account\"."
-msgstr "Escribe tu código de verificación en dos pasos, o cambia la verificación en dos pasos a \"No se usa en esta cuenta\"."
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "Session &key (fill this in and the rest is ignored):"
-msgstr "Cla&ve de sesión (si la rellenas, se ignora el resto):"
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "T&wo-step login:"
-msgstr "V&erificación en dos pasos:"
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "Two-step &code:"
-msgstr "Có&digo de verificación en dos pasos:"
-
-#: crates/launchtype-app/src/dialogs.rs
-msgid "YubiKey OTP"
-msgstr "OTP de YubiKey"
 
 #: crates/launchtype-app/src/dialogs.rs
 msgid "A snippet name is a single word, not a path: it cannot contain \\ / : * ? \" < > or |."
@@ -3432,3 +3336,147 @@ msgstr "El acceso abreviado {shortcut} ya pertenece a {owner}."
 #: crates/launchtype-app/src/shell.rs
 msgid "Shortcut removed"
 msgstr "Acceso abreviado eliminado"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Import a Bitwarden export file"
+msgstr "Importar un archivo exportado de Bitwarden"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Import a Bitwarden export"
+msgstr "Importar una exportación de Bitwarden"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Choose a Bitwarden export file"
+msgstr "Elige un archivo exportado de Bitwarden"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Bitwarden exports (*.json;*.csv)|*.json;*.csv|All files (*.*)|*.*"
+msgstr "Exportaciones de Bitwarden (*.json;*.csv)|*.json;*.csv|Todos los archivos (*.*)|*.*"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "This export is password protected. Enter the password that was chosen when it was exported from Bitwarden."
+msgstr "Esta exportación está protegida con contraseña. Introduce la contraseña que se eligió al exportarla desde Bitwarden."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Export &password:"
+msgstr "&Contraseña de la exportación:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Please enter the export password."
+msgstr "Introduce la contraseña de la exportación."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Found {passwords} passwords, {codes} authenticator codes and {others} other details, such as card numbers, notes and custom fields, to add."
+msgstr "Se han encontrado {passwords} contraseñas, {codes} códigos de autenticación y {others} datos más, como números de tarjeta, notas y campos personalizados, para añadir."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "{count} items are of a kind this version does not know, and will be skipped."
+msgstr "{count} elementos son de un tipo que esta versión no conoce, y se omitirán."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Nothing new to import: all {count} entries found are already in this vault."
+msgstr "No hay nada nuevo que importar: las {count} entradas encontradas ya están en esta caja fuerte."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Nothing to import: the {count} items found are of a kind this version does not know."
+msgstr "No hay nada que importar: los {count} elementos encontrados son de un tipo que esta versión no conoce."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Nothing to import: that export holds no passwords, codes or other details to copy."
+msgstr "No hay nada que importar: esa exportación no contiene contraseñas, códigos ni otros datos que copiar."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "That file is not a Bitwarden export. In Bitwarden, use Export vault and choose the .json or .csv format."
+msgstr "Ese archivo no es una exportación de Bitwarden. En Bitwarden, usa Exportar caja fuerte y elige el formato .json o .csv."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "That export is account restricted, so only Bitwarden itself can open it. Export again and choose either the unencrypted .json format or a password-protected export."
+msgstr "Esa exportación está restringida a la cuenta, así que solo Bitwarden puede abrirla. Vuelve a exportar y elige el formato .json sin cifrar o una exportación protegida con contraseña."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "That is the .zip export with attachments, which cannot be read here. Export again in the .json format."
+msgstr "Esa es la exportación .zip con adjuntos, que no se puede leer aquí. Vuelve a exportar en formato .json."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "That export is protected with settings this version cannot open. Export again, either unencrypted or protected with a password."
+msgstr "Esa exportación está protegida con una configuración que esta versión no puede abrir. Vuelve a exportar, sin cifrar o protegida con contraseña."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "That is not the password this export was protected with."
+msgstr "Esa no es la contraseña con la que se protegió esta exportación."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "That export is damaged and could not be read."
+msgstr "Esa exportación está dañada y no se ha podido leer."
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "{name} ({detail})"
+msgstr "{name} ({detail})"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "card number"
+msgstr "número de tarjeta"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "security code"
+msgstr "código de seguridad"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "expiry"
+msgstr "caducidad"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "cardholder"
+msgstr "titular"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "full name"
+msgstr "nombre completo"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "address"
+msgstr "dirección"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "company"
+msgstr "empresa"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "email"
+msgstr "correo electrónico"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "phone"
+msgstr "teléfono"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "username"
+msgstr "nombre de usuario"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "social security number"
+msgstr "número de la seguridad social"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "passport number"
+msgstr "número de pasaporte"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "licence number"
+msgstr "número de permiso de conducir"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "private key"
+msgstr "clave privada"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "public key"
+msgstr "clave pública"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "notes"
+msgstr "notas"
+
+#: crates/launchtype-core/src/bitwarden.rs
+msgid "field"
+msgstr "campo"

@@ -18,6 +18,11 @@
 //! how it was typed into Bitwarden years ago and the user should not have to
 //! care.
 //!
+//! Bitwarden also has a third form of its own, `steam://` followed by the seed,
+//! for Steam Guard. Steam runs the same HMAC on the same 30-second steps but
+//! spells the result as five letters and digits rather than six digits, so the
+//! only thing that changes is the last step, [`steam_code`].
+//!
 //! The decoded seed lives in a [`Zeroizing`] buffer and the generated code is
 //! handed back in one too: a `Totp` is built for a single copy and dropped
 //! straight after, so neither outlives the keypress that asked for it.
@@ -30,6 +35,12 @@ use zeroize::Zeroizing;
 /// The default step in seconds, and what every issuer worth the name uses.
 const DEFAULT_PERIOD: u64 = 30;
 const DEFAULT_DIGITS: u32 = 6;
+
+/// Steam Guard codes are always this long, whatever else the seed says.
+const STEAM_DIGITS: u32 = 5;
+/// The alphabet Steam spells its codes in: digits and capitals with the ones
+/// that are easy to misread (0, 1, A, E, I, L, O, S, U, Z) left out.
+const STEAM_CHARS: &[u8] = b"23456789BCDFGHJKMNPQRTVWXY";
 
 /// Digit counts outside this range are refused rather than silently clamped:
 /// RFC 4226 only defines the truncation for 6 to 8, and a "code" of 20 digits
@@ -81,6 +92,8 @@ pub struct Totp {
     digits: u32,
     period: u64,
     algorithm: Algorithm,
+    /// A Steam Guard seed, whose codes are spelled with [`STEAM_CHARS`].
+    steam: bool,
 }
 
 /// Deliberately hand-written rather than derived: a derived `Debug` would put
@@ -93,13 +106,15 @@ impl std::fmt::Debug for Totp {
             .field("digits", &self.digits)
             .field("period", &self.period)
             .field("algorithm", &self.algorithm)
+            .field("steam", &self.steam)
             .finish()
     }
 }
 
 impl Totp {
-    /// Accept either a bare base32 seed (`"JBSWY3DPEHPK3PXP"`, spaces and
-    /// lowercase and all) or a full `otpauth://totp/...` URI.
+    /// Accept a bare base32 seed (`"JBSWY3DPEHPK3PXP"`, spaces and
+    /// lowercase and all), a full `otpauth://totp/...` URI, or Bitwarden's
+    /// `steam://` form.
     pub fn parse(input: &str) -> Result<Self> {
         let input = input.trim();
         if input.is_empty() {
@@ -107,6 +122,11 @@ impl Totp {
         }
         if input.len() >= 8 && input[..8].eq_ignore_ascii_case("otpauth:") {
             Self::parse_uri(input)
+        } else if input.len() >= 8 && input[..8].eq_ignore_ascii_case("steam://") {
+            let mut totp = Self::from_parts(&input[8..], DEFAULT_DIGITS, DEFAULT_PERIOD, Algorithm::Sha1)?;
+            totp.steam = true;
+            totp.digits = STEAM_DIGITS;
+            Ok(totp)
         } else {
             Self::from_parts(input, DEFAULT_DIGITS, DEFAULT_PERIOD, Algorithm::Sha1)
         }
@@ -150,7 +170,7 @@ impl Totp {
         if secret.is_empty() {
             return Err(TotpError::Empty);
         }
-        Ok(Totp { secret, digits, period, algorithm })
+        Ok(Totp { secret, digits, period, algorithm, steam: false })
     }
 
     /// The code for the step containing `unix_seconds`, zero-padded to the
@@ -167,7 +187,11 @@ impl Totp {
             Algorithm::Sha256 => self.hmac::<Sha256>(&counter),
             Algorithm::Sha512 => self.hmac::<Sha512>(&counter),
         };
-        Zeroizing::new(truncate(&digest, self.digits))
+        if self.steam {
+            Zeroizing::new(steam_code(&digest))
+        } else {
+            Zeroizing::new(truncate(&digest, self.digits))
+        }
     }
 
     /// How much of the current step is left, in seconds. Always 1..=period, so
@@ -200,15 +224,32 @@ impl Totp {
 /// RFC 4226 dynamic truncation: the low nibble of the last byte picks where to
 /// read the four bytes that become the code.
 fn truncate(digest: &[u8], digits: u32) -> String {
+    let modulus = 10u32.pow(digits);
+    format!("{:0width$}", dynamic_truncation(digest) % modulus, width = digits as usize)
+}
+
+fn dynamic_truncation(digest: &[u8]) -> u32 {
     let offset = (digest[digest.len() - 1] & 0x0f) as usize;
-    let binary = u32::from_be_bytes([
+    u32::from_be_bytes([
         digest[offset] & 0x7f,
         digest[offset + 1],
         digest[offset + 2],
         digest[offset + 3],
-    ]);
-    let modulus = 10u32.pow(digits);
-    format!("{:0width$}", binary % modulus, width = digits as usize)
+    ])
+}
+
+/// The same 31 bits [`truncate`] reads, written out least significant first
+/// in Steam's alphabet instead of in decimal.
+fn steam_code(digest: &[u8]) -> String {
+    let mut value = dynamic_truncation(digest);
+    let base = STEAM_CHARS.len() as u32;
+    (0..STEAM_DIGITS)
+        .map(|_| {
+            let c = STEAM_CHARS[(value % base) as usize] as char;
+            value /= base;
+            c
+        })
+        .collect()
 }
 
 /// Decode RFC 4648 base32, forgiving the things people paste: lowercase, the
@@ -294,6 +335,7 @@ mod tests {
             digits: 8,
             period: 30,
             algorithm: Algorithm::Sha1,
+            steam: false,
         };
         assert_eq!(totp.code_at(59).to_string(), "94287082");
         assert_eq!(totp.code_at(1111111109).to_string(), "07081804");
@@ -362,6 +404,7 @@ mod tests {
             digits: 6,
             period: 30,
             algorithm: Algorithm::Sha1,
+            steam: false,
         };
         for step in 0..500i64 {
             assert_eq!(totp.code_at(step * 30).len(), 6);
@@ -434,6 +477,31 @@ mod tests {
             let totp = Totp::parse(uri).unwrap();
             assert_eq!(totp.code_at(at).to_string(), expected, "{uri} at {at}");
         }
+    }
+
+    /// The vector Bitwarden's own SDK tests its Steam codes against, at
+    /// 2023-01-01T00:00:00Z.
+    #[test]
+    fn a_steam_seed_gives_the_code_bitwarden_gives() {
+        let at = 1_672_531_200;
+        assert_eq!(code("steam://HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ", at), "7W6CJ");
+        assert_eq!(code("StEam://HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ", at), "7W6CJ");
+        assert_eq!(Totp::parse("steam://HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ").unwrap().digits(), 5);
+    }
+
+    #[test]
+    fn a_steam_code_only_uses_letters_steam_spells_with() {
+        let totp = Totp::parse("steam://JBSWY3DPEHPK3PXP").unwrap();
+        for step in 0..200i64 {
+            let code = totp.code_at(step * 30);
+            assert_eq!(code.len(), 5);
+            assert!(code.bytes().all(|b| STEAM_CHARS.contains(&b)), "{}", &*code);
+        }
+    }
+
+    #[test]
+    fn a_steam_link_with_nothing_after_it_is_refused() {
+        assert_eq!(Totp::parse("steam://").unwrap_err(), TotpError::Empty);
     }
 
     #[test]

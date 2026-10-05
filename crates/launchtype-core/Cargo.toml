@@ -9,6 +9,10 @@ rust-version.workspace = true
 # seals each entry, SHA-256 fingerprints a copied secret so the clipboard history
 # can recognise and refuse it, and zeroize wipes keys and plaintext on drop.
 aes-gcm = { version = "0.11", features = ["zeroize"] }
+aes = "0.9"
+cbc = "0.2"
+pbkdf2 = { version = "0.13", default-features = false, features = ["hmac"] }
+hkdf = "0.13"
 argon2 = { version = "0.6.0-rc.8", default-features = false, features = ["alloc", "zeroize"] }
 sha2 = "0.11"
 # TOTP for vault entries that hold a second factor: RFC 6238 is HMAC over a

@@ -568,6 +568,19 @@ Añadir, Editar y Eliminar funcionan como en el resto de la aplicación. Cada en
 
 Una vez abierta, la caja fuerte se vuelve a bloquear sola tras cinco minutos sin usarla, y la clave se borra de la memoria —no simplemente se ignora— gracias a un temporizador en segundo plano, así que alejarte del ordenador la cierra. Pon el tiempo a 0 en los Ajustes y te pedirá la contraseña maestra en cada copia. "Bloquear la caja fuerte ahora" y "Cambiar la contraseña maestra" están al final de la lista; cambiar la contraseña es instantáneo, porque las entradas no están cifradas con la contraseña en sí (ver más abajo).
 
+### Importar desde Bitwarden
+
+"Importar un archivo exportado de Bitwarden", al final de la lista, lee un archivo creado con "Exportar caja fuerte" de Bitwarden: la exportación `.json`, la `.csv` o una `.json` protegida con contraseña (se te pide la contraseña de la exportación; funcionan tanto PBKDF2 como Argon2id). Una exportación "restringida a la cuenta" solo la puede abrir Bitwarden, y la exportación `.zip` con adjuntos tampoco se lee; en esos casos, vuelve a exportar.
+
+Cada cosa que merece la pena copiar se convierte en una entrada propia, con el nombre del elemento:
+
+- la contraseña de un inicio de sesión como "GitHub (tú)", y su semilla de autenticación como "GitHub (tú) (código)", que copia el código del momento y no la semilla, también los de Steam Guard;
+- el número, el código de seguridad, la caducidad y el titular de una tarjeta;
+- cada campo rellenado de una identidad, con la dirección en una sola entrada;
+- el texto de una nota segura, las dos mitades de una clave SSH, y las notas y los campos personalizados de texto u ocultos de cualquier elemento.
+
+No se cambia nada de lo que ya hay en la caja fuerte: una entrada cuyo nombre ya existe se omite, así que importar dos veces el mismo archivo no añade nada. Antes de escribir nada se te dice lo que se ha encontrado. Una exportación sin cifrar es toda tu lista de contraseñas en claro, así que borra el archivo cuando termine la importación.
+
 ### Copiar, y el portapapeles
 
 Darte una contraseña significa ponerla en el portapapeles, que es un sitio realmente expuesto donde dejarla. Alrededor de cada copia pasan dos cosas:

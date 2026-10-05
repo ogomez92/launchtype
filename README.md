@@ -568,6 +568,19 @@ Add, Edit and Delete work the way they do everywhere else in the app. Each entry
 
 Once open, the vault relocks by itself after five idle minutes and the key is wiped from memory — not merely ignored — by a background timer, so walking away from the machine closes it. Set the timeout to 0 in Settings and it will ask for the master password on every single copy. "Lock the vault now" and "Change the master password" sit at the bottom of the list; changing the password is instant, because the entries are not encrypted with the password itself (see below).
 
+### Importing from Bitwarden
+
+"Import a Bitwarden export file" at the bottom of the list reads a file made by Bitwarden's "Export vault": the `.json` export, the `.csv` export, or a password-protected `.json` export (you are asked for the export password; both PBKDF2 and Argon2id are supported). An "account restricted" export can only be opened by Bitwarden itself, and the `.zip` export with attachments is not read either; for those, export again.
+
+Each thing worth copying becomes an entry of its own, named after the item:
+
+- a login's password as "GitHub (you)", and its authenticator seed as "GitHub (you) (code)", which copies the current code rather than the seed, Steam Guard codes included;
+- a card's number, security code, expiry and cardholder;
+- each filled-in identity field, with the address as one entry;
+- a secure note's text, an SSH key's private and public halves, and any item's notes and text or hidden custom fields.
+
+Nothing already in the vault is changed: an entry whose name is taken is skipped, so importing the same file twice adds nothing. You are told what was found before anything is written. An unencrypted export is your whole password list in the clear, so delete the file once the import is done.
+
 ### Copying, and the clipboard
 
 Handing a password over means putting it on the clipboard, and that is a genuinely exposed place to leave one. Two things happen around each copy:

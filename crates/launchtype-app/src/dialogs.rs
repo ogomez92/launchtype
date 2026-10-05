@@ -17,7 +17,6 @@ use launchtype_core::snippet_vars;
 use launchtype_core::timers::TimerDef;
 use launchtype_core::totp::{Totp, TotpError};
 use launchtype_core::vault::EntryKind;
-use launchtype_services::bitwarden::TwoFactor;
 use launchtype_services::sounds::{SoundPlayer, ALARM_SOUNDS, TIMER_SOUNDS};
 use wxdragon::dialogs::dir_dialog::DirDialog;
 use wxdragon::dialogs::file_dialog::{FileDialog, FileDialogStyle};
@@ -1887,120 +1886,24 @@ pub fn totp_error_text(error: &TotpError) -> String {
     }
 }
 
-/// What the Bitwarden import needs to reach a server and log in.
-///
-/// A non-empty `session` wins outright: the login fields are then ignored, and
-/// nothing is asked of the server beyond reading the vault.
-pub struct BitwardenImportFields {
-    pub session: String,
-    pub server: String,
-    pub email: String,
-    pub password: String,
-    pub two_factor: TwoFactor,
-    pub code: String,
-}
-
-/// The two-step rows, in the order the Choice lists them.
-const TWO_FACTOR_METHODS: [TwoFactor; 4] =
-    [TwoFactor::None, TwoFactor::Authenticator, TwoFactor::Email, TwoFactor::YubiKey];
-
-/// Ask for the Bitwarden / Vaultwarden account to import from.
-///
-/// # The two ways in, in one dialog
-///
-/// The session key comes first because it is the shortest way through and the
-/// only one that works for every account: `bw unlock --raw` in a terminal
-/// answers whatever second factor the account uses — including Duo and
-/// WebAuthn, which cannot be answered by typing a code into a box — and prints
-/// a key that needs no factor at all. Filling it in makes the rest of the
-/// dialog irrelevant, which is what its label says.
-///
-/// wxWidgets 0.9 has no `enable()` on plain windows here, so the login fields
-/// cannot be greyed out while a key is present. Saying so in the label is the
-/// honest alternative to a box that silently ignores what was typed into it.
-///
-/// # Masking
-///
-/// The master password is masked; the session key is not, matching the
-/// Notebrook token field. A key is pasted rather than typed and is worth being
-/// able to read back to check — and a masked field is announced by a screen
-/// reader as nothing at all, which would leave no way to tell a truncated
-/// paste from a good one.
-///
-/// Nothing typed here is saved except the server address.
-pub fn bitwarden_import_dialog(parent: &Frame, server: &str) -> Option<BitwardenImportFields> {
-    let dialog = Dialog::builder(parent, &tr("Import from Bitwarden")).build();
+/// Ask for the password a Bitwarden export was protected with when it was
+/// made. Not the account's master password, unless the user chose the same
+/// one — the label says which is wanted, because that is the mix-up to expect.
+pub fn export_password_dialog(parent: &Frame) -> Option<String> {
+    let dialog = Dialog::builder(parent, &tr("Import a Bitwarden export")).build();
     let sizer = BoxSizer::builder(Orientation::Vertical).build();
     let help = StaticText::builder(&dialog)
-        .with_label(&tr(
-            "Copy passwords and authenticator codes out of a Bitwarden or Vaultwarden account into this vault. Nothing already here is changed or overwritten, and only the server address is remembered afterwards.",
-        ))
+        .with_label(&tr("This export is password protected. Enter the password that was chosen when it was exported from Bitwarden."))
         .build();
     sizer.add(&help, 0, SizerFlag::All, 5);
-
-    let session_help = StaticText::builder(&dialog)
-        .with_label(&tr(
-            "If you already use the bw command line tool, run \"bw unlock --raw\" and paste the key it prints. That works whatever second factor your account uses, and your own login is left signed in afterwards.",
-        ))
-        .build();
-    sizer.add(&session_help, 0, SizerFlag::All, 5);
-    let session_entry =
-        labeled_row(&dialog, &sizer, &tr("Session &key (fill this in and the rest is ignored):"));
-
-    let server_entry = labeled_row(&dialog, &sizer, &tr("Server &URL:"));
-    server_entry.set_value(server);
-    let email_entry = labeled_row(&dialog, &sizer, &tr("&Email address:"));
-    let password_entry = labeled_password_row(&dialog, &sizer, &tr("Bitwarden &master password:"));
-
-    let method_title = tr("T&wo-step login:");
-    let method_label = StaticText::builder(&dialog).with_label(&method_title).build();
-    sizer.add(&method_label, 0, SizerFlag::All, 0);
-    let method_choice = Choice::builder(&dialog).build();
-    ax_name(&method_choice, &method_title);
-    method_choice.append(&tr("Not used on this account"));
-    method_choice.append(&tr("Authenticator app"));
-    method_choice.append(&tr("Code sent by email"));
-    method_choice.append(&tr("YubiKey OTP"));
-    method_choice.set_selection(0);
-    sizer.add(&method_choice, 0, SizerFlag::Expand, 0);
-
-    let code_entry = labeled_row(&dialog, &sizer, &tr("Two-step &code:"));
+    let entry = labeled_password_row(&dialog, &sizer, &tr("Export &password:"));
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
     dialog.set_sizer_and_fit(sizer, true);
 
     {
         ok.on_click(move |_| {
-            // A session key answers everything; none of the rest is needed.
-            if !session_entry.get_value().trim().is_empty() {
-                dialog.end_modal(ID_OK);
-                return;
-            }
-            if server_entry.get_value().trim().is_empty() {
-                error_box(
-                    &dialog,
-                    &tr("Please enter the address of your Bitwarden or Vaultwarden server."),
-                    &tr("Error"),
-                );
-                return;
-            }
-            if email_entry.get_value().trim().is_empty() || password_entry.get_value().is_empty() {
-                error_box(
-                    &dialog,
-                    &tr("Please enter the email address and master password of the account to import from."),
-                    &tr("Error"),
-                );
-                return;
-            }
-            // Caught here rather than by the server: a method with no code is
-            // a login that cannot possibly succeed.
-            if chosen_two_factor(&method_choice) != TwoFactor::None
-                && code_entry.get_value().trim().is_empty()
-            {
-                error_box(
-                    &dialog,
-                    &tr("Please enter your two-step login code, or set the two-step login to \"Not used on this account\"."),
-                    &tr("Error"),
-                );
+            if entry.get_value().is_empty() {
+                error_box(&dialog, &tr("Please enter the export password."), &tr("Error"));
                 return;
             }
             dialog.end_modal(ID_OK);
@@ -2013,67 +1916,48 @@ pub fn bitwarden_import_dialog(parent: &Frame, server: &str) -> Option<Bitwarden
     if dialog.show_modal() != ID_OK {
         return None;
     }
-    Some(BitwardenImportFields {
-        session: session_entry.get_value().trim().to_string(),
-        server: server_entry.get_value().trim().to_string(),
-        email: email_entry.get_value().trim().to_string(),
-        password: password_entry.get_value(),
-        two_factor: chosen_two_factor(&method_choice),
-        code: code_entry.get_value().trim().to_string(),
-    })
-}
-
-fn chosen_two_factor(choice: &Choice) -> TwoFactor {
-    let index = choice.get_selection().unwrap_or(0) as usize;
-    TWO_FACTOR_METHODS.get(index).copied().unwrap_or_default()
+    Some(entry.get_value())
 }
 
 /// Show what the import found and ask before any of it is written.
 ///
-/// Worth a confirmation even though the import never overwrites anything: a
-/// mistyped server or the wrong account can turn up hundreds of entries that
-/// belong to something else, and finding that out before they are in the vault
-/// is much better than deleting them one at a time afterwards.
+/// Worth a confirmation even though the import never overwrites anything: the
+/// wrong file can turn up hundreds of entries that belong to something else,
+/// and finding that out before they are in the vault is much better than
+/// deleting them one at a time afterwards.
 pub fn confirm_bitwarden_import(parent: &Frame, plan: &ImportPlan) -> bool {
     let mut body = format_args(
-        &tr("Found {passwords} passwords and {codes} authenticator codes to add."),
+        &tr("Found {passwords} passwords, {codes} authenticator codes and {others} other details, such as card numbers, notes and custom fields, to add."),
         &[
             ("passwords", Arg::Int(plan.passwords() as i64)),
             ("codes", Arg::Int(plan.codes() as i64)),
+            ("others", Arg::Int(plan.others() as i64)),
         ],
     );
     if plan.already_there > 0 {
-        body.push_str("
-
-");
+        body.push_str("\n\n");
         body.push_str(&format_args(
             &tr("{count} are already in this vault under the same name and will be left alone."),
             &[("count", Arg::Int(plan.already_there as i64))],
         ));
     }
     if plan.unsupported > 0 {
-        body.push_str("
-
-");
+        body.push_str("\n\n");
         body.push_str(&format_args(
-            &tr("{count} items are cards, identities or secure notes, which this vault has no room for, and will be skipped."),
+            &tr("{count} items are of a kind this version does not know, and will be skipped."),
             &[("count", Arg::Int(plan.unsupported as i64))],
         ));
     }
     if !plan.unreadable_codes.is_empty() {
-        body.push_str("
-
-");
+        body.push_str("\n\n");
         body.push_str(&format_args(
             &tr("The authenticator seed could not be read for: {names}. Everything else about those items still comes across."),
             &[("names", Arg::Str(&plan.unreadable_codes.join(", ")))],
         ));
     }
-    body.push_str("
-
-");
+    body.push_str("\n\n");
     body.push_str(&tr("Add them to the vault now?"));
-    question_box(parent, &body, &tr("Import from Bitwarden"))
+    question_box(parent, &body, &tr("Import a Bitwarden export"))
 }
 
 /// Warn before setting up a vault on top of encrypted files whose key file is
