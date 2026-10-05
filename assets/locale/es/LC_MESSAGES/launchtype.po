@@ -3432,3 +3432,34 @@ msgstr "El acceso abreviado {shortcut} ya pertenece a {owner}."
 #: crates/launchtype-app/src/shell.rs
 msgid "Shortcut removed"
 msgstr "Acceso abreviado eliminado"
+#: crates/launchtype-app/src/controller.rs
+msgid "{name}, current"
+msgstr "{name}, actual"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "audio input mode, choose a device and press enter to make it the default"
+msgstr "modo de entrada de audio, elige un dispositivo y pulsa intro para que sea el predeterminado"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "audio output mode, each device plays a tone as you select it, press enter to make it the default"
+msgstr "modo de salida de audio, cada dispositivo suena al seleccionarlo, pulsa intro para que sea el predeterminado"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Audio input devices"
+msgstr "Dispositivos de entrada de audio"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Audio output devices"
+msgstr "Dispositivos de salida de audio"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Could not switch to {name}: {reason}"
+msgstr "No se ha podido cambiar a {name}: {reason}"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "{name} is now the default input"
+msgstr "{name} es ahora la entrada predeterminada"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "{name} is now the default output"
+msgstr "{name} es ahora la salida predeterminada"
