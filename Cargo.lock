@@ -2107,6 +2107,9 @@ dependencies = [
  "image",
  "launchtype-core",
  "log",
+ "objc2-core-audio",
+ "objc2-core-audio-types",
+ "objc2-core-foundation",
  "open",
  "plist",
  "russh",
@@ -2118,6 +2121,7 @@ dependencies = [
  "ureq",
  "uuid",
  "windows 0.61.3",
+ "windows-core 0.61.2",
  "xcap",
  "zeroize",
 ]

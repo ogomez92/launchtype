@@ -598,6 +598,14 @@ Worth stating plainly, since "encrypted" on its own means very little:
 - **Entry names are inside the ciphertext too.** Files are named after a random uuid, not after the entry, because a folder listing full of `amazon.enc` and `work-vpn.enc` gives away most of what a password list is worth. Someone who gets the folder learns how many entries there are and roughly how long each one is — nothing else. The uuid is authenticated alongside the contents, so entry files cannot be swapped around either.
 - Decrypted text exists only in memory, in buffers that wipe themselves when dropped, and only one secret is decrypted at a time — unlocking reads the names, not the secrets.
 
+## Audio device modes
+
+Press `{` (open brace) to list the devices that can record, or `}` (close brace) for the ones that can play: speakers, headphones, AirPods, USB interfaces, virtual devices. The one the system uses right now is marked "current". Type to narrow the list by name, and press Enter on a device to make it the system default. The window stays open and says what it switched to, so you can switch the other direction straight after.
+
+In `}` mode every output plays a short beep (a tenth of a second of A440) the moment it is selected, whether you got there by arrowing or by typing. The beep goes through that device only and leaves the default alone, so you can find out which of three similarly named headsets is the one on your head before committing to it.
+
+On Windows the switch covers all three roles the Sound control panel sets (console, multimedia and communications), so calls follow it too.
+
 ## Run as administrator
 
 When adding or editing a command you can tick the "Run as administrator" checkbox. The command will be launched with elevated privileges (a UAC prompt will appear on launch).
@@ -629,6 +637,8 @@ The app has several modes, each accessed by typing a special character in the in
 | `*` | Encrypted vault | Passwords and other secrets, encrypted behind a master password |
 | `_` | Substitution variables | The `{{name}}` variables you write for yourself, used by snippets and commands alike |
 | `/` | Paths | Act on the files on the clipboard: convert, transcribe, ask Claude, open |
+| `{` | Audio inputs | Make a microphone or other input the system default |
+| `}` | Audio outputs | Make a speaker or headset the system default, hearing each one first |
 | `.` | (any mode) | Return to Commands mode |
 
 ## Audio Feedback

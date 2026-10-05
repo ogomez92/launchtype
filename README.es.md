@@ -598,6 +598,14 @@ Merece la pena decirlo claramente, porque "cifrado" por sí solo significa muy p
 - **Los nombres de las entradas también están dentro del cifrado.** Los archivos se llaman como un uuid aleatorio, no como la entrada, porque un listado de carpeta lleno de `amazon.enc` y `vpn-trabajo.enc` revela casi todo lo que vale una lista de contraseñas. Quien consiga la carpeta sabrá cuántas entradas hay y más o menos cuánto ocupa cada una; nada más. El uuid se autentica junto con el contenido, así que tampoco se pueden intercambiar los archivos entre sí.
 - El texto descifrado solo existe en memoria, en búferes que se borran solos al liberarse, y solo se descifra un secreto cada vez: al desbloquear se leen los nombres, no los secretos.
 
+## Modos de dispositivos de audio
+
+Pulsa `{` (abrir llave) para ver los dispositivos que graban, o `}` (cerrar llave) para los que reproducen: altavoces, auriculares, AirPods, interfaces USB, dispositivos virtuales. El que usa el sistema ahora mismo lleva la marca "actual". Escribe para filtrar por nombre y pulsa intro sobre un dispositivo para que pase a ser el predeterminado del sistema. La ventana se queda abierta y dice a cuál has cambiado, así que puedes cambiar el otro sentido justo después.
+
+En el modo `}` cada salida suena con un pitido corto (una décima de segundo de La 440) en cuanto se selecciona, tanto si llegas con las flechas como escribiendo. El pitido sale solo por ese dispositivo y no toca el predeterminado, así que puedes averiguar cuál de tres auriculares con nombres parecidos es el que llevas puesto antes de cambiar.
+
+En Windows el cambio abarca los tres usos que fija el panel de Sonido (consola, multimedia y comunicaciones), así que las llamadas también lo siguen.
+
 ## Ejecutar como administrador
 
 Al añadir o editar un comando puedes marcar la casilla "Ejecutar como administrador". El comando se lanzará con privilegios elevados (aparecerá el cuadro de UAC al ejecutarlo).
@@ -629,6 +637,8 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `*` | Caja fuerte cifrada | Contraseñas y otros secretos, cifrados tras una contraseña maestra |
 | `_` | Variables de sustitución | Las variables `{{nombre}}` que escribes tú, y que usan tanto las sustituciones como los comandos |
 | `/` | Rutas | Actúa sobre los archivos del portapapeles: convertir, transcribir, preguntar a Claude, abrir |
+| `{` | Entradas de audio | Hace predeterminado un micrófono u otra entrada |
+| `}` | Salidas de audio | Hace predeterminado un altavoz o auricular, oyendo cada uno antes |
 | `.` | (cualquier modo) | Volver al modo Comandos |
 
 ## Retroalimentación de audio

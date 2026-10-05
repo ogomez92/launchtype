@@ -5,6 +5,7 @@
 pub mod ai;
 pub mod alerts;
 pub mod apps;
+pub mod audio_devices;
 pub mod clipboard;
 pub mod media;
 pub mod notebrook;

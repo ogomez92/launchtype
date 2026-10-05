@@ -17,6 +17,7 @@ use launchtype_services::scheduler::Scheduler;
 use launchtype_services::sounds::SoundPlayer;
 use launchtype_services::ssh::SshSession;
 use launchtype_services::vault::VaultLocker;
+use launchtype_services::audio_devices::{self, Direction};
 use launchtype_services::{apps, clipboard, notebrook, steam};
 use wxdragon::dialogs::file_dialog::{FileDialog, FileDialogStyle};
 use wxdragon::prelude::*;
@@ -268,7 +269,13 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
             let target = (current + step).clamp(0, count - 1);
             s.list.set_selection(target as u32, true);
             s.list.set_focus();
+            preview_audio_output(&s);
         });
+    }
+    // Arrowing through the outputs list sounds each one as it is reached.
+    {
+        let shell = shell.clone();
+        list.on_selection_changed(move |_| preview_audio_output(&shell.borrow()));
     }
     {
         let shell = shell.clone();
@@ -844,7 +851,8 @@ pub fn update_list(shell: &SharedShell) {
             ItemKind::Stat
             | ItemKind::Region { .. }
             | ItemKind::Conversion { .. }
-            | ItemKind::PathAction { .. } => item.name.clone(),
+            | ItemKind::PathAction { .. }
+            | ItemKind::AudioDevice { .. } => item.name.clone(),
             _ => item.name.chars().take(40).collect(),
         };
         if !item.shortcut.is_empty() {
@@ -859,6 +867,7 @@ pub fn update_list(shell: &SharedShell) {
     if !s.items.is_empty() && mode != UiMode::Ssh {
         s.list.set_selection(0, true);
         if !value.is_empty() {
+            preview_audio_output(&s);
             let count = s.items.len();
             let first = s.list.get_string(0).unwrap_or_default();
             if count == 1 {
@@ -916,6 +925,8 @@ fn apply_mode_switch(s: &mut Shell, new_mode: UiMode) -> ModeEntry {
         // cannot reach the app you installed this morning. The walk runs
         // while the announcement above is still being spoken.
         UiMode::Apps => s.controller.rescan_apps(),
+        UiMode::AudioInputs => s.controller.rescan_audio_devices(Direction::Input),
+        UiMode::AudioOutputs => s.controller.rescan_audio_devices(Direction::Output),
         UiMode::Ssh => entry = ModeEntry::Ssh,
         UiMode::Vault => entry = ModeEntry::Vault,
         _ => {}
@@ -977,6 +988,12 @@ fn mode_announcement(mode: UiMode) -> String {
         UiMode::Variables => tr("substitution variables mode"),
         // Entering `/` always reports what it found; see [`path_announcement`].
         UiMode::Paths => tr("path mode"),
+        UiMode::AudioInputs => {
+            tr("audio input mode, choose a device and press enter to make it the default")
+        }
+        UiMode::AudioOutputs => tr(
+            "audio output mode, each device plays a tone as you select it, press enter to make it the default"
+        ),
         UiMode::Regions => unreachable!("no trigger char"),
     }
 }
@@ -1012,6 +1029,8 @@ fn mode_name(mode: UiMode) -> String {
         UiMode::Snippets => tr("Snippets"),
         UiMode::Variables => tr("Substitution variables"),
         UiMode::Paths => tr("Paths on the clipboard"),
+        UiMode::AudioInputs => tr("Audio input devices"),
+        UiMode::AudioOutputs => tr("Audio output devices"),
         UiMode::Clipboard => tr("Clipboard history"),
         UiMode::Steam => tr("Steam games"),
         UiMode::Apps => tr("Applications"),
@@ -1197,6 +1216,9 @@ pub fn run_clicked(shell: &SharedShell) {
         // their own progress, and mostly finish long after this returns — so
         // like the screenshot ones they keep the window and handle themselves.
         ItemKind::PathAction { action } => crate::path_flows::run_action(shell, action),
+        ItemKind::AudioDevice { direction, device } => {
+            switch_audio_device(shell, &item.id, &device, direction)
+        }
         // A region: crop it out of the last screenshot, copy the crop, and
         // describe it. Keep the window open so more regions can be chosen.
         ItemKind::Region { r#box } => crate::ai_flows::crop_and_describe_region(shell, r#box),
@@ -1210,6 +1232,49 @@ pub fn run_clicked(shell: &SharedShell) {
         }
         other => run_and_report(shell, &item, other),
     }
+}
+
+/// Sound the test tone through the selected device, if it is an output. Called
+/// wherever the selection moves — arrows in the list or the input field, and
+/// typing — since a programmatic selection raises no event of its own.
+fn preview_audio_output(s: &Shell) {
+    let Some(index) = s.list.get_selection() else { return };
+    if let Some(Item { id, kind: ItemKind::AudioDevice { direction: Direction::Output, .. }, .. }) =
+        s.items.get(index as usize)
+    {
+        audio_devices::play_tone(id);
+    }
+}
+
+/// Make the selected device the system default, and keep the window up with
+/// the selection on it, so the list's "current" can be heard to have moved.
+fn switch_audio_device(shell: &SharedShell, id: &str, name: &str, direction: Direction) {
+    if let Err(error) = audio_devices::set_default(direction, id) {
+        speak_now(
+            &format_args(
+                &tr("Could not switch to {name}: {reason}"),
+                &[("name", Arg::Str(name)), ("reason", Arg::Str(&error))],
+            ),
+            true,
+        );
+        return;
+    }
+    {
+        let mut s = shell.borrow_mut();
+        s.sounds.play("match");
+        s.controller.rescan_audio_devices(direction);
+        s.edit.change_value("");
+    }
+    update_list(shell);
+    let s = shell.borrow();
+    if let Some(index) = s.items.iter().position(|other| other.id == id) {
+        s.list.set_selection(index as u32, true);
+    }
+    let message = match direction {
+        Direction::Input => tr("{name} is now the default input"),
+        Direction::Output => tr("{name} is now the default output"),
+    };
+    speak_now(&format_args(&message, &[("name", Arg::Str(name))]), true);
 }
 
 /// Hide the window and run, reporting a failure once it is back up.
