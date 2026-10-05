@@ -1,7 +1,8 @@
 //! Credential parsing for the AI/usage features (pure parts; the HTTP calls
 //! live in `launchtype-services`).
 //!
-//! - Claude: OAuth access token from `~/.claude/.credentials.json`
+//! - Claude: OAuth access token from `~/.claude/.credentials.json` (the
+//!   login Keychain on macOS)
 //! - Codex: `~/.codex/auth.json` tokens with hourly-expiring JWTs. OpenAI
 //!   rotates refresh tokens, so a refresh response must be written back
 //!   (skipping the write-back would invalidate the stored refresh token).
