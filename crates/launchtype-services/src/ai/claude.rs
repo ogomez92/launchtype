@@ -1,6 +1,7 @@
 //! Claude vision via the user's Claude Code subscription OAuth token
-//! (`~/.claude/.credentials.json`). The token is only accepted when the
-//! request presents the fixed Claude Code system identity.
+//! (`~/.claude/.credentials.json`, or the login Keychain on macOS). The token
+//! is only accepted when the request presents the fixed Claude Code system
+//! identity.
 
 use base64::Engine;
 use launchtype_core::ai_auth::claude_access_token;
@@ -38,13 +39,41 @@ fn read_claude_token() -> Result<String, AiError> {
     claude_token_from_disk().ok_or_else(not_found)
 }
 
-/// The access token Claude Code keeps in `~/.claude/.credentials.json`, read
-/// fresh each time so a refresh by the CLI is picked up.
+/// The access token Claude Code keeps in `~/.claude/.credentials.json` (or,
+/// on macOS, in the login Keychain), read fresh each time so a refresh by the
+/// CLI is picked up.
 pub fn claude_token_from_disk() -> Option<String> {
-    let path = dirs::home_dir()?.join(".claude").join(".credentials.json");
-    let text = std::fs::read_to_string(path).ok()?;
+    let text = credentials_file().or_else(credentials_keychain)?;
     let credentials: serde_json::Value = serde_json::from_str(&text).ok()?;
     claude_access_token(&credentials)
+}
+
+fn credentials_file() -> Option<String> {
+    let path = dirs::home_dir()?.join(".claude").join(".credentials.json");
+    std::fs::read_to_string(path).ok()
+}
+
+/// On macOS Claude Code never writes `.credentials.json`: the same JSON goes
+/// into a generic password item in the login Keychain instead. The first read
+/// makes macOS ask the user to allow it.
+#[cfg(target_os = "macos")]
+fn credentials_keychain() -> Option<String> {
+    // Absolute path, never a `PATH` lookup — see `program.rs`.
+    let output = std::process::Command::new("/usr/bin/security")
+        .args(["find-generic-password", "-s", "Claude Code-credentials", "-w"])
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    String::from_utf8(output.stdout).ok()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn credentials_keychain() -> Option<String> {
+    None
 }
 
 /// Let Claude Code renew its own session. The access token lives a few hours
