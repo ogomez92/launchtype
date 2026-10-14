@@ -102,6 +102,8 @@ pub struct ModeController {
     pub alarms: AlarmStore,
     pub steam_library: PathBuf,
     steam_games: Vec<launchtype_core::steam::SteamGame>,
+    /// The shortcuts the user has given some of those games, by appid.
+    pub steam_shortcuts: AppShortcutsStore,
     /// Everything the OS says is installed. Refreshed on entering `@` and held
     /// for the keystrokes that follow — the scan costs a few hundred
     /// milliseconds, which is fine once per visit and not once per letter.
@@ -135,6 +137,7 @@ impl ModeController {
         timers: TimerStore,
         alarms: AlarmStore,
         steam_library: PathBuf,
+        steam_shortcuts: AppShortcutsStore,
         app_shortcuts: AppShortcutsStore,
         sounds: Arc<SoundPlayer>,
     ) -> Self {
@@ -149,6 +152,7 @@ impl ModeController {
             alarms,
             steam_library,
             steam_games: Vec::new(),
+            steam_shortcuts,
             apps: Vec::new(),
             app_shortcuts,
             sounds,
@@ -176,6 +180,15 @@ impl ModeController {
 
     pub fn rescan_steam(&mut self) {
         self.steam_games = scan_games(&self.steam_library);
+    }
+
+    /// Where the shortcuts given to `mode`'s rows are kept: Steam games have a
+    /// file of their own, and anything else is an installed app.
+    pub fn launch_shortcuts(&mut self, mode: UiMode) -> &mut AppShortcutsStore {
+        match mode {
+            UiMode::Steam => &mut self.steam_shortcuts,
+            _ => &mut self.app_shortcuts,
+        }
     }
 
     /// Rescan the installed applications, less the Steam games `,` mode owns.
@@ -324,6 +337,9 @@ impl ModeController {
         self.shortcut_then_fuzzy(search, items, true)
     }
 
+    /// Installed Steam games. A shortcut the user has given a game wins
+    /// outright, as in `@` mode; the row's id is its appid, which is what the
+    /// shortcut is filed under.
     fn steam_items(&mut self, search: &str) -> Vec<Item> {
         if self.steam_games.is_empty() {
             self.rescan_steam();
@@ -333,13 +349,17 @@ impl ModeController {
             .iter()
             .map(|g| Item {
                 name: g.name.clone(),
-                shortcut: String::new(),
-                id: uuid::Uuid::new_v4().to_string(),
+                shortcut: self.steam_shortcuts.shortcuts.get(&g.appid).to_string(),
+                id: g.appid.clone(),
                 kind: ItemKind::Steam { appid: g.appid.clone() },
             })
             .collect();
         if search.is_empty() {
             return items;
+        }
+        if let Some(index) = exact_shortcut_match(search, &items, |i| i.shortcut.clone()) {
+            self.sounds.play("match");
+            return vec![items[index].clone()];
         }
         let results = fuzzy_search(search, items, |i| i.name.clone());
         self.sounds.play("type");

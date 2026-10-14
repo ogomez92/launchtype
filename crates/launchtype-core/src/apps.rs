@@ -128,6 +128,9 @@ pub const SHORTCUTS_FILE: &str = "app_shortcuts.json";
 /// of a row that stays put across scans. A shortcut whose app has since been
 /// uninstalled simply never matches; it costs a line in the file and comes back
 /// to life if the app does.
+///
+/// Steam games in `,` mode use the same type, keyed by appid, in a file of
+/// their own ([`crate::steam::SHORTCUTS_FILE`]).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AppShortcuts {
     by_target: std::collections::BTreeMap<String, String>,

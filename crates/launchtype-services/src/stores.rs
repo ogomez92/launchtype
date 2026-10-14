@@ -119,9 +119,10 @@ impl CommandsStore {
     }
 }
 
-/// The shortcuts given to installed apps, in `app_shortcuts.json`. Unlike the
-/// stores above, nothing is written until the first shortcut is: most people
-/// never set one, and an empty file beside their data says nothing.
+/// The shortcuts given to installed apps, in `app_shortcuts.json`, or to Steam
+/// games, in `steam_shortcuts.json`. Unlike the stores above, nothing is
+/// written until the first shortcut is: most people never set one, and an
+/// empty file beside their data says nothing.
 pub struct AppShortcutsStore {
     path: PathBuf,
     pub shortcuts: AppShortcuts,

@@ -2,6 +2,11 @@
 //! `services/steam_scanner.py` (regexes `"appid"\s+"(\d+)"` and
 //! `"name"\s+"([^"]+)"`). Directory scanning lives in `launchtype-services`.
 
+/// The file the shortcuts given to Steam games are kept in, beside
+/// `commands.json`. It holds an [`crate::apps::AppShortcuts`] keyed by appid,
+/// which, unlike the manifest's name, never changes.
+pub const SHORTCUTS_FILE: &str = "steam_shortcuts.json";
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SteamGame {
     /// Spelled the way the manifest spells it; matching folds case itself.

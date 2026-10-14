@@ -144,6 +144,7 @@ fn main() {
     let commands = CommandsStore::load(commands_file);
     let timers = TimerStore::load("timers.json", now);
     let alarms = AlarmStore::load("alarms.json");
+    let steam_shortcuts = AppShortcutsStore::load(launchtype_core::steam::SHORTCUTS_FILE);
     let app_shortcuts = AppShortcutsStore::load(launchtype_core::apps::SHORTCUTS_FILE);
     let clipboard = Arc::new(Mutex::new(launchtype_core::clipboard_history::load_history(
         std::path::Path::new("clipboard_history.json"),
@@ -163,6 +164,7 @@ fn main() {
         timers,
         alarms,
         PathBuf::from(steam_library),
+        steam_shortcuts,
         app_shortcuts,
         sounds.clone(),
     );

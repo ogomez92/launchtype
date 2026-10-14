@@ -3511,3 +3511,7 @@ msgstr "{name} es ahora la entrada predeterminada"
 #: crates/launchtype-app/src/shell.rs
 msgid "{name} is now the default output"
 msgstr "{name} es ahora la salida predeterminada"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Type this shortcut in Steam games mode and this game is the only result. Leave it empty to remove the shortcut."
+msgstr "Escribe este acceso abreviado en el modo de juegos de Steam y este juego será el único resultado. Déjalo vacío para quitar el acceso abreviado."

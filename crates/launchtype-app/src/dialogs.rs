@@ -10,6 +10,7 @@ use launchtype_core::alarms::AlarmDef;
 use launchtype_core::bitwarden::ImportPlan;
 use launchtype_core::i18n::{format_args, tr, Arg};
 use launchtype_core::merge;
+use launchtype_core::mode::UiMode;
 use launchtype_core::model::Command;
 use launchtype_core::portable::{self, Target, VarSpec};
 use launchtype_core::query;
@@ -1508,30 +1509,40 @@ pub fn alarm_dialog(
     }
 }
 
-/// Give an installed app a shortcut, or change or clear the one it has.
-/// `target` is the app's [`launchtype_core::apps::AppTarget::as_str`]. Returns
-/// whether anything was saved.
+/// Give an installed app (`mode` is [`UiMode::Apps`]) or a Steam game
+/// ([`UiMode::Steam`]) a shortcut, or change or clear the one it has. `id` is
+/// the row's id — the app's [`launchtype_core::apps::AppTarget::as_str`] or the
+/// game's appid. Returns whether anything was saved.
 ///
-/// Apps come from the OS and are not the user's to rename or repoint, so the
-/// shortcut is the one thing there is to edit and the dialog holds nothing
-/// else. Clearing the field and pressing OK takes the shortcut away.
+/// Apps and games come from the OS and Steam and are not the user's to rename
+/// or repoint, so the shortcut is the one thing there is to edit and the
+/// dialog holds nothing else. Clearing the field and pressing OK takes the
+/// shortcut away.
 pub fn app_shortcut_dialog(
     parent: &Frame,
     controller: &mut ModeController,
+    mode: UiMode,
     name: &str,
-    target: &str,
+    id: &str,
 ) -> bool {
     let title = format_args(&tr("Shortcut for {name}"), &[("name", Arg::Str(name))]);
     let dialog = Dialog::builder(parent, &title).build();
     let sizer = BoxSizer::builder(Orientation::Vertical).build();
 
-    let help = tr(
-        "Type this shortcut in applications mode and this app is the only result. Leave it \
-         empty to remove the shortcut.",
-    );
+    let help = if mode == UiMode::Steam {
+        tr(
+            "Type this shortcut in Steam games mode and this game is the only result. Leave it \
+             empty to remove the shortcut.",
+        )
+    } else {
+        tr(
+            "Type this shortcut in applications mode and this app is the only result. Leave it \
+             empty to remove the shortcut.",
+        )
+    };
     sizer.add(&StaticText::builder(&dialog).with_label(&help).build(), 0, SizerFlag::All, 0);
     let shortcut_entry = labeled_row(&dialog, &sizer, &tr("&Shortcut (optional):"));
-    shortcut_entry.set_value(controller.app_shortcuts.shortcuts.get(target));
+    shortcut_entry.set_value(controller.launch_shortcuts(mode).shortcuts.get(id));
 
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
     dialog.set_sizer_and_fit(sizer, true);
@@ -1539,23 +1550,23 @@ pub fn app_shortcut_dialog(
     // Who holds what, worked out before the modal so the OK handler needs no
     // borrow of the controller.
     let taken: Vec<(String, String)> = controller
-        .items_for("", launchtype_core::mode::UiMode::Apps)
+        .items_for("", mode)
         .into_iter()
-        .filter(|item| !item.shortcut.is_empty() && item.id != target)
+        .filter(|item| !item.shortcut.is_empty() && item.id != id)
         .map(|item| (item.shortcut, item.name))
         .collect();
-    let own_target = target.to_string();
-    let stored = controller.app_shortcuts.shortcuts.clone();
+    let own_id = id.to_string();
+    let stored = controller.launch_shortcuts(mode).shortcuts.clone();
     {
         ok.on_click(move |_| {
             let shortcut = shortcut_entry.get_value().trim().to_lowercase();
-            // An app the last scan did not list can still hold a shortcut in
-            // the file; it is named by its target then.
+            // An app or game the last scan did not list can still hold a
+            // shortcut in the file; it is named by its id then.
             let owner = taken
                 .iter()
                 .find(|(held, _)| *held == shortcut)
                 .map(|(_, owner)| owner.clone())
-                .or_else(|| stored.owner(&shortcut, &own_target).map(str::to_string));
+                .or_else(|| stored.owner(&shortcut, &own_id).map(str::to_string));
             if let Some(owner) = owner {
                 error_box(
                     &dialog,
@@ -1577,8 +1588,8 @@ pub fn app_shortcut_dialog(
     if dialog.show_modal() != ID_OK {
         return false;
     }
-    if let Err(error) = controller.app_shortcuts.set(target, &shortcut_entry.get_value()) {
-        log::warn!("app shortcut save failed: {error}");
+    if let Err(error) = controller.launch_shortcuts(mode).set(id, &shortcut_entry.get_value()) {
+        log::warn!("shortcut save failed: {error}");
         return false;
     }
     true

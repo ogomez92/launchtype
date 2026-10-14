@@ -351,6 +351,8 @@ The scanner looks for installed games in your Steam library folder (default: C:\
 
 Once in Steam mode, you can search for games by name using fuzzy matching, just like with commands. Selecting a game will launch it through Steam.
 
+Games can carry shortcuts, the same way apps do in `@` mode: select a game and press Edit (Alt+E), type the shortcut, and press OK. Typing that shortcut exactly in `,` mode then leaves that game as the only result, and the list shows it after the name. Clearing the field takes the shortcut away, and so does Delete on the game — which removes the shortcut only, never the game. A shortcut belongs to one game at a time. They are kept in `steam_shortcuts.json` beside `commands.json`, filed under the game's appid rather than its name, so they survive rescans and renamed games.
+
 To go back to commands mode, press the period key (.).
 
 ## Applications

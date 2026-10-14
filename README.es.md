@@ -351,6 +351,8 @@ El escáner busca los juegos instalados en la carpeta de la biblioteca de Steam 
 
 Estando en modo Steam, puedes buscar juegos por nombre con búsqueda difusa igual que con los comandos. Al seleccionar un juego se lanza a través de Steam.
 
+Los juegos pueden tener accesos abreviados, igual que las aplicaciones en el modo `@`: selecciona un juego, pulsa Editar (Alt+E), escribe el acceso abreviado y pulsa Aceptar. A partir de entonces, escribir exactamente ese acceso abreviado en el modo `,` deja ese juego como único resultado, y la lista lo muestra detrás del nombre. Vaciar el campo quita el acceso abreviado, y también lo quita Eliminar sobre el juego — que solo borra el acceso abreviado, nunca el juego. Cada acceso abreviado pertenece a un solo juego. Se guardan en `steam_shortcuts.json` junto a `commands.json`, asociados al appid del juego y no a su nombre, así que sobreviven a los reescaneos y a los juegos que cambian de nombre.
+
 Para volver a comandos, pulsa la tecla punto (.).
 
 ## Aplicaciones

@@ -358,12 +358,17 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
                 let mut s = shell.borrow_mut();
                 let frame = s.frame;
                 match &item.kind {
-                    // An installed app's shortcut is the one thing about it
-                    // the user can change.
-                    ItemKind::App { .. } => {
+                    // An installed app's or Steam game's shortcut is the one
+                    // thing about it the user can change.
+                    ItemKind::App { .. } | ItemKind::Steam { .. } => {
+                        let mode = match item.kind {
+                            ItemKind::Steam { .. } => UiMode::Steam,
+                            _ => UiMode::Apps,
+                        };
                         crate::dialogs::app_shortcut_dialog(
                             &frame,
                             &mut s.controller,
+                            mode,
                             &item.name,
                             &item.id,
                         );
@@ -519,16 +524,20 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
                 crate::vault_flows::delete_entry(&shell, &item.id, &item.name);
                 return;
             }
-            // An app cannot be deleted from here, only its shortcut; one
-            // without a shortcut has nothing to delete.
-            if matches!(item.kind, ItemKind::App { .. }) {
+            // An app or Steam game cannot be deleted from here, only its
+            // shortcut; one without a shortcut has nothing to delete.
+            if matches!(item.kind, ItemKind::App { .. } | ItemKind::Steam { .. }) {
                 if item.shortcut.is_empty() {
                     return;
                 }
+                let mode = match item.kind {
+                    ItemKind::Steam { .. } => UiMode::Steam,
+                    _ => UiMode::Apps,
+                };
                 let mut s = shell.borrow_mut();
-                match s.controller.app_shortcuts.set(&item.id, "") {
+                match s.controller.launch_shortcuts(mode).set(&item.id, "") {
                     Ok(()) => speak_now(&tr("Shortcut removed"), true),
-                    Err(error) => log::warn!("app shortcut delete failed: {error}"),
+                    Err(error) => log::warn!("shortcut delete failed: {error}"),
                 }
                 drop(s);
                 update_list(&shell);
