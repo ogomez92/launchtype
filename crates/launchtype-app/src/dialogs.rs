@@ -54,6 +54,10 @@ const AI_MODEL_IDS: [&str; 3] = ["claude-opus-4-8", "claude-sonnet-5", "claude-h
 /// `"system"` follows the OS locale; the rest name a shipped catalog.
 const LANGUAGE_CODES: [&str; 3] = [launchtype_core::settings::LANGUAGE_SYSTEM, "en", "es"];
 
+/// `date_format` values, in the order the Settings choice lists them.
+const DATE_FORMATS: [&str; 2] =
+    [launchtype_core::settings::DATE_FORMAT_US, launchtype_core::settings::DATE_FORMAT_EU];
+
 /// Exposes `label` as the accessible name of a control that would otherwise
 /// announce only its type.
 ///
@@ -989,6 +993,22 @@ pub fn settings_dialog(
     language_choice.set_selection(language_index as u32);
     sizer.add(&language_choice, 0, SizerFlag::Expand, 5);
 
+    // How typed dates are read (Google Calendar mode). Both orders put the
+    // year first; the examples are the same day, 1 October, so the difference
+    // is the only thing that changes between them.
+    let date_label = StaticText::builder(&dialog).with_label(&tr("Dat&e format:")).build();
+    sizer.add(&date_label, 0, SizerFlag::All, 5);
+    let date_choice = Choice::builder(&dialog).build();
+    ax_name(&date_choice, &tr("Dat&e format:"));
+    date_choice.append(&tr("Year, month, day (US): 20251001"));
+    date_choice.append(&tr("Year, day, month (European): 20150110"));
+    let date_index = DATE_FORMATS
+        .iter()
+        .position(|format| *format == settings.settings.date_format)
+        .unwrap_or(0);
+    date_choice.set_selection(date_index as u32);
+    sizer.add(&date_choice, 0, SizerFlag::Expand, 5);
+
     // Every commands-shaped JSON sitting next to the app, plus whatever is
     // configured, so a missing file is still shown rather than silently lost.
     let commands_label = StaticText::builder(&dialog).with_label(&tr("Co&mmands file:")).build();
@@ -1184,6 +1204,9 @@ pub fn settings_dialog(
     let language_index = language_choice.get_selection().unwrap_or(0) as usize;
     settings.settings.language =
         LANGUAGE_CODES[language_index.min(LANGUAGE_CODES.len() - 1)].to_string();
+    let date_index = date_choice.get_selection().unwrap_or(0) as usize;
+    settings.settings.date_format =
+        DATE_FORMATS[date_index.min(DATE_FORMATS.len() - 1)].to_string();
     // An empty box means "keep the current file" rather than "no commands".
     let commands_file = commands_combo.get_value().trim().to_string();
     if !commands_file.is_empty() {
@@ -2074,6 +2097,114 @@ pub fn path_question_dialog(
         return None;
     }
     Some(entry.get_value().trim().to_string())
+}
+
+/// Where a new Apps Script project is started.
+const APPS_SCRIPT_NEW_PROJECT: &str = "https://script.google.com/create";
+
+/// Walk through deploying the calendar script, and take the web app URL it
+/// ends up with. `script` is already on the clipboard when this opens; the
+/// button puts it back there in case something else has been copied since.
+pub fn google_calendar_dialog(parent: &Frame, current_url: &str, script: &str) -> Option<String> {
+    let dialog = Dialog::builder(parent, &tr("Set up Google Calendar")).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    // Read-only text rather than a label: these are steps to follow while
+    // switching back and forth to the browser, so they have to be reviewable
+    // line by line with the arrow keys.
+    let steps = TextCtrl::builder(&dialog)
+        .with_style(
+            wxdragon::widgets::textctrl::TextCtrlStyle::MultiLine
+                | wxdragon::widgets::textctrl::TextCtrlStyle::ReadOnly,
+        )
+        .with_size(Size::new(520, 200))
+        .build();
+    let steps_label = tr("Steps");
+    ax_name(&steps, &steps_label);
+    steps.set_value(&tr(
+        "Launchtype reaches your calendar through a small script that runs under your own Google account, so no Google Cloud project is needed. The script has been copied to the clipboard.
+
+1. Open Apps Script with the button below, signed in to Google. A new project opens.
+2. Select everything in its editor and paste the script over it, then save.
+3. Choose Deploy, New deployment, select type Web app. Execute as: Me. Who has access: Anyone. Deploy.
+4. Authorize it when Google asks. Google warns that the app is not verified because it is your own script: choose Advanced, then go to the project.
+5. Copy the web app URL Google shows, and paste it below.",
+    ));
+    sizer.add(&steps, 0, SizerFlag::All, 5);
+
+    let button_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let open_button = Button::builder(&dialog).with_label(&tr("Open &Apps Script")).build();
+    let copy_button = Button::builder(&dialog).with_label(&tr("Copy the &script again")).build();
+    button_row.add(&open_button, 0, SizerFlag::All, 0);
+    button_row.add(&copy_button, 0, SizerFlag::All, 0);
+    sizer.add_sizer(&button_row, 0, SizerFlag::All, 0);
+
+    let url_entry = labeled_row(&dialog, &sizer, &tr("Web app &URL:"));
+    url_entry.set_value(current_url);
+    let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
+    dialog.set_sizer_and_fit(sizer, true);
+
+    open_button.on_click(move |_| {
+        let _ = open::that_detached(APPS_SCRIPT_NEW_PROJECT);
+    });
+    {
+        let script = script.to_string();
+        copy_button.on_click(move |_| {
+            launchtype_services::clipboard::set_text(&script);
+            crate::speech::speak_now(&tr("Script copied"), true);
+        });
+    }
+    ok.on_click(move |_| {
+        if !url_entry.get_value().trim().starts_with("https://script.google.com/") {
+            error_box(
+                &dialog,
+                &tr("Paste the web app URL from Apps Script. It starts with https://script.google.com/"),
+                &tr("Error"),
+            );
+            return;
+        }
+        dialog.end_modal(ID_OK);
+    });
+    cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
+
+    if dialog.show_modal() != ID_OK {
+        return None;
+    }
+    Some(url_entry.get_value().trim().to_string())
+}
+
+/// Warn that a new event's day has already gone by, when the calendar will
+/// never remind anyone of it. True to add it anyway, false to type the day
+/// again — which is also what Escape and Enter do, since a past day is far
+/// more often a slip than a wish.
+pub fn confirm_past_event_day(parent: &Frame, day: &str) -> bool {
+    let dialog = Dialog::builder(parent, &tr("That day has already passed")).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    let message = StaticText::builder(&dialog)
+        .with_label(&format_args(
+            &tr("{day} has already passed, so Google Calendar will not remind you of this event."),
+            &[("day", Arg::Str(day))],
+        ))
+        .build();
+    sizer.add(&message, 0, SizerFlag::All, 5);
+
+    let button_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let continue_button =
+        Button::builder(&dialog).with_id(ID_OK).with_label(&tr("&Continue")).build();
+    let reenter_button = Button::builder(&dialog)
+        .with_id(wxdragon::id::ID_CANCEL)
+        .with_label(&tr("&Re-enter date"))
+        .build();
+    reenter_button.set_default();
+    button_row.add(&continue_button, 0, SizerFlag::All, 0);
+    button_row.add(&reenter_button, 0, SizerFlag::All, 0);
+    sizer.add_sizer(&button_row, 0, SizerFlag::All, 5);
+    dialog.set_sizer_and_fit(sizer, true);
+    reenter_button.set_focus();
+
+    continue_button.on_click(move |_| dialog.end_modal(ID_OK));
+    reenter_button.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
+
+    dialog.show_modal() == ID_OK
 }
 
 /// Prompt for Notebrook credentials; returns Some((url, token)) on OK.

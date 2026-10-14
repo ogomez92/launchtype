@@ -7,6 +7,7 @@ pub mod alerts;
 pub mod apps;
 pub mod audio_devices;
 pub mod clipboard;
+pub mod google_calendar;
 pub mod media;
 pub mod notebrook;
 pub mod placeholders;

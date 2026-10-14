@@ -305,6 +305,12 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
                 update_list(&shell);
                 return;
             }
+            // An event is added by answering questions in the input field,
+            // not in a dialog.
+            if shell.borrow().mode == UiMode::GoogleCalendar {
+                crate::calendar_flows::start_adding(&shell);
+                return;
+            }
             {
                 let mut s = shell.borrow_mut();
                 let frame = s.frame;
@@ -346,6 +352,12 @@ fn bind_events(shell: &SharedShell, buttons: [Button; 13]) {
                 s.list.get_selection().and_then(|index| s.items.get(index as usize).cloned())
             };
             let Some(item) = selected else { return };
+            // An event is changed by answering questions in the input field,
+            // like adding one.
+            if let ItemKind::CalendarEvent { event } = item.kind {
+                crate::calendar_flows::start_editing(&shell, event);
+                return;
+            }
             // As with Add: the vault opens its own dialogs and borrows the
             // shell to do it.
             if matches!(item.kind, ItemKind::VaultEntry) {
@@ -726,6 +738,8 @@ fn bind_hide_on_escape<W: WindowEvents>(shell: &SharedShell, target: &W) {
             }
             match cancelled {
                 Some(ItemKind::Snippet) => speak_now(&tr("Substitution cancelled"), true),
+                Some(ItemKind::CalendarAction { .. }) => speak_now(&tr("Event not added"), true),
+                Some(ItemKind::CalendarEvent { .. }) => speak_now(&tr("Event not changed"), true),
                 Some(_) => speak_now(&tr("Command cancelled"), true),
                 None => {}
             }
@@ -861,7 +875,9 @@ pub fn update_list(shell: &SharedShell) {
             | ItemKind::Region { .. }
             | ItemKind::Conversion { .. }
             | ItemKind::PathAction { .. }
-            | ItemKind::AudioDevice { .. } => item.name.clone(),
+            | ItemKind::AudioDevice { .. }
+            | ItemKind::CalendarEvent { .. }
+            | ItemKind::CalendarAction { .. } => item.name.clone(),
             _ => item.name.chars().take(40).collect(),
         };
         if !item.shortcut.is_empty() {
@@ -905,6 +921,7 @@ enum ModeEntry {
     Nothing,
     Ssh,
     Vault,
+    GoogleCalendar,
 }
 
 /// Apply a mode change on an already-borrowed shell: announce it, run the
@@ -938,6 +955,7 @@ fn apply_mode_switch(s: &mut Shell, new_mode: UiMode) -> ModeEntry {
         UiMode::AudioOutputs => s.controller.rescan_audio_devices(Direction::Output),
         UiMode::Ssh => entry = ModeEntry::Ssh,
         UiMode::Vault => entry = ModeEntry::Vault,
+        UiMode::GoogleCalendar => entry = ModeEntry::GoogleCalendar,
         _ => {}
     }
     s.mode = new_mode;
@@ -946,12 +964,13 @@ fn apply_mode_switch(s: &mut Shell, new_mode: UiMode) -> ModeEntry {
 }
 
 /// Run the deferred half of a mode switch. Must be called with the shell
-/// unborrowed: both of these open something modal.
+/// unborrowed: all of these open something modal, or may.
 fn finish_entry(shell: &SharedShell, entry: ModeEntry) {
     match entry {
         ModeEntry::Nothing => {}
         ModeEntry::Ssh => crate::ssh_flows::enter_ssh_mode(shell),
         ModeEntry::Vault => crate::vault_flows::enter_vault_mode(shell),
+        ModeEntry::GoogleCalendar => crate::calendar_flows::enter_calendar_mode(shell),
     }
 }
 
@@ -1003,6 +1022,7 @@ fn mode_announcement(mode: UiMode) -> String {
         UiMode::AudioOutputs => tr(
             "audio output mode, each device plays a tone as you select it, press enter to make it the default"
         ),
+        UiMode::GoogleCalendar => tr("Google Calendar mode"),
         UiMode::Regions => unreachable!("no trigger char"),
     }
 }
@@ -1053,6 +1073,7 @@ fn mode_name(mode: UiMode) -> String {
         UiMode::Emoji => tr("Emoji"),
         UiMode::Units => tr("Unit conversion"),
         UiMode::Vault => tr("Encrypted vault"),
+        UiMode::GoogleCalendar => tr("Google Calendar"),
         UiMode::Regions => tr("Regions"),
     }
 }
@@ -1228,6 +1249,9 @@ pub fn run_clicked(shell: &SharedShell) {
         ItemKind::AudioDevice { direction, device } => {
             switch_audio_device(shell, &item.id, &device, direction)
         }
+        // An event has nothing to run; Enter reads it again, like a stat.
+        ItemKind::CalendarEvent { .. } => speak_now(&item.name, true),
+        ItemKind::CalendarAction { action } => crate::calendar_flows::run_action(shell, action),
         // A region: crop it out of the last screenshot, copy the crop, and
         // describe it. Keep the window open so more regions can be chosen.
         ItemKind::Region { r#box } => crate::ai_flows::crop_and_describe_region(shell, r#box),
@@ -1307,7 +1331,7 @@ fn run_and_report(shell: &SharedShell, item: &Item, kind: ItemKind) {
 /// Begin asking for an item's parameters. The window stays up — there is a
 /// question on screen — and every keystroke from here until the last answer
 /// goes to [`answer_query`] rather than to the search.
-fn start_query(shell: &SharedShell, item: Item, asks: Vec<Ask>) {
+pub(crate) fn start_query(shell: &SharedShell, item: Item, asks: Vec<Ask>) {
     shell.borrow_mut().pending_query = Some(PendingQuery { item, asks, answers: Vec::new() });
     ask_for_query(shell);
 }
@@ -1326,7 +1350,14 @@ fn ask_for_query(shell: &SharedShell) {
     // type — and keeps the number behind it, so the two kinds of prompt are
     // still recognisably the same conversation.
     let number = pending.answers.len() + 1;
+    let day_first = s.settings.settings.day_first();
+    let prefill = crate::calendar_flows::prefill(&pending.item.kind, pending.answers.len(), day_first);
     let prompt = match pending.asks.get(pending.answers.len()).and_then(Ask::name) {
+        // A calendar event's questions are always the same two, and say what
+        // they want better than a number does.
+        _ if crate::calendar_flows::is_calendar_query(&pending.item.kind) => {
+            crate::calendar_flows::prompt(&pending.item.kind, pending.answers.len(), day_first)
+        }
         Some(name) => format_args(
             &tr("{name}, query parameter {number}"),
             &[("name", Arg::Str(name)), ("number", Arg::Int(number as i64))],
@@ -1334,6 +1365,11 @@ fn ask_for_query(shell: &SharedShell) {
         None => format_args(&tr("Query parameter {number}"), &[("number", Arg::Int(number as i64))]),
     };
     s.edit.change_value("");
+    // Changing a calendar event starts each answer out as what it is now.
+    if let Some(text) = prefill {
+        s.edit.change_value(&text);
+        s.edit.select_all();
+    }
     // The field is asking a different question now, so it has to answer to a
     // different name: this is what a screen reader reads when focus returns.
     s.edit.set_name(&prompt);
@@ -1348,6 +1384,35 @@ fn ask_for_query(shell: &SharedShell) {
 /// Take the typed text as the answer to the question on screen. Asks the next
 /// question, or launches once the last one is in.
 fn answer_query(shell: &SharedShell) {
+    // A calendar answer that will not do is said so and left in the field to
+    // be corrected, rather than carried through to a failed request; one for a
+    // day already gone is asked about first, in a dialog that needs the shell
+    // unborrowed.
+    let past_day = {
+        let s = shell.borrow();
+        let answer = s.edit.get_value();
+        let day_first = s.settings.settings.day_first();
+        let Some(pending) = s.pending_query.as_ref() else { return };
+        let index = pending.answers.len();
+        if !crate::calendar_flows::is_calendar_query(&pending.item.kind) {
+            None
+        } else if let Some(problem) =
+            crate::calendar_flows::check_answer(index, &answer, day_first)
+        {
+            s.sounds.play("error");
+            speak_now(&problem, true);
+            return;
+        } else {
+            crate::calendar_flows::past_day(index, &answer, day_first).map(|day| {
+                (day, crate::calendar_flows::prompt(&pending.item.kind, index, day_first))
+            })
+        }
+    };
+    if let Some((day, prompt)) = past_day {
+        if !crate::calendar_flows::confirm_past_day(shell, &day, &prompt) {
+            return;
+        }
+    }
     let ready = {
         let mut s = shell.borrow_mut();
         let answer = s.edit.get_value();
@@ -1377,6 +1442,9 @@ fn answer_query(shell: &SharedShell) {
             );
         }
         ItemKind::Snippet => copy_snippet(shell, &pending.item, &pending.answers),
+        ItemKind::CalendarAction { .. } | ItemKind::CalendarEvent { .. } => {
+            crate::calendar_flows::finish(shell, &pending.item.kind, &pending.answers)
+        }
         _ => {}
     }
 }
@@ -1657,7 +1725,7 @@ pub fn exit_app(shell: &SharedShell) {
 ///
 /// Deliberately quiet: no "show" sound and no focus move, because this is the
 /// app interrupting the user, not the user invoking the app.
-fn with_window_up<T>(shell: &SharedShell, ask: impl FnOnce(&Frame) -> T) -> T {
+pub(crate) fn with_window_up<T>(shell: &SharedShell, ask: impl FnOnce(&Frame) -> T) -> T {
     let (frame, was_hidden) = {
         let s = shell.borrow();
         (s.frame, !s.frame.is_shown())

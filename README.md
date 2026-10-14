@@ -269,6 +269,7 @@ The Settings button in the UI opens a dialog where you can persist the following
 - Steam library path
 - AI model used for screenshot descriptions (Claude Opus, Sonnet or Haiku)
 - Interface language (same as the system, English or Spanish) — applied the next time the app starts
+- Date format: the order typed dates are read in, year first either way — year, month, day (US, `20251001`) or year, day, month (European, `20150110`). Used by [Google Calendar mode](#google-calendar)
 - Commands file — a dropdown of every commands-shaped `.json` sitting next to the app, so you can keep separate sets (work, home, a game) and switch between them without restarting. You can also type a new name to start a fresh one.
 - SSH server, port, user name, private key file and password, used by SSH mode
 - Vault lock timeout in idle minutes, and how many seconds a copied vault secret may sit on the clipboard (see [Encrypted vault](#encrypted-vault))
@@ -457,6 +458,34 @@ After sending, the app announces whether the note was sent or, if something went
 
 To go back to commands mode, press the period key (.).
 
+## Google Calendar
+
+Press `%` (percent) to see what is on your Google Calendar from today to 30 days ahead, soonest first, and to add to it. Type to search the events; Enter on one reads it out again.
+
+To add an event, press the Add button (Alt+A). The input field asks for the title, then the day. The year always comes first, and the order of the month and day follows the **Date format** setting:
+
+| You type | US order (the default) | European order |
+| --- | --- | --- |
+| `25` | the 25th of this month | the 25th of this month |
+| `0925` / `2509` (or `925` / `509`) | 25 September of this year | 25 September of this year |
+| `20260925` / `20262509` | a full date | a full date |
+
+Every event goes in at 8:00 for 30 minutes, so the reminder your calendar is set to give is what notifies you. A day the calendar does not have is refused and left in the field to fix. A day that has already passed (typing `5` on the 14th means the 5th of this month) gets a warning, because the calendar will never remind you of it: choose **Continue** to add it anyway or **Re-enter date** to type another. Escape abandons the event.
+
+To change an event, select it and press the Edit button (Alt+E). The same two questions come back, each already holding what the event has now, selected so that typing replaces it and Enter alone keeps it. A new day moves the event there at the same time of day and for the same length; an all-day event stays all-day.
+
+### Setting it up
+
+Launchtype does not use a Google Cloud project or a login. It talks to a small Google Apps Script that you deploy under your own account, which can read and write only your calendar. The first time you press `%`, the script is copied to the clipboard and a dialog walks you through it:
+
+1. Open Apps Script (the dialog has a button for it) while signed in to Google. A new project opens.
+2. Select everything in the editor, paste the script over it, and save.
+3. Choose **Deploy**, **New deployment**, type **Web app**. Execute as: **Me**. Who has access: **Anyone**. Deploy.
+4. Authorize it. Google warns that the app is not verified, because it is your own script: choose **Advanced**, then go to the project.
+5. Copy the web app URL and paste it into the dialog.
+
+"Anyone" only means the URL answers without a Google sign-in. Every request must also carry a secret that Launchtype generates and writes into the script. The URL and the secret are stored in `settings.json`, which is never committed. The script is also in [`crates/launchtype-core/data/google-calendar.gs`](crates/launchtype-core/data/google-calendar.gs). It uses your default calendar.
+
 ## Realtime data
 
 Realtime data mode can be accessed by pressing `+` (plus) in the input field. It offers live values fetched from free public APIs at the moment you select them:
@@ -631,6 +660,7 @@ The app has several modes, each accessed by typing a special character in the in
 | `[` | Timers | Count down for X minutes (one-shot or repeating) |
 | `]` | Alarms | Fire at a time of day (24-hour) |
 | `#` | Notebrook | Post a quick note to your Notebrook |
+| `%` | Google Calendar | The next 30 days of your calendar, and adding events at 8:00 |
 | `+` | Realtime data | Speak live prices, weather, news headlines and computer temperatures |
 | `!` | Stats | Most and least used commands |
 | `$` | SSH | Run commands on a remote server and read the output |

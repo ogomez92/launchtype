@@ -25,6 +25,11 @@ pub const LANGUAGE_SYSTEM: &str = "system";
 
 pub const DEFAULT_SSH_PORT: u16 = 22;
 
+/// `date_format` values: both put the year first, then the month and the day
+/// (US, `20251001`) or the day and the month (European, `20150110`).
+pub const DATE_FORMAT_US: &str = "us";
+pub const DATE_FORMAT_EU: &str = "eu";
+
 /// Long enough to look several secrets up in one sitting, short enough that
 /// walking away from the machine closes the vault behind you.
 pub const DEFAULT_VAULT_LOCK_MINUTES: u32 = 5;
@@ -51,6 +56,16 @@ pub struct Settings {
     /// Notebrook credentials. Stored locally only, never committed.
     pub notebrook_url: String,
     pub notebrook_token: String,
+    /// Google Calendar mode (`%`): the web app URL of the user's own Apps
+    /// Script, and the secret written into that script. Local only, like the
+    /// Notebrook token.
+    pub google_calendar_url: String,
+    pub google_calendar_token: String,
+    /// The order typed dates are read in, [`DATE_FORMAT_US`] or
+    /// [`DATE_FORMAT_EU`]. A string rather than an enum so that a value this
+    /// version does not know falls back to US instead of failing the whole
+    /// file.
+    pub date_format: String,
     /// Claude model used for the AI screenshot description / region features.
     pub ai_model: String,
     /// Commands mode sort order: false = last modified (default), true = by uses.
@@ -106,6 +121,9 @@ impl Default for Settings {
             steam_library: DEFAULT_STEAM_LIBRARY.to_string(),
             notebrook_url: String::new(),
             notebrook_token: String::new(),
+            google_calendar_url: String::new(),
+            google_calendar_token: String::new(),
+            date_format: DATE_FORMAT_US.to_string(),
             ai_model: DEFAULT_AI_MODEL.to_string(),
             command_sort_by_uses: false,
             language: LANGUAGE_SYSTEM.to_string(),
@@ -132,6 +150,16 @@ impl Settings {
         !self.ssh_host.trim().is_empty()
             && !self.ssh_user.trim().is_empty()
             && (!self.ssh_key_path.trim().is_empty() || !self.ssh_password.is_empty())
+    }
+
+    /// Whether typed dates put the day before the month.
+    pub fn day_first(&self) -> bool {
+        self.date_format == DATE_FORMAT_EU
+    }
+
+    /// True once Google Calendar mode has a script to talk to.
+    pub fn google_calendar_configured(&self) -> bool {
+        !self.google_calendar_url.trim().is_empty() && !self.google_calendar_token.is_empty()
     }
 
     /// Settings values that name a file or folder, and so break when the app

@@ -269,6 +269,7 @@ El botón Ajustes de la interfaz abre un diálogo donde puedes guardar estas pre
 - Ruta de la biblioteca de Steam
 - Modelo de IA para las descripciones de capturas (Claude Opus, Sonnet o Haiku)
 - Idioma de la interfaz (el mismo del sistema, inglés o español); se aplica al reiniciar la aplicación
+- Formato de fecha: el orden en que se leen las fechas escritas, siempre con el año primero: año, mes, día (EE. UU., `20251001`) o año, día, mes (europeo, `20150110`). Lo usa el [modo Google Calendar](#google-calendar)
 - Archivo de comandos: una lista desplegable con todos los `.json` con forma de comandos que hay junto a la aplicación, para mantener conjuntos separados (trabajo, casa, un juego) y cambiar entre ellos sin reiniciar. También puedes escribir un nombre nuevo para empezar uno desde cero.
 - Servidor, puerto, usuario, archivo de clave privada y contraseña de SSH, que usa el modo SSH
 - Minutos sin usar tras los que se bloquea la caja fuerte, y segundos que un secreto copiado puede quedarse en el portapapeles (ver [Caja fuerte cifrada](#caja-fuerte-cifrada))
@@ -457,6 +458,34 @@ Al terminar, la aplicación anuncia si la nota se envió o, si algo falló, el m
 
 Para volver a comandos, pulsa la tecla punto (.).
 
+## Google Calendar
+
+Pulsa `%` (porcentaje) para ver lo que hay en tu Google Calendar desde hoy hasta dentro de 30 días, empezando por lo más cercano, y para añadir eventos. Escribe para buscar entre los eventos; intro sobre uno lo vuelve a leer.
+
+Para añadir un evento, pulsa el botón Añadir (Alt+A). El campo de entrada pide el título y luego el día. El año va siempre primero, y el orden del mes y el día sigue el ajuste **Formato de fecha**:
+
+| Escribes | Orden EE. UU. (predeterminado) | Orden europeo |
+| --- | --- | --- |
+| `25` | el día 25 de este mes | el día 25 de este mes |
+| `0925` / `2509` (o `925` / `509`) | el 25 de septiembre de este año | el 25 de septiembre de este año |
+| `20260925` / `20262509` | una fecha completa | una fecha completa |
+
+Todos los eventos se crean a las 8:00 y duran 30 minutos, así que te avisa el recordatorio que tenga configurado tu calendario. Un día que no existe se rechaza y se queda en el campo para que lo corrijas. Un día que ya ha pasado (escribir `5` un día 14 significa el 5 de este mes) muestra un aviso, porque el calendario nunca te lo recordará: elige **Continuar** para añadirlo igualmente o **Volver a escribir la fecha** para escribir otra. Escape abandona el evento.
+
+Para cambiar un evento, selecciónalo y pulsa el botón Editar (Alt+E). Vuelven las mismas dos preguntas, cada una con lo que tiene ahora el evento, seleccionado para que al escribir se sustituya y con intro solo se conserve. Un día nuevo mueve el evento a la misma hora y con la misma duración; un evento de día completo sigue siéndolo.
+
+### Configuración
+
+Launchtype no usa ningún proyecto de Google Cloud ni inicio de sesión. Se comunica con un pequeño script de Google Apps Script que implementas con tu propia cuenta, y que solo puede leer y escribir tu calendario. La primera vez que pulsas `%`, el script se copia al portapapeles y un diálogo te guía:
+
+1. Abre Apps Script (el diálogo tiene un botón para ello) con tu sesión de Google iniciada. Se abre un proyecto nuevo.
+2. Selecciona todo lo que hay en el editor, pega el script encima y guarda.
+3. Elige **Implementar**, **Nueva implementación**, tipo **Aplicación web**. Ejecutar como: **Yo**. Quién tiene acceso: **Cualquier usuario**. Implementar.
+4. Autorízalo. Google avisará de que la aplicación no está verificada porque es tu propio script: elige **Configuración avanzada** y luego ir al proyecto.
+5. Copia la URL de la aplicación web y pégala en el diálogo.
+
+"Cualquier usuario" solo significa que la URL responde sin iniciar sesión en Google. Cada petición tiene que llevar además un secreto que Launchtype genera y escribe en el script. La URL y el secreto se guardan en `settings.json`, que nunca se sube al repositorio. El script también está en [`crates/launchtype-core/data/google-calendar.gs`](crates/launchtype-core/data/google-calendar.gs). Usa tu calendario predeterminado.
+
 ## Datos en tiempo real
 
 El modo de datos en tiempo real se abre escribiendo `+` (signo más) en la caja. Ofrece valores en directo obtenidos de APIs públicas gratuitas en el momento de seleccionarlos:
@@ -631,6 +660,7 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `[` | Temporizadores | Cuenta atrás de X minutos (una vez o repetitiva) |
 | `]` | Alarmas | Se disparan a una hora del día (formato 24 horas) |
 | `#` | Notebrook | Publicar una nota rápida en tu Notebrook |
+| `%` | Google Calendar | Los próximos 30 días de tu calendario, y añadir eventos a las 8:00 |
 | `+` | Datos en tiempo real | Leer en voz alta precios, tiempo, titulares y temperaturas del ordenador |
 | `!` | Estadísticas | Comandos más y menos usados |
 | `$` | SSH | Ejecuta comandos en un servidor remoto y lee la salida |

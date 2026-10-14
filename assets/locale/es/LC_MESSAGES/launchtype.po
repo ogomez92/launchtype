@@ -3515,3 +3515,265 @@ msgstr "{name} es ahora la salida predeterminada"
 #: crates/launchtype-app/src/dialogs.rs
 msgid "Type this shortcut in Steam games mode and this game is the only result. Leave it empty to remove the shortcut."
 msgstr "Escribe este acceso abreviado en el modo de juegos de Steam y este juego será el único resultado. Déjalo vacío para quitar el acceso abreviado."
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "Add an event"
+msgstr "Añadir un evento"
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "Adding the event"
+msgstr "Añadiendo el evento"
+
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "Event not added"
+msgstr "Evento no añadido"
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "Event title"
+msgstr "Título del evento"
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "Still loading the calendar"
+msgstr "Todavía se está cargando el calendario"
+
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "The event needs a title"
+msgstr "El evento necesita un título"
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "{count} events in the next {days} days"
+msgstr "{count} eventos en los próximos {days} días"
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "{title} added for {day}"
+msgstr "{title} añadido para {day}"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Could not read the calendar: {reason} Press Enter to try again."
+msgstr "No se ha podido leer el calendario: {reason} Pulsa Intro para volver a intentarlo."
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Loading the calendar"
+msgstr "Cargando el calendario"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Nothing on the calendar in the next {days} days"
+msgstr "Nada en el calendario en los próximos {days} días"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Set up Google Calendar"
+msgstr "Configurar Google Calendar"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Set up Google Calendar again"
+msgstr "Volver a configurar Google Calendar"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Google Calendar"
+msgstr "Google Calendar"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Google Calendar mode"
+msgstr "modo Google Calendar"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Copy the &script again"
+msgstr "Volver a copiar el &script"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Launchtype reaches your calendar through a small script that runs under your own Google account, so no Google Cloud project is needed. The script has been copied to the clipboard.\n\n1. Open Apps Script with the button below, signed in to Google. A new project opens.\n2. Select everything in its editor and paste the script over it, then save.\n3. Choose Deploy, New deployment, select type Web app. Execute as: Me. Who has access: Anyone. Deploy.\n4. Authorize it when Google asks. Google warns that the app is not verified because it is your own script: choose Advanced, then go to the project.\n5. Copy the web app URL Google shows, and paste it below."
+msgstr "Launchtype accede a tu calendario mediante un pequeño script que se ejecuta con tu propia cuenta de Google, así que no hace falta ningún proyecto de Google Cloud. El script se ha copiado al portapapeles.\n\n1. Abre Apps Script con el botón de abajo, con tu sesión de Google iniciada. Se abre un proyecto nuevo.\n2. Selecciona todo lo que hay en su editor, pega el script encima y guarda.\n3. Elige Implementar, Nueva implementación, tipo Aplicación web. Ejecutar como: Yo. Quién tiene acceso: Cualquier usuario. Implementar.\n4. Autorízalo cuando Google lo pida. Google avisará de que la aplicación no está verificada porque es tu propio script: elige Configuración avanzada y luego ir al proyecto.\n5. Copia la URL de la aplicación web que muestra Google y pégala abajo."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Open &Apps Script"
+msgstr "Abrir &Apps Script"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Paste the web app URL from Apps Script. It starts with https://script.google.com/"
+msgstr "Pega la URL de la aplicación web de Apps Script. Empieza por https://script.google.com/"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Script copied"
+msgstr "Script copiado"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Steps"
+msgstr "Pasos"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Web app &URL:"
+msgstr "&URL de la aplicación web:"
+
+#: crates/launchtype-services/src/google_calendar.rs
+msgid "The calendar script answered with status {code}. Check its web app URL."
+msgstr "El script del calendario ha respondido con el estado {code}. Comprueba la URL de la aplicación web."
+
+#: crates/launchtype-services/src/google_calendar.rs
+msgid "The calendar script did not answer. Check it is deployed as a web app that executes as you and that anyone can access."
+msgstr "El script del calendario no ha respondido. Comprueba que está implementado como aplicación web que se ejecuta como tú y a la que puede acceder cualquier usuario."
+
+#: crates/launchtype-services/src/google_calendar.rs
+msgid "The calendar script refused the secret. Set Google Calendar up again."
+msgstr "El script del calendario ha rechazado el secreto. Vuelve a configurar Google Calendar."
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "Monday"
+msgstr "lunes"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "Tuesday"
+msgstr "martes"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "Wednesday"
+msgstr "miércoles"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "Thursday"
+msgstr "jueves"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "Friday"
+msgstr "viernes"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "Saturday"
+msgstr "sábado"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "Sunday"
+msgstr "domingo"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "January"
+msgstr "enero"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "February"
+msgstr "febrero"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "March"
+msgstr "marzo"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "April"
+msgstr "abril"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "May"
+msgstr "mayo"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "June"
+msgstr "junio"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "July"
+msgstr "julio"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "August"
+msgstr "agosto"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "September"
+msgstr "septiembre"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "October"
+msgstr "octubre"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "November"
+msgstr "noviembre"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "December"
+msgstr "diciembre"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "today"
+msgstr "hoy"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "tomorrow"
+msgstr "mañana"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "{weekday} {day} {month}"
+msgstr "{weekday} {day} de {month}"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Continue"
+msgstr "&Continuar"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Re-enter date"
+msgstr "&Volver a escribir la fecha"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "That day has already passed"
+msgstr "Ese día ya ha pasado"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "{day} has already passed, so Google Calendar will not remind you of this event."
+msgstr "{day} ya ha pasado, así que Google Calendar no te recordará este evento."
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "Changing the event"
+msgstr "Cambiando el evento"
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "Event day: {hint}"
+msgstr "Día del evento: {hint}"
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "Event not changed"
+msgstr "Evento no cambiado"
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "New day, now {day}: {hint}"
+msgstr "Nuevo día, ahora {day}: {hint}"
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "New title, now {title}"
+msgstr "Nuevo título, ahora {title}"
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "That is not a day. Type {hint}"
+msgstr "Eso no es un día. Escribe {hint}"
+
+#: crates/launchtype-app/src/calendar_flows.rs
+msgid "{title} is now on {day}"
+msgstr "{title} queda para {day}"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Dat&e format:"
+msgstr "Formato de fec&ha:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Year, day, month (European): 20150110"
+msgstr "Año, día, mes (europeo): 20150110"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Year, month, day (US): 20251001"
+msgstr "Año, mes, día (EE. UU.): 20251001"
+
+#: crates/launchtype-services/src/google_calendar.rs
+msgid "That event is no longer on the calendar. It may have been moved or deleted."
+msgstr "Ese evento ya no está en el calendario. Puede que se haya movido o eliminado."
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "a day and month"
+msgstr "un día y mes"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "a month and day"
+msgstr "un mes y día"
+
+#: crates/launchtype-core/src/calendar.rs
+msgid "a day like 25, {pair} like {short}, or a full date like {full}"
+msgstr "un día como 25, {pair} como {short}, o una fecha completa como {full}"

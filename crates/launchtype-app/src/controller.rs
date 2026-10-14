@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use launchtype_core::alarms::AlarmEngine;
+use launchtype_core::calendar::{self, Event, DAYS_AHEAD};
 use launchtype_core::apps::{without_steam, App, AppTarget};
 use launchtype_core::clipboard_history::ClipboardHistory;
 use launchtype_core::clock::{Clock, SystemClock};
@@ -29,6 +30,22 @@ use launchtype_services::stores::{AlarmStore, AppShortcutsStore, CommandsStore, 
 /// rows the list is neither navigable nor quick to redraw on every keystroke,
 /// and the best matches are at the top anyway.
 const EMOJI_LIMIT: usize = 200;
+
+fn calendar_action_item(name: String, action: &'static str) -> Item {
+    Item { name, shortcut: String::new(), id: String::new(), kind: ItemKind::CalendarAction { action } }
+}
+
+/// Where `%` mode's events stand. They come over the network, so the list has
+/// something to say while they are on their way and when they never arrive.
+#[derive(Debug, Clone, Default)]
+pub enum CalendarState {
+    /// No script to ask yet: the list offers to set one up.
+    #[default]
+    NotSetUp,
+    Loading,
+    Loaded(Vec<Event>),
+    Failed(String),
+}
 
 fn vault_action_item(name: String, action: &'static str) -> Item {
     Item { name, shortcut: String::new(), id: String::new(), kind: ItemKind::VaultAction { action } }
@@ -86,6 +103,11 @@ pub enum ItemKind {
     /// is the device's, with "current" on the default one; `device` is the
     /// device's name alone, for saying what was switched to.
     AudioDevice { direction: Direction, device: String },
+    /// One event on the user's Google Calendar, carried whole so Edit can
+    /// say what it is now and tell the calendar which one to change.
+    CalendarEvent { event: Event },
+    /// A calendar row that does something: set up, or reload.
+    CalendarAction { action: &'static str },
 }
 
 pub struct ModeController {
@@ -125,6 +147,8 @@ pub struct ModeController {
     /// The sound devices `{` or `}` lists, read on entering the mode and
     /// again after a switch, for the same reason as `apps`.
     audio_devices: Vec<audio_devices::Device>,
+    /// The next month of Google Calendar, fetched on entering `%`.
+    pub calendar: CalendarState,
 }
 
 impl ModeController {
@@ -161,6 +185,7 @@ impl ModeController {
             ssh_output: Vec::new(),
             paths: Vec::new(),
             audio_devices: Vec::new(),
+            calendar: CalendarState::NotSetUp,
         }
     }
 
@@ -222,6 +247,7 @@ impl ModeController {
             UiMode::Paths => self.path_items(search),
             UiMode::AudioInputs => self.audio_device_items(search, Direction::Input),
             UiMode::AudioOutputs => self.audio_device_items(search, Direction::Output),
+            UiMode::GoogleCalendar => self.calendar_items(search),
             UiMode::Stats => self.stats_items(),
             // The input field holds the command being typed, so it must not
             // filter the transcript away (same reasoning as screenshots mode).
@@ -622,6 +648,61 @@ impl ModeController {
         let results = fuzzy_search(&fold(search), items, |item| fold(&item.name));
         self.sounds.play("type");
         results
+    }
+
+    /// The calendar's events, soonest first. With nothing typed, a row saying
+    /// how the fetch is going leads them, when there is anything to say.
+    /// Typing searches the events alone. Adding is the Add button's job, and
+    /// changing one is Edit's, as in every other mode.
+    fn calendar_items(&self, search: &str) -> Vec<Item> {
+        let today = self.clock.now().date_naive();
+        let events: &[Event] = match &self.calendar {
+            CalendarState::NotSetUp => {
+                return vec![calendar_action_item(tr("Set up Google Calendar"), "setup")]
+            }
+            CalendarState::Loaded(events) => events,
+            CalendarState::Loading | CalendarState::Failed(_) => &[],
+        };
+        let items: Vec<Item> = events
+            .iter()
+            .map(|event| Item {
+                name: calendar::event_label(event, today),
+                shortcut: String::new(),
+                id: String::new(),
+                kind: ItemKind::CalendarEvent { event: event.clone() },
+            })
+            .collect();
+        if !search.is_empty() {
+            let results = fuzzy_search(&fold(search), items, |item| fold(&item.name));
+            self.sounds.play("type");
+            return results;
+        }
+        let mut rows = Vec::new();
+        match &self.calendar {
+            CalendarState::Loading => {
+                rows.push(calendar_action_item(tr("Loading the calendar"), "loading"))
+            }
+            CalendarState::Loaded(events) if events.is_empty() => rows.push(calendar_action_item(
+                format_args(
+                    &tr("Nothing on the calendar in the next {days} days"),
+                    &[("days", Arg::Int(DAYS_AHEAD))],
+                ),
+                "refresh",
+            )),
+            CalendarState::Failed(reason) => {
+                rows.push(calendar_action_item(
+                    format_args(
+                        &tr("Could not read the calendar: {reason} Press Enter to try again."),
+                        &[("reason", Arg::Str(reason))],
+                    ),
+                    "refresh",
+                ));
+                rows.push(calendar_action_item(tr("Set up Google Calendar again"), "setup"));
+            }
+            _ => {}
+        }
+        rows.extend(items);
+        rows
     }
 
     fn stats_items(&self) -> Vec<Item> {
