@@ -24,7 +24,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust
         run: rustup show
@@ -49,7 +49,7 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path dist\* -DestinationPath launchtype-windows-x64.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: launchtype-windows-x64
           path: launchtype-windows-x64.zip
@@ -60,7 +60,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Both targets so bundle-mac.sh can lipo a universal app; libprism.a is
       # already universal.
@@ -79,7 +79,7 @@ jobs:
       - name: Archive
         run: ditto -c -k --sequesterRsrc --keepParent dist/Launchtype.app launchtype-macos.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: launchtype-macos
           path: launchtype-macos.zip
@@ -94,12 +94,12 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           merge-multiple: true
 
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             launchtype-windows-x64.zip
