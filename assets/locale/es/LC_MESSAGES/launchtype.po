@@ -602,6 +602,66 @@ msgstr "semana de {model} al {percent} por ciento"
 msgid "Claude usage: {parts}"
 msgstr "Uso de Claude: {parts}"
 
+#: crates/launchtype-core/src/realtime/mod.rs
+msgid "claude api spend and rate limits"
+msgstr "gasto y límites de la api de claude"
+
+#: crates/launchtype-core/src/realtime/mod.rs
+msgid "No Claude API key configured."
+msgstr "No hay ninguna clave de la API de Claude configurada."
+
+#: crates/launchtype-core/src/realtime/mod.rs
+msgid "The Claude API key was rejected, enter it again."
+msgstr "La clave de la API de Claude ha sido rechazada, introdúcela de nuevo."
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "dollars"
+msgstr "dólares"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "{amount} {currency} spent this month"
+msgstr "{amount} {currency} gastados este mes"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "{amount} today"
+msgstr "{amount} hoy"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "{remaining} of {limit} requests per minute left"
+msgstr "quedan {remaining} de {limit} peticiones por minuto"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "{remaining} of {limit} tokens per minute left"
+msgstr "quedan {remaining} de {limit} tokens por minuto"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "limits reset {reset}"
+msgstr "los límites se reinician {reset}"
+
+#: crates/launchtype-core/src/realtime/usage.rs
+msgid "Claude API: {parts}"
+msgstr "API de Claude: {parts}"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Claude API key"
+msgstr "Clave de la API de Claude"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Enter a Claude API key from console.anthropic.com. It is stored locally in settings.json. A regular key reports its rate limits; an Admin key reports this month's spend."
+msgstr "Introduce una clave de la API de Claude de console.anthropic.com. Se guarda localmente en settings.json. Una clave normal informa de sus límites de peticiones; una clave de administrador informa del gasto de este mes."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "API &key:"
+msgstr "&Clave de API:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Please enter the API key."
+msgstr "Por favor, introduce la clave de API."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Cl&aude API key (realtime ca item):"
+msgstr "Clave de la API de Cl&aude (elemento ca de datos en directo):"
+
 #: src/services/realtime_service.py
 msgid "openai codex usage limits"
 msgstr "límites de uso de openai codex"

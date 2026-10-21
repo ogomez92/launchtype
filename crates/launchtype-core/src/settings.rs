@@ -61,6 +61,9 @@ pub struct Settings {
     /// Notebrook token.
     pub google_calendar_url: String,
     pub google_calendar_token: String,
+    /// Realtime mode's `ca` item: the Claude API key whose spend and rate
+    /// limits it reports. Local only, like the tokens above.
+    pub claude_api_key: String,
     /// The order typed dates are read in, [`DATE_FORMAT_US`] or
     /// [`DATE_FORMAT_EU`]. A string rather than an enum so that a value this
     /// version does not know falls back to US instead of failing the whole
@@ -123,6 +126,7 @@ impl Default for Settings {
             notebrook_token: String::new(),
             google_calendar_url: String::new(),
             google_calendar_token: String::new(),
+            claude_api_key: String::new(),
             date_format: DATE_FORMAT_US.to_string(),
             ai_model: DEFAULT_AI_MODEL.to_string(),
             command_sort_by_uses: false,

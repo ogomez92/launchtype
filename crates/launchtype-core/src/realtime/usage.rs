@@ -2,7 +2,7 @@
 //! summaries. The current instant is injected so relative reset moments ("in
 //! 5 days") are testable; production callers pass `&chrono::Local::now()`.
 
-use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use serde_json::Value;
 
 use crate::i18n::{format_args, tr, Arg};
@@ -14,6 +14,16 @@ use super::{parse_json_body, RealtimeError};
 pub const CLAUDE_USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
 /// Value of the `anthropic-beta` header the usage query needs.
 pub const CLAUDE_OAUTH_BETA: &str = "oauth-2025-04-20";
+
+/// The Messages endpoint. A one-token request to it is the only way a regular
+/// API key gets to see its rate-limit headers (the Admin API turns it away).
+pub const CLAUDE_API_MESSAGES_URL: &str = "https://api.anthropic.com/v1/messages";
+/// The Admin API's cost report; admin (or organization-scoped) keys only.
+pub const CLAUDE_API_COST_URL: &str = "https://api.anthropic.com/v1/organizations/cost_report";
+pub const CLAUDE_API_VERSION: &str = "2023-06-01";
+/// The cheapest model to probe with: ten input tokens of it cost a millionth
+/// of a dollar.
+pub const CLAUDE_API_PROBE_MODEL: &str = "claude-haiku-5-5";
 
 pub const CODEX_TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
 /// OpenAI's public OAuth client id for Codex, hardcoded in the Codex CLI.
@@ -125,6 +135,182 @@ fn unit(n: i64, kind: Unit) -> String {
         (Unit::Minute, false) => tr("{n} minutes"),
     };
     format_args(&template, &[("n", Arg::Int(n))])
+}
+
+/// The request body of the rate-limit probe: the smallest Messages call there is.
+pub fn claude_api_probe_body() -> String {
+    serde_json::json!({
+        "model": CLAUDE_API_PROBE_MODEL,
+        "max_tokens": 1,
+        "messages": [{"role": "user", "content": "hi"}],
+    })
+    .to_string()
+}
+
+/// The cost report URL for the UTC month `now` falls in, one page wide enough
+/// for every day of it (the report's page size caps at 31).
+pub fn claude_api_cost_url<Tz>(now: &DateTime<Tz>) -> String
+where
+    Tz: TimeZone,
+{
+    let utc = now.with_timezone(&Utc);
+    format!(
+        "{CLAUDE_API_COST_URL}?starting_at={:04}-{:02}-01T00:00:00Z&limit=31",
+        utc.year(),
+        utc.month()
+    )
+}
+
+/// What the `anthropic-ratelimit-*` response headers say about the key's
+/// per-minute allowance. Every field is optional: the API documents the
+/// headers but not which responses carry which.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ClaudeRateLimits {
+    pub requests_limit: Option<f64>,
+    pub requests_remaining: Option<f64>,
+    pub tokens_limit: Option<f64>,
+    pub tokens_remaining: Option<f64>,
+    /// RFC 3339 moment the token window refills.
+    pub tokens_reset: Option<String>,
+}
+
+/// Pick the rate-limit headers out of a response's header list (names are
+/// matched case-insensitively, as HTTP allows).
+pub fn parse_rate_limit_headers<'a, I>(headers: I) -> ClaudeRateLimits
+where
+    I: IntoIterator<Item = (&'a str, &'a str)>,
+{
+    let mut limits = ClaudeRateLimits::default();
+    for (name, value) in headers {
+        let number = value.trim().parse::<f64>().ok();
+        match name.to_ascii_lowercase().as_str() {
+            "anthropic-ratelimit-requests-limit" => limits.requests_limit = number,
+            "anthropic-ratelimit-requests-remaining" => limits.requests_remaining = number,
+            "anthropic-ratelimit-tokens-limit" => limits.tokens_limit = number,
+            "anthropic-ratelimit-tokens-remaining" => limits.tokens_remaining = number,
+            "anthropic-ratelimit-tokens-reset" => {
+                limits.tokens_reset = Some(value.trim().to_string());
+            }
+            _ => {}
+        }
+    }
+    limits
+}
+
+/// This month's spend as the Admin API cost report tells it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClaudeCostSummary {
+    /// Lowest currency units (cents for USD), as the report counts.
+    pub month_cents: f64,
+    pub today_cents: f64,
+    /// ISO currency code, `USD` unless the organization bills otherwise.
+    pub currency: String,
+}
+
+/// Sum a cost report's daily buckets into the month's total and today's
+/// share. The report's `amount` is a decimal string in cents; a bucket is
+/// "today" when it starts on the UTC date of `now`, the buckets being UTC days.
+pub fn parse_cost_report<Tz>(body: &str, now: &DateTime<Tz>) -> Result<ClaudeCostSummary, RealtimeError>
+where
+    Tz: TimeZone,
+{
+    let body = parse_json_body(body)?;
+    let buckets = body.get("data").and_then(Value::as_array).ok_or(RealtimeError::NotUnderstood)?;
+    let today = now.with_timezone(&Utc).date_naive();
+    let mut summary = ClaudeCostSummary {
+        month_cents: 0.0,
+        today_cents: 0.0,
+        currency: "USD".to_string(),
+    };
+    let mut currency_seen = false;
+    for bucket in buckets {
+        let is_today = bucket
+            .get("starting_at")
+            .and_then(Value::as_str)
+            .and_then(|text| DateTime::parse_from_rfc3339(text).ok())
+            .map(|start| start.with_timezone(&Utc).date_naive() == today)
+            .unwrap_or(false);
+        for result in bucket.get("results").and_then(Value::as_array).map_or(&[][..], Vec::as_slice) {
+            let Some(cents) = result.get("amount").and_then(python_float) else {
+                continue;
+            };
+            summary.month_cents += cents;
+            if is_today {
+                summary.today_cents += cents;
+            }
+            if !currency_seen {
+                if let Some(code) = result.get("currency").and_then(Value::as_str) {
+                    summary.currency = code.to_string();
+                    currency_seen = true;
+                }
+            }
+        }
+    }
+    Ok(summary)
+}
+
+/// The spoken summary of a Claude API key: this month's spend when the key
+/// may read the cost report, and the per-minute rate limits when it may send
+/// messages. Nothing at all is "not understood"; the caller has already
+/// decided that a key nobody answers is a rejected key.
+pub fn claude_api_sentence<Tz>(
+    limits: Option<&ClaudeRateLimits>,
+    cost: Option<&ClaudeCostSummary>,
+    now: &DateTime<Tz>,
+) -> Result<String, RealtimeError>
+where
+    Tz: TimeZone,
+{
+    let mut parts: Vec<String> = Vec::new();
+
+    if let Some(cost) = cost {
+        let currency = if cost.currency.eq_ignore_ascii_case("USD") {
+            tr("dollars")
+        } else {
+            cost.currency.clone()
+        };
+        parts.push(format_args(
+            &tr("{amount} {currency} spent this month"),
+            &[
+                ("amount", Arg::Str(&format_number(cost.month_cents / 100.0, 2))),
+                ("currency", Arg::Str(&currency)),
+            ],
+        ));
+        parts.push(format_args(
+            &tr("{amount} today"),
+            &[("amount", Arg::Str(&format_number(cost.today_cents / 100.0, 2)))],
+        ));
+    }
+
+    if let Some(limits) = limits {
+        if let (Some(remaining), Some(limit)) = (limits.requests_remaining, limits.requests_limit) {
+            parts.push(format_args(
+                &tr("{remaining} of {limit} requests per minute left"),
+                &[
+                    ("remaining", Arg::Str(&format_number(remaining, 0))),
+                    ("limit", Arg::Str(&format_number(limit, 0))),
+                ],
+            ));
+        }
+        if let (Some(remaining), Some(limit)) = (limits.tokens_remaining, limits.tokens_limit) {
+            parts.push(format_args(
+                &tr("{remaining} of {limit} tokens per minute left"),
+                &[
+                    ("remaining", Arg::Str(&format_number(remaining, 0))),
+                    ("limit", Arg::Str(&format_number(limit, 0))),
+                ],
+            ));
+        }
+        let reset = limits.tokens_reset.as_ref().map(|text| Value::String(text.clone()));
+        if let Some(reset) = format_reset_moment(reset.as_ref(), now) {
+            parts.push(format_args(&tr("limits reset {reset}"), &[("reset", Arg::Str(&reset))]));
+        }
+    }
+
+    if parts.is_empty() {
+        return Err(RealtimeError::NotUnderstood);
+    }
+    Ok(format_args(&tr("Claude API: {parts}"), &[("parts", Arg::Str(&parts.join(", ")))]))
 }
 
 fn utilization(section: Option<&Value>) -> Option<&Value> {
@@ -435,6 +621,88 @@ mod tests {
             let error = claude_usage_sentence(body, &now_at(7, 20, 12, 0)).unwrap_err();
             assert_eq!(error, RealtimeError::NotUnderstood, "for {body:?}");
         }
+    }
+
+    #[test]
+    fn claude_api_sentence_with_both_sources() {
+        // 04:20 UTC: the token window refills 5 minutes out.
+        let now = now_at(10, 19, 6, 20);
+        let headers = [
+            ("Anthropic-Ratelimit-Requests-Limit", "10000"),
+            ("anthropic-ratelimit-requests-remaining", "9999"),
+            ("anthropic-ratelimit-tokens-limit", "12000000"),
+            ("anthropic-ratelimit-tokens-remaining", "11998000"),
+            ("anthropic-ratelimit-tokens-reset", "2026-10-19T04:25:36Z"),
+            ("anthropic-ratelimit-input-tokens-limit", "10000000"),
+            ("request-id", "req_123"),
+        ];
+        let limits = parse_rate_limit_headers(headers);
+        assert_eq!(limits.requests_limit, Some(10000.0));
+        assert_eq!(limits.tokens_remaining, Some(11998000.0));
+        assert_eq!(limits.tokens_reset.as_deref(), Some("2026-10-19T04:25:36Z"));
+
+        let report = r#"{"data": [
+            {"starting_at": "2026-10-18T00:00:00Z", "ending_at": "2026-10-19T00:00:00Z",
+             "results": [{"amount": "1234.5", "currency": "USD"}, {"amount": "0.5", "currency": "USD"}]},
+            {"starting_at": "2026-10-19T00:00:00Z", "ending_at": "2026-10-20T00:00:00Z",
+             "results": [{"amount": "50", "currency": "USD"}]}
+        ], "has_more": false, "next_page": null}"#;
+        let cost = parse_cost_report(report, &now).unwrap();
+        assert_eq!(cost.month_cents, 1285.0);
+        assert_eq!(cost.today_cents, 50.0);
+        assert_eq!(cost.currency, "USD");
+
+        assert_eq!(
+            claude_api_sentence(Some(&limits), Some(&cost), &now).unwrap(),
+            "Claude API: 12.85 dollars spent this month, 0.5 today, \
+             9999 of 10000 requests per minute left, 11998000 of 12000000 tokens per minute left, \
+             limits reset in 5 minutes"
+        );
+    }
+
+    #[test]
+    fn claude_api_sentence_from_one_source_only() {
+        let now = now_at(10, 19, 6, 20);
+        let limits = parse_rate_limit_headers([
+            ("anthropic-ratelimit-requests-limit", "50"),
+            ("anthropic-ratelimit-requests-remaining", "49"),
+        ]);
+        assert_eq!(
+            claude_api_sentence(Some(&limits), None, &now).unwrap(),
+            "Claude API: 49 of 50 requests per minute left"
+        );
+        let cost = ClaudeCostSummary { month_cents: 0.0, today_cents: 0.0, currency: "EUR".into() };
+        assert_eq!(
+            claude_api_sentence(None, Some(&cost), &now).unwrap(),
+            "Claude API: 0 EUR spent this month, 0 today"
+        );
+        assert_eq!(claude_api_sentence(None, None, &now), Err(RealtimeError::NotUnderstood));
+        assert_eq!(
+            claude_api_sentence(Some(&ClaudeRateLimits::default()), None, &now),
+            Err(RealtimeError::NotUnderstood)
+        );
+    }
+
+    #[test]
+    fn claude_api_cost_report_needs_a_data_list() {
+        let now = now_at(10, 19, 6, 20);
+        assert_eq!(parse_cost_report("{}", &now), Err(RealtimeError::NotUnderstood));
+        assert_eq!(parse_cost_report("nope", &now), Err(RealtimeError::NotUnderstood));
+        let empty = parse_cost_report(r#"{"data": []}"#, &now).unwrap();
+        assert_eq!(empty.month_cents, 0.0);
+        assert_eq!(empty.currency, "USD");
+    }
+
+    #[test]
+    fn claude_api_urls_and_probe() {
+        let now = now_at(10, 19, 1, 0); // 2026-10-18 23:00 UTC
+        assert_eq!(
+            claude_api_cost_url(&now),
+            "https://api.anthropic.com/v1/organizations/cost_report?starting_at=2026-10-01T00:00:00Z&limit=31"
+        );
+        let body: serde_json::Value = serde_json::from_str(&claude_api_probe_body()).unwrap();
+        assert_eq!(body["model"], CLAUDE_API_PROBE_MODEL);
+        assert_eq!(body["max_tokens"], 1);
     }
 
     #[test]

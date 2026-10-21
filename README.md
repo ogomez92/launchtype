@@ -502,13 +502,23 @@ Realtime data mode can be accessed by pressing `+` (plus) in the input field. It
 - `vila`: headlines in Catalan from VilaWeb
 - `bbc`: top world headlines from the BBC
 - `cc`: your Claude subscription usage (session and weekly limits, read via Claude Code's local login — no API key needed)
+- `ca`: your Claude API key's spend and rate limits (see [Claude API usage](#claude-api-usage) below)
 - `t`: your computer's temperatures, fan speeds and GPU (see [Computer temperatures](#computer-temperatures) below)
 
 Press Enter (or Alt+R) on an item: the app announces "Fetching..." and then speaks the live value through your screen reader as soon as it arrives. The window stays open so you can query several values in a row. If a lookup fails (no network, service down), the reason is announced instead.
 
-All the online sources are free and require no API key or account.
+All the online sources are free and require no API key or account, except `ca`, which is about an API key by definition.
 
 To go back to commands mode, press the period key (.).
+
+### Claude API usage
+
+The `ca` item is for people who pay for the Claude API by the token rather than (or as well as) through a subscription. The first time you use it, a dialog asks for a Claude API key from console.anthropic.com; it is stored locally in `settings.json`, like the other tokens, and can be changed later in Settings. What gets spoken depends on the kind of key:
+
+- A regular key (`sk-ant-api03-...`) can only see its own rate limits, so the app sends the smallest possible request (one output token from Haiku, about a millionth of a dollar) and reads the limit headers off the reply: *"Claude API: 9999 of 10000 requests per minute left, 12000000 of 12000000 tokens per minute left, limits reset in less than a minute"*.
+- An Admin key (`sk-ant-admin...`, created by an organization admin in the Console) can read the organization's cost report instead, so you hear this month's spend and today's share: *"Claude API: 12.85 dollars spent this month, 0.5 today"*. Admin keys cannot send messages, so there are no rate limits to report.
+
+The remaining prepaid credit balance is not exposed by the API at all; the Console's billing page is the only place to see it. A key rejected by both endpoints is forgotten, so the next query asks for a new one.
 
 ### Computer temperatures
 

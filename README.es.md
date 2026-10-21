@@ -502,13 +502,23 @@ El modo de datos en tiempo real se abre escribiendo `+` (signo más) en la caja.
 - `vila`: titulares en catalán de VilaWeb
 - `bbc`: titulares internacionales de la BBC
 - `cc`: tu uso de la suscripción de Claude (límites de sesión y semanales, leídos de la sesión local de Claude Code — no hace falta clave de API)
+- `ca`: el gasto y los límites de tu clave de la API de Claude (ver [Uso de la API de Claude](#uso-de-la-api-de-claude) más abajo)
 - `t`: las temperaturas, velocidades de ventilador y GPU de tu ordenador (ver [Temperaturas del ordenador](#temperaturas-del-ordenador) más abajo)
 
 Pulsa Intro (o Alt+R) sobre un elemento: la aplicación anuncia "Obteniendo..." y a continuación lee el valor en directo por el lector de pantalla en cuanto llega. La ventana permanece abierta para que puedas consultar varios valores seguidos. Si una consulta falla (sin red, servicio caído), se anuncia el motivo.
 
-Todas las fuentes en línea son gratuitas y no requieren clave de API ni cuenta.
+Todas las fuentes en línea son gratuitas y no requieren clave de API ni cuenta, salvo `ca`, que trata precisamente de una clave de API.
 
 Para volver a comandos, pulsa la tecla punto (.).
+
+### Uso de la API de Claude
+
+El elemento `ca` es para quien paga la API de Claude por tokens en lugar de (o además de) por suscripción. La primera vez que lo usas, un diálogo pide una clave de la API de Claude de console.anthropic.com; se guarda localmente en `settings.json`, como los demás tokens, y se puede cambiar después en Ajustes. Lo que se lee depende del tipo de clave:
+
+- Una clave normal (`sk-ant-api03-...`) solo puede ver sus propios límites de peticiones, así que la aplicación envía la petición más pequeña posible (un token de salida de Haiku, alrededor de una millonésima de dólar) y lee las cabeceras de límites de la respuesta: *"API de Claude: quedan 9999 de 10000 peticiones por minuto, quedan 12000000 de 12000000 tokens por minuto, los límites se reinician en menos de un minuto"*.
+- Una clave de administrador (`sk-ant-admin...`, creada por un administrador de la organización en la consola) puede leer el informe de costes de la organización, así que oyes el gasto de este mes y la parte de hoy: *"API de Claude: 12,85 dólares gastados este mes, 0,5 hoy"*. Las claves de administrador no pueden enviar mensajes, así que no hay límites de peticiones que leer.
+
+El saldo de crédito prepagado restante no lo expone la API en absoluto; la página de facturación de la consola es el único sitio donde verlo. Una clave rechazada por ambos extremos se olvida, de modo que la siguiente consulta pide una nueva.
 
 ### Temperaturas del ordenador
 

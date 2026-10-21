@@ -24,8 +24,9 @@ use launchtype_core::realtime::temperatures::{
 #[cfg(windows)]
 use launchtype_core::realtime::temperatures::{parse_windows_sensors, SENSORS_POWERSHELL};
 use launchtype_core::realtime::usage::{
-    claude_usage_sentence, openai_usage_sentence, CLAUDE_OAUTH_BETA, CLAUDE_USAGE_URL,
-    CODEX_USAGE_URL,
+    claude_api_cost_url, claude_api_probe_body, claude_api_sentence, claude_usage_sentence,
+    openai_usage_sentence, parse_cost_report, parse_rate_limit_headers, CLAUDE_API_MESSAGES_URL,
+    CLAUDE_API_VERSION, CLAUDE_OAUTH_BETA, CLAUDE_USAGE_URL, CODEX_USAGE_URL,
 };
 use launchtype_core::realtime::weather::{
     open_meteo_url, parse_location, weather_sentence, IPINFO_URL,
@@ -68,7 +69,9 @@ fn http_get_with_timeout(
 }
 
 /// Fetch the realtime value for `key` and return a speakable sentence.
-pub fn fetch_value(key: &str) -> Result<String, RealtimeError> {
+/// `claude_api_key` is only read by the `claude_api` item; the others take it
+/// as given and ignore it.
+pub fn fetch_value(key: &str, claude_api_key: &str) -> Result<String, RealtimeError> {
     let history = HistoryStore::new(HISTORY_FILE);
     match key {
         "bitcoin" => {
@@ -106,6 +109,7 @@ pub fn fetch_value(key: &str) -> Result<String, RealtimeError> {
         "vilaweb" => rss_headline_sentence(&http_get(VILAWEB.url, &[])?, VILAWEB.name),
         "bbc" => rss_headline_sentence(&http_get(BBC.url, &[])?, BBC.name),
         "claude" => fetch_claude_usage(),
+        "claude_api" => fetch_claude_api_usage(claude_api_key),
         "openai" => fetch_openai_usage(),
         "temperatures" => fetch_temperatures(),
         _ => Err(RealtimeError::UnknownItem),
@@ -143,6 +147,59 @@ fn fetch_claude_usage() -> Result<String, RealtimeError> {
         Err(e) => return Err(e),
     };
     claude_usage_sentence(&body, &Local::now())
+}
+
+/// What a Claude API key can tell about itself. Two kinds of key exist and
+/// each answers one question only: an admin key reads the organization's cost
+/// report but may not send messages, a regular key sends messages (whose
+/// response headers carry its rate limits) but is turned away by the Admin
+/// API. So both are asked, a 401 from either is just "not that kind of key",
+/// and only a key that neither accepts is reported as rejected.
+fn fetch_claude_api_usage(api_key: &str) -> Result<String, RealtimeError> {
+    let api_key = api_key.trim();
+    if api_key.is_empty() {
+        return Err(RealtimeError::ClaudeApiKeyMissing);
+    }
+    let now = Local::now();
+    let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(TIMEOUT_SECONDS)).build();
+    let with_auth = |request: ureq::Request| {
+        request
+            .set("User-Agent", USER_AGENT)
+            .set("x-api-key", api_key)
+            .set("anthropic-version", CLAUDE_API_VERSION)
+    };
+
+    let cost = match with_auth(agent.get(&claude_api_cost_url(&now))).call() {
+        Ok(response) => {
+            let body = response.into_string().map_err(|e| RealtimeError::Unexpected(e.to_string()))?;
+            Some(parse_cost_report(&body, &now)?)
+        }
+        Err(ureq::Error::Status(401, _)) => None,
+        Err(ureq::Error::Status(code, _)) => return Err(RealtimeError::HttpStatus(code)),
+        Err(ureq::Error::Transport(t)) => return Err(RealtimeError::Network(t.to_string())),
+    };
+
+    let probe = with_auth(agent.post(CLAUDE_API_MESSAGES_URL))
+        .set("content-type", "application/json")
+        .send_string(&claude_api_probe_body());
+    let limits = match probe {
+        Ok(response) => {
+            let names = response.headers_names();
+            Some(parse_rate_limit_headers(
+                names
+                    .iter()
+                    .filter_map(|name| response.header(name).map(|value| (name.as_str(), value))),
+            ))
+        }
+        Err(ureq::Error::Status(401, _)) => None,
+        Err(ureq::Error::Status(code, _)) => return Err(RealtimeError::HttpStatus(code)),
+        Err(ureq::Error::Transport(t)) => return Err(RealtimeError::Network(t.to_string())),
+    };
+
+    if cost.is_none() && limits.is_none() {
+        return Err(RealtimeError::ClaudeApiKeyInvalid);
+    }
+    claude_api_sentence(limits.as_ref(), cost.as_ref(), &now)
 }
 
 fn fetch_openai_usage() -> Result<String, RealtimeError> {
@@ -270,9 +327,24 @@ mod tests {
     #[test]
     #[ignore]
     fn claude_usage_over_the_subscription() {
-        let sentence = fetch_value("claude").expect("claude usage");
+        let sentence = fetch_value("claude", "").expect("claude usage");
         println!("{sentence}");
         assert!(!sentence.is_empty());
+    }
+
+    /// Live: asks the API about the key in `CLAUDE_API_KEY_UNDER_TEST`.
+    #[test]
+    #[ignore]
+    fn claude_api_key_reports_spend_or_limits() {
+        let key = std::env::var("CLAUDE_API_KEY_UNDER_TEST").expect("CLAUDE_API_KEY_UNDER_TEST");
+        let sentence = fetch_value("claude_api", &key).expect("claude api usage");
+        println!("{sentence}");
+        assert!(sentence.starts_with("Claude API: "));
+    }
+
+    #[test]
+    fn claude_api_without_a_key_asks_for_one() {
+        assert_eq!(fetch_value("claude_api", "  "), Err(RealtimeError::ClaudeApiKeyMissing));
     }
 
     /// Live: the CLI renews the session and the token on disk is still usable.

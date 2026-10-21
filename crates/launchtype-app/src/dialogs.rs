@@ -445,9 +445,13 @@ fn portabilize(path: &str) -> String {
 
 fn ok_cancel_row(dialog: &Dialog, sizer: &BoxSizer) -> (Button, Button) {
     let row = BoxSizer::builder(Orientation::Horizontal).build();
-    // Standard ids let wxDialog map Enter -> OK and Escape -> Cancel. Without
-    // ID_CANCEL on a button, pressing Escape does nothing.
-    let ok = Button::builder(dialog).with_id(ID_OK).with_label(&tr("&OK")).build();
+    // ID_CANCEL lets wxDialog map Escape -> Cancel; without it on a button,
+    // pressing Escape does nothing. OK deliberately does NOT get ID_OK:
+    // wxdragon skips every click event its handler did not consume, so the
+    // click would carry on to wxDialog's own ID_OK handling and close the
+    // dialog even after validation showed an error and returned. Every OK
+    // handler ends the modal itself; set_default keeps Enter -> OK.
+    let ok = Button::builder(dialog).with_label(&tr("&OK")).build();
     let cancel = Button::builder(dialog)
         .with_id(wxdragon::id::ID_CANCEL)
         .with_label(&tr("&Cancel"))
@@ -1107,6 +1111,12 @@ pub fn settings_dialog(
         labeled_password_row(&dialog, &sizer, &tr("SSH pass&word (or key passphrase):"));
     ssh_password_entry.set_value(&settings.settings.ssh_password);
 
+    // Realtime mode's `ca` item asks for this the first time it is used; here
+    // is where a key is swapped for another one.
+    let claude_api_key_entry =
+        labeled_password_row(&dialog, &sizer, &tr("Cl&aude API key (realtime ca item):"));
+    claude_api_key_entry.set_value(&settings.settings.claude_api_key);
+
     let hint = StaticText::builder(&dialog)
         .with_label(&tr("Command line flags override these settings for the current run."))
         .build();
@@ -1221,6 +1231,7 @@ pub fn settings_dialog(
     settings.settings.ssh_user = ssh_user_entry.get_value().trim().to_string();
     settings.settings.ssh_key_path = ssh_key_entry.get_value().trim().to_string();
     settings.settings.ssh_password = ssh_password_entry.get_value();
+    settings.settings.claude_api_key = claude_api_key_entry.get_value().trim().to_string();
     let _ = settings.save();
 
     // The window and its labels were built in the old language, so a live
@@ -2208,6 +2219,41 @@ pub fn confirm_past_event_day(parent: &Frame, day: &str) -> bool {
 }
 
 /// Prompt for Notebrook credentials; returns Some((url, token)) on OK.
+/// Ask for the Claude API key the realtime `ca` item reports on. `None` when
+/// cancelled; the key is otherwise non-empty and trimmed.
+pub fn claude_api_key_dialog(parent: &Frame) -> Option<String> {
+    let dialog = Dialog::builder(parent, &tr("Claude API key")).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    let help = StaticText::builder(&dialog)
+        .with_label(&tr(
+            "Enter a Claude API key from console.anthropic.com. It is stored locally in settings.json. \
+             A regular key reports its rate limits; an Admin key reports this month's spend.",
+        ))
+        .build();
+    sizer.add(&help, 0, SizerFlag::All, 5);
+    let key_entry = labeled_password_row(&dialog, &sizer, &tr("API &key:"));
+    let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
+    dialog.set_sizer_and_fit(sizer, true);
+
+    {
+        ok.on_click(move |_| {
+            if key_entry.get_value().trim().is_empty() {
+                error_box(&dialog, &tr("Please enter the API key."), &tr("Error"));
+                return;
+            }
+            dialog.end_modal(ID_OK);
+        });
+    }
+    {
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
+    }
+
+    if dialog.show_modal() != ID_OK {
+        return None;
+    }
+    Some(key_entry.get_value().trim().to_string())
+}
+
 pub fn notebrook_credentials_dialog(
     parent: &Frame,
     current_url: &str,

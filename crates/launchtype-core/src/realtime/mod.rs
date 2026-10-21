@@ -42,6 +42,10 @@ pub enum RealtimeError {
     ClaudeCredentialsMissing,
     #[error("{}", tr("Claude Code session expired, open Claude Code to log in again."))]
     ClaudeSessionExpired,
+    #[error("{}", tr("No Claude API key configured."))]
+    ClaudeApiKeyMissing,
+    #[error("{}", tr("The Claude API key was rejected, enter it again."))]
+    ClaudeApiKeyInvalid,
     #[error("{}", tr("Codex credentials not found, log in to the Codex CLI first."))]
     CodexCredentialsMissing,
     #[error("{}", tr("Codex session expired, run Codex to log in again."))]
@@ -82,7 +86,7 @@ pub struct RealtimeItem {
 
 /// The list of realtime data items for the UI, in Python's order.
 pub fn realtime_items() -> Vec<RealtimeItem> {
-    let definitions: [(&'static str, String, &'static str); 14] = [
+    let definitions: [(&'static str, String, &'static str); 15] = [
         ("bitcoin", tr("bitcoin price in euros"), "btc"),
         ("ethereum", tr("ethereum price in euros"), "eth"),
         ("eur_usd", tr("1000 euros in us dollars"), "usd"),
@@ -95,6 +99,7 @@ pub fn realtime_items() -> Vec<RealtimeItem> {
         ("vilaweb", tr("vilaweb news in catalan"), "vila"),
         ("bbc", tr("bbc world news headlines"), "bbc"),
         ("claude", tr("claude usage limits"), "cc"),
+        ("claude_api", tr("claude api spend and rate limits"), "ca"),
         ("openai", tr("openai codex usage limits"), "co"),
         ("temperatures", tr("computer temperatures, fans and gpu"), "t"),
     ];
@@ -152,6 +157,14 @@ mod tests {
             "Claude Code session expired, open Claude Code to log in again."
         );
         assert_eq!(
+            RealtimeError::ClaudeApiKeyMissing.to_string(),
+            "No Claude API key configured."
+        );
+        assert_eq!(
+            RealtimeError::ClaudeApiKeyInvalid.to_string(),
+            "The Claude API key was rejected, enter it again."
+        );
+        assert_eq!(
             RealtimeError::CodexCredentialsMissing.to_string(),
             "Codex credentials not found, log in to the Codex CLI first."
         );
@@ -174,7 +187,7 @@ mod tests {
     #[test]
     fn items_match_python_definitions() {
         let items = realtime_items();
-        assert_eq!(items.len(), 14);
+        assert_eq!(items.len(), 15);
         assert_eq!(items[0].key, "bitcoin");
         assert_eq!(items[0].name, "bitcoin price in euros");
         assert_eq!(items[0].shortcut, "btc");
@@ -182,8 +195,10 @@ mod tests {
         assert_eq!(items[0].item_type, "realtime");
         assert_eq!(items[6].key, "weather");
         assert_eq!(items[6].shortcut, "w");
-        assert_eq!(items[13].key, "temperatures");
-        assert_eq!(items[13].name, "computer temperatures, fans and gpu");
+        assert_eq!(items[12].key, "claude_api");
+        assert_eq!(items[12].shortcut, "ca");
+        assert_eq!(items[14].key, "temperatures");
+        assert_eq!(items[14].name, "computer temperatures, fans and gpu");
         assert!(items.iter().all(|item| item.id == item.key));
     }
 }

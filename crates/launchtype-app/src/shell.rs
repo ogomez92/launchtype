@@ -1196,6 +1196,16 @@ pub fn run_clicked(shell: &SharedShell) {
         // when it arrives; the window stays open so the user can query
         // several values in a row.
         ItemKind::Realtime { key } => {
+            // The Claude API item is the one lookup that needs a credential
+            // of its own; it is asked for once and kept in settings.
+            let claude_api_key = if key == "claude_api" {
+                match ensure_claude_api_key(shell) {
+                    Some(api_key) => api_key,
+                    None => return,
+                }
+            } else {
+                String::new()
+            };
             let sounds = shell.borrow().sounds.clone();
             sounds.play("run");
             speak_now(
@@ -1204,19 +1214,26 @@ pub fn run_clicked(shell: &SharedShell) {
             );
             let name = item.name.clone();
             std::thread::spawn(move || {
-                let result = launchtype_services::realtime::fetch_value(&key);
+                let result = launchtype_services::realtime::fetch_value(&key, &claude_api_key);
                 wxdragon::call_after(Box::new(move || match result {
                     Ok(announcement) => {
                         sounds.play("match");
                         speak_now(&announcement, true);
                     }
-                    Err(error) => speak_now(
-                        &format_args(
-                            &tr("Could not fetch {name}: {reason}"),
-                            &[("name", Arg::Str(&name)), ("reason", Arg::Str(&error.message()))],
-                        ),
-                        true,
-                    ),
+                    Err(error) => {
+                        // A rejected key is forgotten so the next query asks
+                        // for a fresh one instead of failing the same way.
+                        if error == launchtype_core::realtime::RealtimeError::ClaudeApiKeyInvalid {
+                            with_shell(forget_claude_api_key);
+                        }
+                        speak_now(
+                            &format_args(
+                                &tr("Could not fetch {name}: {reason}"),
+                                &[("name", Arg::Str(&name)), ("reason", Arg::Str(&error.message()))],
+                            ),
+                            true,
+                        )
+                    }
                 }));
             });
         }
@@ -1566,6 +1583,29 @@ fn open_in_terminal(shell: &SharedShell) {
             show_error(&frame, &tr("Cannot open terminal"), &error.to_string());
         }
     }
+}
+
+/// The stored Claude API key, or the one the user types now (persisted at
+/// once); `None` when the dialog is cancelled.
+fn ensure_claude_api_key(shell: &SharedShell) -> Option<String> {
+    let (current, frame) = {
+        let s = shell.borrow();
+        (s.settings.settings.claude_api_key.trim().to_string(), s.frame)
+    };
+    if !current.is_empty() {
+        return Some(current);
+    }
+    let api_key = crate::dialogs::claude_api_key_dialog(&frame)?;
+    let mut s = shell.borrow_mut();
+    s.settings.settings.claude_api_key = api_key.clone();
+    let _ = s.settings.save();
+    Some(api_key)
+}
+
+fn forget_claude_api_key(shell: &SharedShell) {
+    let mut s = shell.borrow_mut();
+    s.settings.settings.claude_api_key.clear();
+    let _ = s.settings.save();
 }
 
 fn send_notebrook_note(shell: &SharedShell) {

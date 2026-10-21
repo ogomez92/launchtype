@@ -85,6 +85,10 @@ behavioral reference: when in doubt, compare side by side on the same data.
       sounds/, so the install folder moving must not break it)
 - [ ] Notebrook: # then text then Run posts to "feeds"; 401 forgets credentials
 - [ ] Realtime: fetch announces "Fetching {name}" then speaks the value
+- [ ] Realtime `ca`: with no key stored, Enter opens the Claude API key
+      dialog before "Fetching"; Cancel does nothing; a saved key is reused
+      next time and shows masked in Settings; a bad key is announced as
+      rejected and forgotten
 - [ ] Stats: total + most/least used lines, spoken in full (no 40-char clip)
 - [ ] Emoji: `:` lists smileys first; "red heart" then Enter copies ❤️ with the
       "copy" sound and hides the window; paste it somewhere to confirm the
