@@ -32,3 +32,5 @@ pub mod timers;
 pub mod totp;
 pub mod units;
 pub mod vault;
+pub mod vault_blob;
+pub mod vault_dates;

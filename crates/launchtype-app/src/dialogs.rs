@@ -1826,7 +1826,10 @@ pub struct VaultEntryFields {
 
 /// The kind rows, in the order the Choice lists them. Index 0 is the default
 /// so a new entry starts as a password, which is what almost all of them are.
-const ENTRY_KINDS: [EntryKind; 2] = [EntryKind::Password, EntryKind::Totp];
+/// The last two are only listed when adding: an existing entry cannot turn
+/// into a file, and a file entry is edited in its own dialog.
+const ENTRY_KINDS: [EntryKind; 4] =
+    [EntryKind::Password, EntryKind::Totp, EntryKind::File, EntryKind::Folder];
 
 /// Add or edit a vault entry. `existing` seeds the fields when editing.
 ///
@@ -1840,6 +1843,10 @@ const ENTRY_KINDS: [EntryKind; 2] = [EntryKind::Password, EntryKind::Totp];
 /// derived from it. An authenticator seed typed in here is checked before the
 /// dialog closes, because a seed that cannot produce a code is a lot easier to
 /// fix now than the next time the user needs to log in somewhere.
+///
+/// Choosing a file or a folder disables the secret field; OK then closes the
+/// dialog and the caller asks which file or folder. The name may be left
+/// empty for those, and becomes the file's own.
 pub fn vault_entry_dialog(parent: &Frame, existing: Option<VaultEntryFields>) -> Option<VaultEntryFields> {
     let title = if existing.is_some() { tr("Edit vault entry") } else { tr("Add to the vault") };
     let dialog = Dialog::builder(parent, &title).build();
@@ -1854,6 +1861,10 @@ pub fn vault_entry_dialog(parent: &Frame, existing: Option<VaultEntryFields>) ->
     ax_name(&kind_choice, &kind_title);
     kind_choice.append(&tr("A password or other secret text"));
     kind_choice.append(&tr("An authenticator seed (Enter copies the current code)"));
+    if existing.is_none() {
+        kind_choice.append(&tr("A file (Enter saves a copy of it where you choose)"));
+        kind_choice.append(&tr("A folder (Enter saves a copy of it where you choose)"));
+    }
     kind_choice.set_selection(0);
     sizer.add(&kind_choice, 0, SizerFlag::Expand, 0);
 
@@ -1877,7 +1888,18 @@ pub fn vault_entry_dialog(parent: &Frame, existing: Option<VaultEntryFields>) ->
     }
 
     {
+        // A disabled field is skipped by Tab, so a screen reader user is not
+        // walked through a field that would be ignored.
+        kind_choice.on_selection_changed(move |_| {
+            secret_entry.enable(!chosen_kind(&kind_choice).holds_file());
+        });
+    }
+    {
         ok.on_click(move |_| {
+            if chosen_kind(&kind_choice).holds_file() {
+                dialog.end_modal(ID_OK);
+                return;
+            }
             if name_entry.get_value().trim().is_empty() || secret_entry.get_value().is_empty() {
                 error_box(
                     &dialog,
@@ -1902,17 +1924,65 @@ pub fn vault_entry_dialog(parent: &Frame, existing: Option<VaultEntryFields>) ->
     if dialog.show_modal() != ID_OK {
         return None;
     }
+    let kind = chosen_kind(&kind_choice);
     Some(VaultEntryFields {
         name: name_entry.get_value().trim().to_string(),
         shortcut: shortcut_entry.get_value().trim().to_lowercase(),
-        secret: secret_entry.get_value(),
-        kind: chosen_kind(&kind_choice),
+        secret: if kind.holds_file() { String::new() } else { secret_entry.get_value() },
+        kind,
     })
 }
 
 fn chosen_kind(choice: &Choice) -> EntryKind {
     let index = choice.get_selection().unwrap_or(0) as usize;
     ENTRY_KINDS.get(index).copied().unwrap_or_default()
+}
+
+/// Name a file or folder kept in the vault, when adding one (the name starts
+/// out as the file's own) and when editing one. Only the name and shortcut:
+/// the contents are not something a text field can show, and `note` says
+/// what happens to them instead.
+///
+/// The returned fields' `secret` and `kind` are left at their defaults.
+pub fn vault_file_entry_dialog(
+    parent: &Frame,
+    title: &str,
+    note: &str,
+    name: &str,
+    shortcut: &str,
+) -> Option<VaultEntryFields> {
+    let dialog = Dialog::builder(parent, title).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    let help = StaticText::builder(&dialog).with_label(note).build();
+    sizer.add(&help, 0, SizerFlag::All, 5);
+    let name_entry = labeled_row(&dialog, &sizer, &tr("&Name:"));
+    let shortcut_entry = labeled_row(&dialog, &sizer, &tr("&Shortcut (optional):"));
+    let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
+    dialog.set_sizer_and_fit(sizer, true);
+    name_entry.set_value(name);
+    shortcut_entry.set_value(shortcut);
+
+    {
+        ok.on_click(move |_| {
+            if name_entry.get_value().trim().is_empty() {
+                error_box(&dialog, &tr("Please enter a name for this entry."), &tr("Error"));
+                return;
+            }
+            dialog.end_modal(ID_OK);
+        });
+    }
+    {
+        cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
+    }
+
+    if dialog.show_modal() != ID_OK {
+        return None;
+    }
+    Some(VaultEntryFields {
+        name: name_entry.get_value().trim().to_string(),
+        shortcut: shortcut_entry.get_value().trim().to_lowercase(),
+        ..VaultEntryFields::default()
+    })
 }
 
 /// The wording for a seed the TOTP parser would not take. The error lives in

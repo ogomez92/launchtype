@@ -609,6 +609,19 @@ Add, Edit and Delete work the way they do everywhere else in the app. Each entry
 
 Once open, the vault relocks by itself after five idle minutes and the key is wiped from memory — not merely ignored — by a background timer, so walking away from the machine closes it. Set the timeout to 0 in Settings and it will ask for the master password on every single copy. "Lock the vault now" and "Change the master password" sit at the bottom of the list; changing the password is instant, because the entries are not encrypted with the password itself (see below).
 
+### Files and folders
+
+The vault can also keep documents next to the passwords: scanned IDs, a printer manual, a folder of tax returns. Press Add and choose "A file" or "A folder" under "This entry holds" (the secret field is then switched off), type a name and an optional shortcut, and press OK. You are then asked which file or folder. If you leave the name empty, the entry takes the file's own name. A copy is encrypted in; the original is left where it was, so delete it yourself if it should not stay on disk unencrypted. A folder is stored with everything inside it, including empty subfolders; links inside it are not followed. Each file or folder can be up to 200 MB.
+
+These entries show in the list as "name, file" or "name, folder". Enter on one never opens it. It asks where to save a copy:
+
+- for a file, a Save dialog with the original file name filled in (it asks before replacing an existing file);
+- for a folder, a folder picker. The folder is recreated inside the one you picked, under its original name, or "name (2)" if that is taken: an existing folder is never merged into or overwritten.
+
+Nothing is decrypted into a temporary folder or opened by another program, so the only unencrypted copy is the one you chose to make. Edit changes the name and shortcut, and Delete removes the contents along with the entry.
+
+Older versions of Launchtype do not know about these entries. They leave them out of the list and keep working with the rest of the vault.
+
 ### Importing from Bitwarden
 
 "Import a Bitwarden export file" at the bottom of the list reads a file made by Bitwarden's "Export vault": the `.json` export, the `.csv` export, or a password-protected `.json` export (you are asked for the export password; both PBKDF2 and Argon2id are supported). An "account restricted" export can only be opened by Bitwarden itself, and the `.zip` export with attachments is not read either; for those, export again.
@@ -637,7 +650,9 @@ Worth stating plainly, since "encrypted" on its own means very little:
 - That gives a master key which does nothing but unwrap a random 32-byte **vault key**; the entries are sealed with that one. This is why changing the master password rewrites one small file instead of re-encrypting everything.
 - Each entry is a separate file sealed with **AES-256-GCM** under a fresh random nonce, so tampering with one is detected rather than trusted.
 - **Entry names are inside the ciphertext too.** Files are named after a random uuid, not after the entry, because a folder listing full of `amazon.enc` and `work-vpn.enc` gives away most of what a password list is worth. Someone who gets the folder learns how many entries there are and roughly how long each one is — nothing else. The uuid is authenticated alongside the contents, so entry files cannot be swapped around either.
+- **The dates give nothing away either.** Every file the vault writes gets a random date between 1980 and 2005 as its modified, last-accessed and (on Windows) created date, and reading an entry puts its last-accessed date back. A folder listing does not show which entries are newest, recently changed or recently used. A changed file always gets a new date, so backup and sync tools that compare size and date still pick it up. Tools that only copy files with a *newer* date (`xcopy /D`, `rsync -u`) will miss changes.
 - Decrypted text exists only in memory, in buffers that wipe themselves when dropped, and only one secret is decrypted at a time — unlocking reads the names, not the secrets.
+- A file or folder goes in a `<uuid>.blob` file next to its entry, sealed with AES-256-GCM in 64 KiB chunks under a random key made for that file alone. That key is stored only inside the entry's own encrypted payload, so a blob opens only through its entry. Each chunk's nonce carries its position and whether it is the last one, so reordering, swapping or cutting off chunks is detected. A folder is zipped straight into the encryption; the zip is never on disk unencrypted. Someone with the vault folder learns roughly how big each document is, but not its name or type.
 
 ## Audio device modes
 

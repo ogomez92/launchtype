@@ -11,7 +11,12 @@
 //! the secret back off the clipboard a configurable number of seconds later
 //! unless something else has been copied since, and it re-locks the vault when
 //! the timeout is set to zero.
+//!
+//! Files and folders kept in the vault are never opened from it. Enter on one
+//! asks where to save it and decrypts it there, so the only plaintext copy is
+//! one the user put somewhere on purpose.
 
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use launchtype_core::bitwarden::{plan_import, BwItem, ImportPlan};
@@ -19,7 +24,9 @@ use launchtype_core::bitwarden_export::{read_export, Export, ExportError, Protec
 use launchtype_core::i18n::{format_args, tr, Arg};
 use launchtype_core::totp::Totp;
 use launchtype_core::vault::{EntryKind, VaultError, VaultSession};
+use launchtype_core::vault_blob::MAX_BLOB_BYTES;
 use launchtype_services::clipboard;
+use wxdragon::dialogs::dir_dialog::DirDialog;
 use wxdragon::dialogs::file_dialog::{FileDialog, FileDialogStyle};
 use zeroize::Zeroizing;
 
@@ -38,6 +45,12 @@ fn error_text(error: &VaultError) -> String {
         VaultError::NoSuchEntry => tr("That entry is no longer in the vault."),
         VaultError::PasswordTooShort => tr("That master password is too short."),
         VaultError::AlreadyExists => tr("There is already a vault in that folder."),
+        VaultError::TooLarge => format_args(
+            &tr("That is too large to keep in the vault. The limit is {size} MB."),
+            &[("size", Arg::Int((MAX_BLOB_BYTES / (1024 * 1024)) as i64))],
+        ),
+        VaultError::WrongKind => tr("That entry does not hold a file."),
+        VaultError::InsideVault => tr("The vault folder cannot be put inside the vault."),
         VaultError::Io(e) => e.to_string(),
     }
 }
@@ -169,12 +182,19 @@ fn change_password(shell: &SharedShell) {
 }
 
 /// Add an entry. Also the Add button's job while the vault mode is showing.
+///
+/// Picking a file or a folder as the kind goes on to ask which one, after
+/// the name and shortcut have been typed.
 pub fn add_entry(shell: &SharedShell) {
     if !ensure_unlocked(shell) {
         return;
     }
     let frame = shell.borrow().frame;
     let Some(fields) = dialogs::vault_entry_dialog(&frame, None) else { return };
+    if fields.kind.holds_file() {
+        let Some(source) = pick_source(shell, fields.kind) else { return };
+        return store_copy(shell, &source, &fields);
+    }
     save(shell, None, &fields, tr("Added to the vault"));
 }
 
@@ -188,6 +208,19 @@ pub fn edit_entry(shell: &SharedShell, id: &str) {
         Ok(entry) => entry,
         Err(error) => return report(shell, &error),
     };
+    // A file has no text to show, so only its name and shortcut are edited.
+    if info.kind.holds_file() {
+        let frame = shell.borrow().frame;
+        let note = tr("Pressing Enter on this entry asks where to save a copy of it.");
+        let title = tr("Edit vault entry");
+        let Some(fields) =
+            dialogs::vault_file_entry_dialog(&frame, &title, &note, &info.name, &info.shortcut)
+        else {
+            return;
+        };
+        let result = session(shell).lock().unwrap().rename(id, &fields.name, &fields.shortcut);
+        return finish_write(shell, result, tr("Vault entry saved"));
+    }
     let seed = VaultEntryFields {
         name: info.name,
         shortcut: info.shortcut,
@@ -207,13 +240,141 @@ fn save(shell: &SharedShell, id: Option<&str>, fields: &VaultEntryFields, spoken
         &fields.secret,
         fields.kind,
     );
+    finish_write(shell, result.map(drop), spoken);
+}
+
+/// Say how a change to the vault went, and show the list as it is now.
+fn finish_write(shell: &SharedShell, result: Result<(), VaultError>, spoken: String) {
     match result {
-        Ok(_) => {
+        Ok(()) => {
             shell.borrow().sounds.play("match");
             speak_now(&spoken, true);
             update_list(shell);
         }
         Err(error) => report(shell, &error),
+    }
+}
+
+/// Ask which file, or which folder, to put in the vault. A copy goes in; the
+/// original is not touched, and deleting it is the user's call.
+fn pick_source(shell: &SharedShell, kind: EntryKind) -> Option<PathBuf> {
+    let frame = shell.borrow().frame;
+    let path = if kind == EntryKind::Folder {
+        let dir_dialog =
+            DirDialog::builder(&frame, &tr("Choose a folder to keep in the vault"), "").build();
+        if dir_dialog.show_modal() != wxdragon::id::ID_OK {
+            return None;
+        }
+        dir_dialog.get_path()
+    } else {
+        let file_dialog = FileDialog::builder(&frame)
+            .with_message(&tr("Choose a file to keep in the vault"))
+            .with_wildcard(&tr("All files (*.*)|*.*"))
+            .with_style(FileDialogStyle::Open | FileDialogStyle::FileMustExist)
+            .build();
+        if file_dialog.show_modal() != wxdragon::id::ID_OK {
+            return None;
+        }
+        file_dialog.get_path()
+    };
+    path.map(PathBuf::from)
+}
+
+fn source_name(source: &Path) -> String {
+    source.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default()
+}
+
+/// Encrypt the file or folder at `source` into the vault as `fields.kind`,
+/// named `fields.name`, or after itself if that was left empty.
+fn store_copy(shell: &SharedShell, source: &Path, fields: &VaultEntryFields) {
+    // The dialogs give the auto-locker plenty of time to have run.
+    if !ensure_unlocked(shell) {
+        return;
+    }
+    let name = if fields.name.is_empty() { source_name(source) } else { fields.name.clone() };
+    // Encrypting a large folder takes a moment, and happens here rather than
+    // on a thread like unlocking does: the vault is unusable until it is in.
+    let vault = session(shell);
+    let result = {
+        let mut vault = vault.lock().unwrap();
+        match fields.kind {
+            EntryKind::Folder => vault.add_folder(&name, &fields.shortcut, source),
+            _ => vault.add_file(&name, &fields.shortcut, source),
+        }
+    };
+    finish_write(shell, result.map(drop), tr("Added to the vault"));
+}
+
+/// Enter on a file or folder entry: ask where to put a decrypted copy, and
+/// write it there. A file is saved under a name the user picks; a folder is
+/// recreated inside the folder they pick, next to (never over) anything of
+/// the same name.
+///
+/// The dialogs name it by its original file name, which is what it is about
+/// to be saved as, rather than by its row in the list.
+fn save_copy(shell: &SharedShell, id: &str, kind: EntryKind) {
+    let vault = session(shell);
+    let original = vault.lock().unwrap().original_name(id);
+    let original = match original {
+        Ok(original) => original,
+        Err(error) => return report(shell, &error),
+    };
+    let frame = shell.borrow().frame;
+    let chosen = if kind == EntryKind::Folder {
+        let message =
+            format_args(&tr("Choose where to save the folder {name}"), &[("name", Arg::Str(&original))]);
+        let dir_dialog = DirDialog::builder(&frame, &message, "").build();
+        if dir_dialog.show_modal() != wxdragon::id::ID_OK {
+            return;
+        }
+        dir_dialog.get_path()
+    } else {
+        let message = format_args(&tr("Save {name} as"), &[("name", Arg::Str(&original))]);
+        let file_dialog = FileDialog::builder(&frame)
+            .with_message(&message)
+            .with_default_file(&original)
+            .with_wildcard(&tr("All files (*.*)|*.*"))
+            .with_style(FileDialogStyle::Save | FileDialogStyle::OverwritePrompt)
+            .build();
+        if file_dialog.show_modal() != wxdragon::id::ID_OK {
+            return;
+        }
+        file_dialog.get_path()
+    };
+    let Some(chosen) = chosen else { return };
+    let chosen = PathBuf::from(chosen);
+    if !ensure_unlocked(shell) {
+        return;
+    }
+
+    let result = {
+        let vault = vault.lock().unwrap();
+        match kind {
+            EntryKind::Folder => vault.export_folder(id, &chosen),
+            _ => vault.export_file(id, &chosen).map(|()| chosen),
+        }
+    };
+    let saved = match result {
+        Ok(saved) => saved,
+        Err(error) => return report(shell, &error),
+    };
+    after_use(shell, &vault);
+    shell.borrow().sounds.play("match");
+    // The full path, because a folder may have landed as "name (2)".
+    speak_now(
+        &format_args(&tr("Saved to {path}"), &[("path", Arg::Str(&saved.to_string_lossy()))]),
+        true,
+    );
+}
+
+/// Using an entry counts as activity, and with the timeout at zero it is
+/// also the moment to lock again.
+fn after_use(shell: &SharedShell, vault: &Arc<Mutex<VaultSession>>) {
+    let now = shell.borrow().controller.clock.now();
+    let mut vault = vault.lock().unwrap();
+    vault.touch(now);
+    if vault.locks_on_use() {
+        vault.lock();
     }
 }
 
@@ -242,7 +403,8 @@ pub fn delete_entry(shell: &SharedShell, id: &str, name: &str) {
 ///
 /// For an authenticator entry what reaches the clipboard is the six digits for
 /// right now, not the seed they come from — the seed is what the entry stores,
-/// but it is never what the user wants to paste.
+/// but it is never what the user wants to paste. A file or folder entry is not
+/// copied at all, but saved somewhere; see [`save_copy`].
 pub fn copy_secret(shell: &SharedShell, id: &str, name: &str) {
     // The vault may have auto-locked with this very list still on screen, so
     // Enter on an entry asks for the password and then carries on rather than
@@ -262,6 +424,7 @@ pub fn copy_secret(shell: &SharedShell, id: &str, name: &str) {
     // Worked out before the clipboard is touched, so a seed that will not
     // parse leaves the clipboard alone instead of half-doing the job.
     let (secret, spoken) = match info.kind {
+        EntryKind::File | EntryKind::Folder => return save_copy(shell, id, info.kind),
         EntryKind::Password => (stored, format_args(&tr("{name} copied"), &[("name", Arg::Str(name))])),
         EntryKind::Totp => {
             let unix = shell.borrow().controller.clock.now().timestamp();
@@ -290,13 +453,9 @@ pub fn copy_secret(shell: &SharedShell, id: &str, name: &str) {
         }
     };
 
-    let (clipboard_history, clear_seconds, now) = {
+    let (clipboard_history, clear_seconds) = {
         let s = shell.borrow();
-        (
-            s.controller.clipboard.clone(),
-            s.settings.settings.vault_clipboard_seconds,
-            s.controller.clock.now(),
-        )
+        (s.controller.clipboard.clone(), s.settings.settings.vault_clipboard_seconds)
     };
     // Before the clipboard is written, not after: the history poller runs on
     // its own thread every 100ms and would otherwise be free to record the
@@ -304,13 +463,7 @@ pub fn copy_secret(shell: &SharedShell, id: &str, name: &str) {
     clipboard_history.lock().unwrap().suppress(&secret);
     clipboard::set_text(&secret);
 
-    {
-        let mut vault = vault.lock().unwrap();
-        vault.touch(now);
-        if vault.locks_on_use() {
-            vault.lock();
-        }
-    }
+    after_use(shell, &vault);
 
     let s = shell.borrow();
     s.sounds.play("copy");

@@ -52,17 +52,7 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(".tmp");
     let tmp = Path::new(&tmp);
-    {
-        let mut options = std::fs::OpenOptions::new();
-        options.write(true).create(true).truncate(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
-        }
-        let mut f = options.open(tmp)?;
-        f.write_all(bytes)?;
-    }
+    create_private_file(tmp)?.write_all(bytes)?;
     // An existing destination created before this (or by another program) keeps
     // its own mode through the rename, so tighten it explicitly too.
     #[cfg(unix)]
@@ -73,6 +63,19 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> io::Result<()> {
     // fs::rename replaces an existing destination on Windows (MOVEFILE_REPLACE_EXISTING),
     // matching Python's os.replace.
     std::fs::rename(tmp, path)
+}
+
+/// Create (or truncate) `path` for writing, readable by its owner only on
+/// Unix. See [`atomic_write`] for why.
+pub fn create_private_file(path: &Path) -> io::Result<std::fs::File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options.open(path)
 }
 
 /// `create_dir_all` for a directory whose contents are nobody else's business

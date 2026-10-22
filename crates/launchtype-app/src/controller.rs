@@ -16,7 +16,7 @@ use launchtype_core::mode::UiMode;
 use launchtype_core::search::{exact_shortcut_match, fuzzy_search};
 use launchtype_core::stats::stats_labels;
 use launchtype_core::units;
-use launchtype_core::vault::VaultSession;
+use launchtype_core::vault::{EntryInfo, EntryKind, VaultSession};
 use launchtype_services::apps::scan_apps;
 use launchtype_services::audio_devices::{self, Direction};
 use launchtype_core::placeholders::Placeholders;
@@ -577,11 +577,18 @@ impl ModeController {
             };
             return vec![vault_action_item(name, action)];
         }
+        // Files and folders say so: Enter saves them rather than copying, and
+        // nothing else in a spoken list would tell them from a password.
+        let label = |entry: &EntryInfo| match entry.kind {
+            EntryKind::File => format_args(&tr("{name}, file"), &[("name", Arg::Str(&entry.name))]),
+            EntryKind::Folder => format_args(&tr("{name}, folder"), &[("name", Arg::Str(&entry.name))]),
+            EntryKind::Password | EntryKind::Totp => entry.name.clone(),
+        };
         let items: Vec<Item> = vault
             .entries()
             .iter()
             .map(|entry| Item {
-                name: entry.name.clone(),
+                name: label(entry),
                 shortcut: entry.shortcut.clone(),
                 id: entry.id.clone(),
                 kind: ItemKind::VaultEntry,

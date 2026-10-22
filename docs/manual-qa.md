@@ -239,8 +239,34 @@ rows. Work on COPIES: a verified conversion deletes the original by design.
 - [ ] Edit reopens an entry with its name, shortcut and secret; renaming keeps
       the same entry rather than making a second one
 - [ ] Delete asks first, and the entry and its `.enc` file are both gone
-- [ ] `vault/` holds only `vault.meta` plus one `<uuid>.enc` per entry, and
-      neither the entry names nor the secrets are readable in any of them
+- [ ] `vault/` holds only `vault.meta` plus one `<uuid>.enc` per entry (and a
+      `<uuid>.blob` beside each file or folder entry), and neither the entry
+      names nor the secrets are readable in any of them
+- [ ] Every file in `vault/`, and the folder itself, shows a modified, created
+      and accessed date between 1980 and 2005, still true after unlocking,
+      copying a secret, adding an entry and saving a file back out
+- [ ] Add's "This entry holds" lists "A file" and "A folder" (but Edit on a
+      password does not); choosing either disables the secret field, and OK
+      with only a name typed goes on to the file picker
+- [ ] Add a PDF with the name left empty: the entry is named after the file;
+      the row reads "name, file"; the original PDF is still where it was
+- [ ] Enter on it opens a Save dialog with the original name filled in; saving
+      speaks "Saved to <path>" and the saved PDF opens and matches the original;
+      saving over an existing file asks first
+- [ ] Add "A folder" with nested subfolders and an empty one;
+      Enter, pick a folder: it is recreated there with the same layout; doing
+      it again makes "name (2)" beside it rather than touching the first
+- [ ] Edit on a file entry shows only name and shortcut; renaming keeps the
+      contents (save it out again to check)
+- [ ] Delete on a file entry removes both its `.enc` and its `.blob`
+- [ ] A file over 200 MB is refused with the size limit named, and nothing is
+      left in `vault/`
+- [ ] Picking the app folder itself (which holds `vault/`) as a folder to add
+      works, and the saved copy has no `vault` folder in it
+- [ ] Changing one byte of a `.blob` by hand: saving that entry reports the
+      file as damaged and leaves nothing at the chosen location
+- [ ] An older Launchtype build opening this vault still unlocks and lists
+      every password; the file entries are simply absent
 - [ ] Wrong master password: "error" sound, spoken "That is not the master
       password.", no dialog, and the row is still there to try again
 - [ ] "Lock the vault now" locks it; going back into `*` asks for the password

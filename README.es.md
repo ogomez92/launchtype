@@ -609,6 +609,19 @@ Añadir, Editar y Eliminar funcionan como en el resto de la aplicación. Cada en
 
 Una vez abierta, la caja fuerte se vuelve a bloquear sola tras cinco minutos sin usarla, y la clave se borra de la memoria —no simplemente se ignora— gracias a un temporizador en segundo plano, así que alejarte del ordenador la cierra. Pon el tiempo a 0 en los Ajustes y te pedirá la contraseña maestra en cada copia. "Bloquear la caja fuerte ahora" y "Cambiar la contraseña maestra" están al final de la lista; cambiar la contraseña es instantáneo, porque las entradas no están cifradas con la contraseña en sí (ver más abajo).
 
+### Archivos y carpetas
+
+La caja fuerte también puede guardar documentos junto a las contraseñas: documentos de identidad escaneados, el manual de una impresora, una carpeta de declaraciones de la renta. Pulsa Añadir y elige "Un archivo" o "Una carpeta" en "Esta entrada contiene" (el campo del secreto se desactiva), escribe un nombre y un acceso abreviado opcional, y pulsa Aceptar. Después se te pregunta qué archivo o carpeta. Si dejas el nombre vacío, la entrada toma el nombre del propio archivo. Se cifra una copia; el original se queda donde estaba, así que bórralo tú si no debe quedarse en el disco sin cifrar. Una carpeta se guarda con todo lo que tiene dentro, subcarpetas vacías incluidas; los enlaces que haya dentro no se siguen. Cada archivo o carpeta puede ocupar hasta 200 MB.
+
+Estas entradas aparecen en la lista como "nombre, archivo" o "nombre, carpeta". Pulsar Intro sobre una nunca la abre. Pregunta dónde guardar una copia:
+
+- para un archivo, un diálogo de Guardar con el nombre original ya escrito (pregunta antes de sustituir un archivo que ya exista);
+- para una carpeta, un selector de carpetas. La carpeta se vuelve a crear dentro de la que elijas, con su nombre original, o "nombre (2)" si ese ya existe: nunca se mezcla con una carpeta existente ni la sobrescribe.
+
+No se descifra nada en una carpeta temporal ni lo abre otro programa, así que la única copia sin cifrar es la que tú decidiste hacer. Editar cambia el nombre y el acceso abreviado, y Eliminar borra el contenido junto con la entrada.
+
+Las versiones anteriores de Launchtype no conocen estas entradas. Las dejan fuera de la lista y siguen funcionando con el resto de la caja fuerte.
+
 ### Importar desde Bitwarden
 
 "Importar un archivo exportado de Bitwarden", al final de la lista, lee un archivo creado con "Exportar caja fuerte" de Bitwarden: la exportación `.json`, la `.csv` o una `.json` protegida con contraseña (se te pide la contraseña de la exportación; funcionan tanto PBKDF2 como Argon2id). Una exportación "restringida a la cuenta" solo la puede abrir Bitwarden, y la exportación `.zip` con adjuntos tampoco se lee; en esos casos, vuelve a exportar.
@@ -637,7 +650,9 @@ Merece la pena decirlo claramente, porque "cifrado" por sí solo significa muy p
 - Eso da una clave maestra que no hace más que desenvolver una **clave de la caja fuerte** aleatoria de 32 bytes; las entradas se sellan con esa. Por eso cambiar la contraseña maestra reescribe un archivo pequeño en vez de volver a cifrarlo todo.
 - Cada entrada es un archivo aparte sellado con **AES-256-GCM** bajo un nonce aleatorio nuevo, así que manipular uno se detecta en vez de darlo por bueno.
 - **Los nombres de las entradas también están dentro del cifrado.** Los archivos se llaman como un uuid aleatorio, no como la entrada, porque un listado de carpeta lleno de `amazon.enc` y `vpn-trabajo.enc` revela casi todo lo que vale una lista de contraseñas. Quien consiga la carpeta sabrá cuántas entradas hay y más o menos cuánto ocupa cada una; nada más. El uuid se autentica junto con el contenido, así que tampoco se pueden intercambiar los archivos entre sí.
+- **Las fechas tampoco dicen nada.** Cada archivo que escribe la caja fuerte recibe una fecha aleatoria entre 1980 y 2005 como fecha de modificación, de último acceso y (en Windows) de creación, y al leer una entrada se restaura su fecha de último acceso. Un listado de la carpeta no muestra qué entradas son las más nuevas ni cuáles se cambiaron o usaron hace poco. Un archivo cambiado siempre recibe una fecha nueva, así que las herramientas de copia y sincronización que comparan tamaño y fecha lo siguen detectando. Las que solo copian archivos con una fecha *más reciente* (`xcopy /D`, `rsync -u`) no verán los cambios.
 - El texto descifrado solo existe en memoria, en búferes que se borran solos al liberarse, y solo se descifra un secreto cada vez: al desbloquear se leen los nombres, no los secretos.
+- Un archivo o una carpeta va en un archivo `<uuid>.blob` junto a su entrada, sellado con AES-256-GCM en trozos de 64 KiB bajo una clave aleatoria creada solo para ese archivo. Esa clave se guarda únicamente dentro del contenido cifrado de su propia entrada, así que un blob solo se abre a través de su entrada. El nonce de cada trozo lleva su posición y si es el último, así que reordenar, intercambiar o recortar trozos se detecta. Una carpeta se comprime en zip directamente dentro del cifrado; el zip nunca está en el disco sin cifrar. Quien tenga la carpeta de la caja fuerte sabrá más o menos cuánto ocupa cada documento, pero no su nombre ni su tipo.
 
 ## Modos de dispositivos de audio
 

@@ -20,10 +20,24 @@
 //! gives away most of what a password list is worth. The uuid is authenticated
 //! as associated data, so entry files cannot be swapped around either.
 //!
+//! Nor when an entry was added, changed or last used: the vault's files carry
+//! random dates from long before it existed; see [`crate::vault_dates`].
+//!
 //! Plaintext never reaches the disk: reads decrypt into [`Zeroizing`] buffers
 //! that wipe themselves on drop, and the session holds entry *names* — never
 //! secrets, which are decrypted one at a time, on demand.
+//!
+//! # Files and folders
+//!
+//! An entry can also hold a document, or a whole folder of them. The entry
+//! file stays as small as any other — it carries the original name, the size,
+//! and a random key made for that one file — and the contents go in
+//! `<uuid>.blob` next to it, sealed under that key; see [`crate::vault_blob`].
+//! The only way back out is [`VaultSession::export_file`] or
+//! [`VaultSession::export_folder`] to a place the user chose: nothing is ever
+//! decrypted into a temp folder or handed to another program to open.
 
+use std::io;
 use std::path::{Path, PathBuf};
 
 use aes_gcm::aead::{Aead, Generate, KeyInit, Nonce, Payload};
@@ -36,6 +50,8 @@ use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
 use crate::storage::{atomic_write, atomic_write_json};
+use crate::vault_blob::{self, BlobReader, BlobWriter, MAX_BLOB_BYTES};
+use crate::vault_dates::{stamp_read, stamp_written};
 
 /// The vault folder, relative to the app folder (portable, like `snippets/`).
 pub const VAULT_DIR: &str = "vault";
@@ -45,6 +61,10 @@ pub const VAULT_DIR: &str = "vault";
 const META_NAME: &str = "vault.meta";
 
 const ENTRY_EXT: &str = "enc";
+
+/// The sealed contents of a file or folder entry. A different extension from
+/// [`ENTRY_EXT`], so nothing that lists entries ever mistakes one for an entry.
+const BLOB_EXT: &str = "blob";
 
 /// First four bytes of every entry file, so a truncated or unrelated file is
 /// rejected before anything is fed to the cipher.
@@ -112,6 +132,15 @@ pub enum VaultError {
     AlreadyExists,
     #[error("the master password is too short")]
     PasswordTooShort,
+    /// A file or folder over [`MAX_BLOB_BYTES`].
+    #[error("too large to keep in the vault")]
+    TooLarge,
+    /// Asking a password entry for a file, or the other way round.
+    #[error("that entry does not hold that kind of thing")]
+    WrongKind,
+    /// Adding the vault folder, or a folder inside it, to the vault.
+    #[error("the vault cannot hold itself")]
+    InsideVault,
     #[error("{0}")]
     Io(#[from] std::io::Error),
 }
@@ -123,6 +152,10 @@ type Result<T> = std::result::Result<T, VaultError>;
 ///
 /// Serialised as a string and defaulted on read, so entries written before
 /// this field existed load as passwords instead of failing to open.
+///
+/// A version from before files and folders reads those two kinds as an entry
+/// it cannot open, and leaves it out of the list rather than failing the
+/// unlock — see [`VaultSession::read_entries`].
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum EntryKind {
@@ -131,6 +164,17 @@ pub enum EntryKind {
     /// The secret is an `otpauth://` URI or a bare base32 seed; see
     /// [`crate::totp`].
     Totp,
+    /// A document, kept in the entry's blob.
+    File,
+    /// A folder, kept in the entry's blob as a zip of it.
+    Folder,
+}
+
+impl EntryKind {
+    /// Whether the entry's contents are a blob rather than its secret text.
+    pub fn holds_file(self) -> bool {
+        matches!(self, EntryKind::File | EntryKind::Folder)
+    }
 }
 
 /// What the results list shows for one entry. Deliberately has no `secret`
@@ -156,6 +200,23 @@ struct EntryData {
     /// Absent in vaults written before authenticator entries existed.
     #[serde(default)]
     kind: EntryKind,
+    /// Only on file and folder entries, and left out of every other entry
+    /// entirely so a password entry seals to the same shape it always did.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    file: Option<StoredFile>,
+}
+
+/// What a file or folder entry knows about its blob.
+#[derive(Serialize, Deserialize)]
+struct StoredFile {
+    /// The file's or folder's name when it was added, offered back as the
+    /// name to save it under.
+    name: String,
+    /// Plaintext bytes in the blob (the zip's, for a folder).
+    size: u64,
+    /// The blob's own key, base64. It lives only here, inside the sealed
+    /// entry, so the blob opens only through its entry.
+    key: String,
 }
 
 /// `vault/vault.meta`.
@@ -260,6 +321,10 @@ impl VaultSession {
         self.dir.join(format!("{id}.{ENTRY_EXT}"))
     }
 
+    fn blob_path(&self, id: &str) -> PathBuf {
+        self.dir.join(format!("{id}.{BLOB_EXT}"))
+    }
+
     /// True when there is no vault yet, so the next visit asks for a master
     /// password to create one.
     pub fn is_new(&self) -> bool {
@@ -346,6 +411,12 @@ impl VaultSession {
         self.key = Some(vault_key);
         self.entries = self.read_entries();
         self.last_used = Some(now);
+        // The entries were dated as they were read. Blobs are not read here,
+        // but one written before dates were scrambled still needs it.
+        for id in ids_with_ext(&self.dir, BLOB_EXT) {
+            stamp_read(&self.blob_path(&id));
+        }
+        stamp_read(&self.dir);
         Ok(())
     }
 
@@ -389,7 +460,16 @@ impl VaultSession {
         secret: &str,
         kind: EntryKind,
     ) -> Result<String> {
-        let key = self.key.as_ref().ok_or(VaultError::Locked)?;
+        if self.key.is_none() {
+            return Err(VaultError::Locked);
+        }
+        // Files come in through `add_file` and `add_folder`. Saving over one
+        // here would drop its key and strand the blob for good.
+        let over_a_file =
+            id.is_some_and(|id| self.entries.iter().any(|e| e.id == id && e.kind.holds_file()));
+        if kind.holds_file() || over_a_file {
+            return Err(VaultError::WrongKind);
+        }
         let id = match id {
             Some(id) => id.to_string(),
             None => uuid::Uuid::new_v4().to_string(),
@@ -399,7 +479,25 @@ impl VaultSession {
             shortcut: shortcut.trim().to_lowercase(),
             secret: secret.to_string(),
             kind,
+            file: None,
         };
+        self.write_entry(&id, data)?;
+        Ok(id)
+    }
+
+    /// Change an entry's name and shortcut and nothing else. How a file or
+    /// folder entry is edited, since there is no secret text to show.
+    pub fn rename(&mut self, id: &str, name: &str, shortcut: &str) -> Result<()> {
+        let mut data = self.read_entry(id)?;
+        data.name = name.trim().to_string();
+        data.shortcut = shortcut.trim().to_lowercase();
+        self.write_entry(id, data)
+    }
+
+    /// Seal `data` into the entry file for `id` and update the list to match.
+    /// Every write reseals with a fresh nonce.
+    fn write_entry(&mut self, id: &str, data: EntryData) -> Result<()> {
+        let key = self.key.as_ref().ok_or(VaultError::Locked)?;
         let plaintext = Zeroizing::new(serde_json::to_vec(&data).map_err(|_| VaultError::Damaged)?);
         let sealed = seal(key, &plaintext, id.as_bytes())?;
 
@@ -407,31 +505,214 @@ impl VaultSession {
         let mut file = Vec::with_capacity(HEADER_LEN + sealed.len());
         file.extend_from_slice(&MAGIC);
         file.extend_from_slice(&sealed);
-        atomic_write(&self.entry_path(&id), &file)?;
+        atomic_write(&self.entry_path(id), &file)?;
+        stamp_written(&self.entry_path(id));
+        stamp_written(&self.dir);
 
         let info =
-            EntryInfo { id: id.clone(), name: data.name, shortcut: data.shortcut, kind: data.kind };
+            EntryInfo { id: id.to_string(), name: data.name, shortcut: data.shortcut, kind: data.kind };
         match self.entries.iter_mut().find(|e| e.id == id) {
             Some(existing) => *existing = info,
             None => self.entries.push(info),
         }
         sort_entries(&mut self.entries);
-        Ok(id)
+        Ok(())
     }
 
-    /// Delete an entry's file. Unrecoverable, which is why the UI asks first.
+    /// Delete an entry's file, and its blob if it has one. Unrecoverable,
+    /// which is why the UI asks first.
+    ///
+    /// The entry goes first: interrupted in between, what is left is a blob
+    /// no key will ever open again, rather than an entry whose contents are
+    /// gone.
     pub fn delete(&mut self, id: &str) -> Result<()> {
         if !self.entries.iter().any(|e| e.id == id) {
             return Err(VaultError::NoSuchEntry);
         }
         std::fs::remove_file(self.entry_path(id))?;
         self.entries.retain(|e| e.id != id);
+        match std::fs::remove_file(self.blob_path(id)) {
+            Err(e) if e.kind() != io::ErrorKind::NotFound => {
+                log::warn!("the blob of deleted vault entry {id} could not be removed: {e}");
+            }
+            _ => {}
+        }
+        stamp_written(&self.dir);
         Ok(())
+    }
+
+    /// Put a copy of the file at `source` in the vault. The original is left
+    /// where it is; removing it is up to the user.
+    pub fn add_file(&mut self, name: &str, shortcut: &str, source: &Path) -> Result<String> {
+        if std::fs::metadata(source)?.len() > MAX_BLOB_BYTES {
+            return Err(VaultError::TooLarge);
+        }
+        let file_name = display_name(source);
+        self.add_blob(name, shortcut, EntryKind::File, file_name, |blob| {
+            io::copy(&mut std::fs::File::open(source)?, blob).map(drop)
+        })
+    }
+
+    /// Put a copy of the folder at `source`, with everything in it, in the
+    /// vault. Links inside it are not followed, and the vault folder itself is
+    /// left out should it be somewhere inside.
+    pub fn add_folder(&mut self, name: &str, shortcut: &str, source: &Path) -> Result<String> {
+        // Zipping the vault into itself would read the blob being written.
+        let source_real = source.canonicalize()?;
+        if self.dir.canonicalize().is_ok_and(|vault| source_real.starts_with(vault)) {
+            return Err(VaultError::InsideVault);
+        }
+        let vault_dir = self.dir.clone();
+        if vault_blob::folder_size(source, Some(&vault_dir))? > MAX_BLOB_BYTES {
+            return Err(VaultError::TooLarge);
+        }
+        let folder_name = display_name(source);
+        self.add_blob(name, shortcut, EntryKind::Folder, folder_name, |blob| {
+            vault_blob::zip_folder(source, Some(&vault_dir), blob)
+        })
+    }
+
+    /// Write a blob under a fresh key with `fill`, then the entry that holds
+    /// that key. In that order, so the entry never exists without its blob.
+    fn add_blob(
+        &mut self,
+        name: &str,
+        shortcut: &str,
+        kind: EntryKind,
+        original_name: String,
+        fill: impl FnOnce(&mut BlobWriter<std::fs::File>) -> io::Result<()>,
+    ) -> Result<String> {
+        if self.key.is_none() {
+            return Err(VaultError::Locked);
+        }
+        crate::storage::create_private_dir(&self.dir)?;
+        let id = uuid::Uuid::new_v4().to_string();
+        let file_key = Zeroizing::new(<[u8; KEY_LEN]>::generate());
+        let path = self.blob_path(&id);
+        let tmp = path.with_extension(format!("{BLOB_EXT}.tmp"));
+
+        let written = (|| {
+            let file = crate::storage::create_private_file(&tmp)?;
+            let mut blob = BlobWriter::new(file, &file_key, id.as_bytes())?;
+            fill(&mut blob)?;
+            let size = blob.bytes_written();
+            blob.finish()?.sync_all()?;
+            std::fs::rename(&tmp, &path)?;
+            Ok(size)
+        })();
+        let size = match written {
+            Ok(size) => size,
+            Err(e) => {
+                let _ = std::fs::remove_file(&tmp);
+                stamp_written(&self.dir);
+                return Err(blob_error(e));
+            }
+        };
+        stamp_written(&path);
+
+        let data = EntryData {
+            name: name.trim().to_string(),
+            shortcut: shortcut.trim().to_lowercase(),
+            secret: String::new(),
+            kind,
+            file: Some(StoredFile { name: original_name, size, key: BASE64.encode(*file_key) }),
+        };
+        if let Err(e) = self.write_entry(&id, data) {
+            let _ = std::fs::remove_file(&path);
+            stamp_written(&self.dir);
+            return Err(e);
+        }
+        Ok(id)
+    }
+
+    /// The name a file or folder entry had when it was added: what the save
+    /// dialog offers. Reduced to a bare name, never a path.
+    pub fn original_name(&self, id: &str) -> Result<String> {
+        let data = self.read_entry(id)?;
+        if !data.kind.holds_file() {
+            return Err(VaultError::WrongKind);
+        }
+        let file = data.file.ok_or(VaultError::Damaged)?;
+        Ok(display_name(Path::new(&file.name)))
+    }
+
+    /// Decrypt a file entry to `dest`, replacing whatever is there (the save
+    /// dialog has already asked).
+    ///
+    /// Written beside `dest` under a temporary name and only renamed into
+    /// place once the last chunk has checked out, so a blob that turns out to
+    /// be damaged halfway leaves nothing behind rather than half a document.
+    pub fn export_file(&self, id: &str, dest: &Path) -> Result<()> {
+        let (_, key) = self.stored_file(id, EntryKind::File)?;
+        let tmp = temp_sibling(dest);
+        let result = (|| {
+            let mut blob = BlobReader::new(self.open_blob(id)?, &key, id.as_bytes())?;
+            let mut out = std::fs::File::create(&tmp)?;
+            io::copy(&mut blob, &mut out)?;
+            out.sync_all()?;
+            drop(out);
+            std::fs::rename(&tmp, dest)
+        })();
+        stamp_read(&self.blob_path(id));
+        if let Err(e) = result {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(blob_error(e));
+        }
+        Ok(())
+    }
+
+    /// Decrypt a folder entry into a new folder inside `parent`, named as the
+    /// folder was when it was added, with " (2)" and so on added if that name
+    /// is taken: an existing folder is never merged into or replaced. Returns
+    /// the folder made.
+    ///
+    /// Like [`Self::export_file`], it is unpacked under a temporary name and
+    /// only renamed into place once all of it is out.
+    pub fn export_folder(&self, id: &str, parent: &Path) -> Result<PathBuf> {
+        let (stored, key) = self.stored_file(id, EntryKind::Folder)?;
+        let blob = BlobReader::new(self.open_blob(id)?, &key, id.as_bytes()).map_err(blob_error)?;
+        let zip = vault_blob::read_all(blob, stored.size);
+        stamp_read(&self.blob_path(id));
+        let zip = zip.map_err(blob_error)?;
+
+        let target = free_name(parent, &display_name(Path::new(&stored.name)));
+        let tmp = temp_sibling(&target);
+        std::fs::create_dir(&tmp)?;
+        let result =
+            vault_blob::unzip_folder(&zip, &tmp).and_then(|()| std::fs::rename(&tmp, &target));
+        if let Err(e) = result {
+            let _ = std::fs::remove_dir_all(&tmp);
+            return Err(blob_error(e));
+        }
+        Ok(target)
+    }
+
+    /// The stored-file record and blob key of a file or folder entry.
+    fn stored_file(&self, id: &str, kind: EntryKind) -> Result<(StoredFile, Zeroizing<[u8; KEY_LEN]>)> {
+        let data = self.read_entry(id)?;
+        if data.kind != kind {
+            return Err(VaultError::WrongKind);
+        }
+        let file = data.file.ok_or(VaultError::Damaged)?;
+        let raw = Zeroizing::new(BASE64.decode(&file.key).map_err(|_| VaultError::Damaged)?);
+        let key: [u8; KEY_LEN] = raw.as_slice().try_into().map_err(|_| VaultError::Damaged)?;
+        Ok((file, Zeroizing::new(key)))
+    }
+
+    /// An entry whose blob is missing is as broken as one whose blob is
+    /// altered, and is reported the same way.
+    fn open_blob(&self, id: &str) -> io::Result<std::fs::File> {
+        std::fs::File::open(self.blob_path(id)).map_err(|e| match e.kind() {
+            io::ErrorKind::NotFound => io::Error::new(io::ErrorKind::InvalidData, e),
+            _ => e,
+        })
     }
 
     /// Derive the master key from `password` and unwrap the vault key with it.
     fn unwrap_key(&self, password: &str) -> Result<Zeroizing<[u8; KEY_LEN]>> {
         let text = std::fs::read_to_string(self.meta_path())?;
+        // Before the password is checked: a wrong guess is no less worth hiding.
+        stamp_read(&self.meta_path());
         let meta: Meta = serde_json::from_str(&text).map_err(|_| VaultError::Damaged)?;
         let salt = BASE64.decode(&meta.salt).map_err(|_| VaultError::Damaged)?;
         let wrapped = BASE64.decode(&meta.wrapped_key).map_err(|_| VaultError::Damaged)?;
@@ -459,13 +740,18 @@ impl VaultSession {
         };
         crate::storage::create_private_dir(&self.dir)?;
         atomic_write_json(&self.meta_path(), &meta, Some(2))?;
+        stamp_written(&self.meta_path());
+        stamp_written(&self.dir);
         Ok(())
     }
 
     fn read_entry(&self, id: &str) -> Result<EntryData> {
         let key = self.key.as_ref().ok_or(VaultError::Locked)?;
         let raw = match std::fs::read(self.entry_path(id)) {
-            Ok(raw) => raw,
+            Ok(raw) => {
+                stamp_read(&self.entry_path(id));
+                raw
+            }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 return Err(VaultError::NoSuchEntry)
             }
@@ -504,13 +790,57 @@ impl VaultSession {
     }
 }
 
+/// [`crate::vault_blob`] reports trouble as `io::Error`s of particular kinds,
+/// so they can pass through `io::copy` and the zip crate on the way.
+fn blob_error(error: io::Error) -> VaultError {
+    match error.kind() {
+        io::ErrorKind::InvalidData => VaultError::Damaged,
+        io::ErrorKind::FileTooLarge => VaultError::TooLarge,
+        _ => VaultError::Io(error),
+    }
+}
+
+/// The last part of `path`, or a stand-in for one that has none (a drive
+/// root).
+fn display_name(path: &Path) -> String {
+    match path.file_name() {
+        Some(name) if !name.is_empty() => name.to_string_lossy().into_owned(),
+        _ => "vault item".to_string(),
+    }
+}
+
+/// A name next to `path` to write it under until it is complete: hidden on
+/// Unix, and unique, so it never lands on anything already there.
+fn temp_sibling(path: &Path) -> PathBuf {
+    let name = display_name(path);
+    let tag = &uuid::Uuid::new_v4().simple().to_string()[..8];
+    path.with_file_name(format!(".{name}.{tag}.tmp"))
+}
+
+/// `parent/name`, or `parent/name (2)` and up if that is already taken.
+fn free_name(parent: &Path, name: &str) -> PathBuf {
+    let first = parent.join(name);
+    if !first.exists() {
+        return first;
+    }
+    (2..)
+        .map(|n| parent.join(format!("{name} ({n})")))
+        .find(|candidate| !candidate.exists())
+        .expect("some numbered name is free")
+}
+
 /// The uuids of every `*.enc` file in the vault folder.
 fn entry_ids(dir: &Path) -> Vec<String> {
+    ids_with_ext(dir, ENTRY_EXT)
+}
+
+/// The uuids of every `*.<ext>` file in the vault folder.
+fn ids_with_ext(dir: &Path, ext: &str) -> Vec<String> {
     let Ok(read_dir) = std::fs::read_dir(dir) else { return Vec::new() };
     read_dir
         .flatten()
         .map(|entry| entry.path())
-        .filter(|path| path.is_file() && path.extension().is_some_and(|ext| ext == ENTRY_EXT))
+        .filter(|path| path.is_file() && path.extension().is_some_and(|e| e == ext))
         .filter_map(|path| path.file_stem().map(|stem| stem.to_string_lossy().into_owned()))
         .collect()
 }
@@ -809,6 +1139,237 @@ mod tests {
         assert_eq!(session.entries().len(), 1);
         assert_eq!(session.entries()[0].kind, EntryKind::Password);
         assert_eq!(&*session.secret(&id).unwrap(), "hunter2");
+    }
+
+    /// A file to add, and somewhere to save things back out to.
+    fn document(dir: &Path, name: &str, contents: &[u8]) -> PathBuf {
+        let path = dir.join(name);
+        std::fs::write(&path, contents).unwrap();
+        path
+    }
+
+    fn blob_of(dir: &Path, id: &str) -> PathBuf {
+        dir.join(VAULT_DIR).join(format!("{id}.{BLOB_EXT}"))
+    }
+
+    #[test]
+    fn a_file_comes_back_out_exactly_after_a_lock() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let contents: Vec<u8> = (0..200_000u32).map(|i| (i % 253) as u8).collect();
+        let source = document(dir.path(), "manual.pdf", &contents);
+        let id = session.add_file("printer manual", "pm", &source).unwrap();
+
+        session.lock();
+        session.unlock(PASSWORD, now()).unwrap();
+        assert_eq!(session.entries()[0].kind, EntryKind::File);
+        assert_eq!(session.original_name(&id).unwrap(), "manual.pdf");
+
+        let out = dir.path().join("saved.pdf");
+        session.export_file(&id, &out).unwrap();
+        assert_eq!(std::fs::read(&out).unwrap(), contents);
+        assert!(source.exists(), "the original is left alone");
+    }
+
+    #[test]
+    fn no_file_in_the_vault_dates_from_after_2005_and_all_still_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let password = session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
+        let source = document(dir.path(), "manual.pdf", b"contents");
+        let file = session.add_file("printer manual", "pm", &source).unwrap();
+        session.lock();
+        session.unlock(PASSWORD, now()).unwrap();
+        session.secret(&password).unwrap();
+        session.export_file(&file, &dir.path().join("out.pdf")).unwrap();
+
+        let vault_dir = dir.path().join(VAULT_DIR);
+        let after_2005 = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_136_073_600);
+        // The folder first: listing it below is a read of it in its own right.
+        let mut dated = vec![(vault_dir.clone(), std::fs::metadata(&vault_dir).unwrap())];
+        for entry in std::fs::read_dir(&vault_dir).unwrap() {
+            let path = entry.unwrap().path();
+            dated.push((path.clone(), std::fs::metadata(&path).unwrap()));
+        }
+        for (path, meta) in dated {
+            assert!(meta.modified().unwrap() < after_2005, "{}", path.display());
+            assert!(meta.accessed().unwrap() < after_2005, "{}", path.display());
+            #[cfg(windows)]
+            assert!(meta.created().unwrap() < after_2005, "{}", path.display());
+        }
+
+        session.lock();
+        session.unlock(PASSWORD, now()).unwrap();
+        assert_eq!(*session.secret(&password).unwrap(), "hunter2");
+        session.export_file(&file, &dir.path().join("again.pdf")).unwrap();
+        assert_eq!(std::fs::read(dir.path().join("again.pdf")).unwrap(), b"contents");
+    }
+
+    #[test]
+    fn a_folder_comes_back_out_beside_any_folder_of_the_same_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let source = dir.path().join("taxes");
+        std::fs::create_dir_all(source.join("2025")).unwrap();
+        std::fs::write(source.join("2025/return.pdf"), b"numbers").unwrap();
+        let id = session.add_folder("taxes", "", &source).unwrap();
+
+        let out = dir.path().join("out");
+        std::fs::create_dir(&out).unwrap();
+        let first = session.export_folder(&id, &out).unwrap();
+        assert_eq!(first, out.join("taxes"));
+        assert_eq!(std::fs::read(first.join("2025/return.pdf")).unwrap(), b"numbers");
+
+        let second = session.export_folder(&id, &out).unwrap();
+        assert_eq!(second, out.join("taxes (2)"), "an existing folder is never merged into");
+        let leftovers: Vec<_> = std::fs::read_dir(&out).unwrap().collect();
+        assert_eq!(leftovers.len(), 2, "no temporary folder is left behind");
+    }
+
+    #[test]
+    fn neither_the_name_nor_the_contents_of_a_file_are_readable_on_disk() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let source = document(dir.path(), "passport-scan.pdf", b"%PDF-1.7 passport number X123");
+        let id = session.add_file("passport", "", &source).unwrap();
+
+        let entry = std::fs::read(dir.path().join(VAULT_DIR).join(format!("{id}.enc"))).unwrap();
+        let blob = std::fs::read(blob_of(dir.path(), &id)).unwrap();
+        for plaintext in ["passport", "%PDF", "X123"] {
+            for (what, raw) in [("entry", &entry), ("blob", &blob)] {
+                assert!(
+                    !raw.windows(plaintext.len()).any(|w| w == plaintext.as_bytes()),
+                    "{plaintext:?} is readable in the {what} file"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_damaged_or_missing_blob_is_refused_and_leaves_nothing_behind() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let source = document(dir.path(), "a.txt", &[1u8; 100_000]);
+        let id = session.add_file("a", "", &source).unwrap();
+        let out_dir = dir.path().join("out");
+        std::fs::create_dir(&out_dir).unwrap();
+        let out = out_dir.join("a.txt");
+
+        let blob = blob_of(dir.path(), &id);
+        let mut raw = std::fs::read(&blob).unwrap();
+        let last = raw.len() - 1;
+        raw[last] ^= 1;
+        std::fs::write(&blob, &raw).unwrap();
+        assert!(matches!(session.export_file(&id, &out), Err(VaultError::Damaged)));
+        assert_eq!(std::fs::read_dir(&out_dir).unwrap().count(), 0, "not even half a file");
+
+        std::fs::remove_file(&blob).unwrap();
+        assert!(matches!(session.export_file(&id, &out), Err(VaultError::Damaged)));
+    }
+
+    /// Each blob has its own key, held only by its own entry, so one entry's
+    /// blob moved onto another's name opens for neither.
+    #[test]
+    fn blobs_cannot_be_swapped_between_entries() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let a = session.add_file("a", "", &document(dir.path(), "a.txt", b"aaa")).unwrap();
+        let b = session.add_file("b", "", &document(dir.path(), "b.txt", b"bbb")).unwrap();
+        std::fs::copy(blob_of(dir.path(), &b), blob_of(dir.path(), &a)).unwrap();
+        let out = dir.path().join("out.txt");
+        assert!(matches!(session.export_file(&a, &out), Err(VaultError::Damaged)));
+    }
+
+    #[test]
+    fn deleting_a_file_entry_takes_its_blob_with_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let id = session.add_file("a", "", &document(dir.path(), "a.txt", b"aaa")).unwrap();
+        assert!(blob_of(dir.path(), &id).exists());
+        session.delete(&id).unwrap();
+        assert!(!blob_of(dir.path(), &id).exists());
+    }
+
+    /// `save` rewrites the whole payload; on a file entry that would throw
+    /// away the only copy of the blob's key. Renaming is the way to edit one.
+    #[test]
+    fn a_file_entry_is_renamed_rather_than_saved_over() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let id = session.add_file("a", "", &document(dir.path(), "a.txt", b"aaa")).unwrap();
+        assert!(matches!(
+            session.save(Some(&id), "a", "", "text", EntryKind::Password),
+            Err(VaultError::WrongKind)
+        ));
+        assert!(matches!(
+            session.save(None, "x", "", "", EntryKind::File),
+            Err(VaultError::WrongKind)
+        ));
+
+        session.rename(&id, "Renamed", "RN").unwrap();
+        session.lock();
+        session.unlock(PASSWORD, now()).unwrap();
+        assert_eq!(session.entries()[0].name, "Renamed");
+        assert_eq!(session.entries()[0].shortcut, "rn");
+        let out = dir.path().join("out.txt");
+        session.export_file(&id, &out).unwrap();
+        assert_eq!(std::fs::read(out).unwrap(), b"aaa");
+    }
+
+    #[test]
+    fn password_and_file_operations_do_not_mix() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let password = session.save(None, "github", "", "hunter2", EntryKind::Password).unwrap();
+        let file = session.add_file("a", "", &document(dir.path(), "a.txt", b"aaa")).unwrap();
+        let out = dir.path().join("out");
+        assert!(matches!(session.export_file(&password, &out), Err(VaultError::WrongKind)));
+        assert!(matches!(session.export_folder(&file, dir.path()), Err(VaultError::WrongKind)));
+        assert!(matches!(session.original_name(&password), Err(VaultError::WrongKind)));
+    }
+
+    /// Entries that were already there must seal to exactly what they did
+    /// before files existed, so nothing about them changes.
+    #[test]
+    fn a_password_entry_carries_no_file_field() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let id = session.save(None, "github", "gh", "hunter2", EntryKind::Password).unwrap();
+        let raw = std::fs::read(dir.path().join(VAULT_DIR).join(format!("{id}.enc"))).unwrap();
+        let key = session.key.as_ref().unwrap();
+        let plain = open(key, &raw[MAGIC.len()..], id.as_bytes(), VaultError::Damaged).unwrap();
+        assert_eq!(
+            std::str::from_utf8(&plain).unwrap(),
+            r#"{"name":"github","shortcut":"gh","secret":"hunter2","kind":"password"}"#
+        );
+    }
+
+    #[test]
+    fn the_vault_folder_cannot_be_added_to_itself() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let vault_dir = dir.path().join(VAULT_DIR);
+        assert!(matches!(session.add_folder("v", "", &vault_dir), Err(VaultError::InsideVault)));
+
+        // Its parent can be, with the vault left out of it.
+        std::fs::write(dir.path().join("notes.txt"), b"n").unwrap();
+        let id = session.add_folder("app", "", dir.path()).unwrap();
+        let out = tempfile::tempdir().unwrap();
+        let back = session.export_folder(&id, out.path()).unwrap();
+        assert!(back.join("notes.txt").exists());
+        assert!(!back.join(VAULT_DIR).exists());
+    }
+
+    #[test]
+    fn a_file_over_the_limit_is_refused_before_it_is_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = vault(dir.path());
+        let path = dir.path().join("huge.iso");
+        std::fs::File::create(&path).unwrap().set_len(MAX_BLOB_BYTES + 1).unwrap();
+        assert!(matches!(session.add_file("iso", "", &path), Err(VaultError::TooLarge)));
+        assert!(session.entries().is_empty());
+        let leftovers = std::fs::read_dir(dir.path().join(VAULT_DIR)).unwrap().count();
+        assert_eq!(leftovers, 1, "only vault.meta");
     }
 
     #[test]

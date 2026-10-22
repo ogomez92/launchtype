@@ -3837,3 +3837,62 @@ msgstr "un mes y día"
 #: crates/launchtype-core/src/calendar.rs
 msgid "a day like 25, {pair} like {short}, or a full date like {full}"
 msgstr "un día como 25, {pair} como {short}, o una fecha completa como {full}"
+
+
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "A file (Enter saves a copy of it where you choose)"
+msgstr "Un archivo (Intro guarda una copia donde elijas)"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "A folder (Enter saves a copy of it where you choose)"
+msgstr "Una carpeta (Intro guarda una copia donde elijas)"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "{name}, file"
+msgstr "{name}, archivo"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "{name}, folder"
+msgstr "{name}, carpeta"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Please enter a name for this entry."
+msgstr "Escribe un nombre para esta entrada."
+
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Choose a file to keep in the vault"
+msgstr "Elige un archivo para guardar en la caja fuerte"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Choose a folder to keep in the vault"
+msgstr "Elige una carpeta para guardar en la caja fuerte"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Choose where to save the folder {name}"
+msgstr "Elige dónde guardar la carpeta {name}"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Pressing Enter on this entry asks where to save a copy of it."
+msgstr "Al pulsar Intro en esta entrada se pregunta dónde guardar una copia."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Save {name} as"
+msgstr "Guardar {name} como"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "Saved to {path}"
+msgstr "Guardado en {path}"
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "That entry does not hold a file."
+msgstr "Esa entrada no contiene un archivo."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "That is too large to keep in the vault. The limit is {size} MB."
+msgstr "Es demasiado grande para guardarlo en la caja fuerte. El límite es de {size} MB."
+
+#: crates/launchtype-app/src/vault_flows.rs
+msgid "The vault folder cannot be put inside the vault."
+msgstr "La carpeta de la caja fuerte no se puede meter dentro de la caja fuerte."
