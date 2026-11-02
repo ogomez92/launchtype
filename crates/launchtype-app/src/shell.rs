@@ -877,7 +877,8 @@ pub fn update_list(shell: &SharedShell) {
             | ItemKind::PathAction { .. }
             | ItemKind::AudioDevice { .. }
             | ItemKind::CalendarEvent { .. }
-            | ItemKind::CalendarAction { .. } => item.name.clone(),
+            | ItemKind::CalendarAction { .. }
+            | ItemKind::SteamMissingAction { .. } => item.name.clone(),
             _ => item.name.chars().take(40).collect(),
         };
         if !item.shortcut.is_empty() {
@@ -922,6 +923,7 @@ enum ModeEntry {
     Ssh,
     Vault,
     GoogleCalendar,
+    SteamNotInstalled,
 }
 
 /// Apply a mode change on an already-borrowed shell: announce it, run the
@@ -956,6 +958,7 @@ fn apply_mode_switch(s: &mut Shell, new_mode: UiMode) -> ModeEntry {
         UiMode::Ssh => entry = ModeEntry::Ssh,
         UiMode::Vault => entry = ModeEntry::Vault,
         UiMode::GoogleCalendar => entry = ModeEntry::GoogleCalendar,
+        UiMode::SteamNotInstalled => entry = ModeEntry::SteamNotInstalled,
         _ => {}
     }
     s.mode = new_mode;
@@ -971,6 +974,7 @@ fn finish_entry(shell: &SharedShell, entry: ModeEntry) {
         ModeEntry::Ssh => crate::ssh_flows::enter_ssh_mode(shell),
         ModeEntry::Vault => crate::vault_flows::enter_vault_mode(shell),
         ModeEntry::GoogleCalendar => crate::calendar_flows::enter_calendar_mode(shell),
+        ModeEntry::SteamNotInstalled => crate::steam_flows::enter_mode(shell),
     }
 }
 
@@ -1002,6 +1006,9 @@ fn mode_announcement(mode: UiMode) -> String {
         UiMode::Clipboard => tr("Clipboard history mode"),
         UiMode::Commands => tr("commands mode"),
         UiMode::Steam => tr("Steam games mode"),
+        UiMode::SteamNotInstalled => {
+            tr("not installed Steam games mode, press enter on a game to install it")
+        }
         UiMode::Apps => tr("applications mode, type the name of a program to launch it"),
         UiMode::Screenshots => tr("screenshots mode"),
         UiMode::Timers => tr("timers mode"),
@@ -1062,6 +1069,7 @@ fn mode_name(mode: UiMode) -> String {
         UiMode::AudioOutputs => tr("Audio output devices"),
         UiMode::Clipboard => tr("Clipboard history"),
         UiMode::Steam => tr("Steam games"),
+        UiMode::SteamNotInstalled => tr("Steam games not installed"),
         UiMode::Apps => tr("Applications"),
         UiMode::Screenshots => tr("Screenshots"),
         UiMode::Timers => tr("Timers"),
@@ -1176,9 +1184,14 @@ pub fn run_clicked(shell: &SharedShell) {
                 let s = shell.borrow_mut();
                 let now = s.controller.clock.now();
                 let enabled = s.controller.timers.toggle(&item.id, now);
+                let stopwatch = {
+                    let engine = s.controller.timers.engine.lock().unwrap();
+                    engine.timers.iter().any(|t| t.id == item.id && t.is_stopwatch())
+                };
                 s.sounds.play("match");
                 let state = if enabled == Some(true) { tr("started") } else { tr("stopped") };
-                speak_now(&format_args(&tr("Timer {state}"), &[("state", Arg::Str(&state))]), true);
+                let template = if stopwatch { tr("Stopwatch {state}") } else { tr("Timer {state}") };
+                speak_now(&format_args(&template, &[("state", Arg::Str(&state))]), true);
             }
             update_list(shell);
         }
@@ -1269,6 +1282,7 @@ pub fn run_clicked(shell: &SharedShell) {
         // An event has nothing to run; Enter reads it again, like a stat.
         ItemKind::CalendarEvent { .. } => speak_now(&item.name, true),
         ItemKind::CalendarAction { action } => crate::calendar_flows::run_action(shell, action),
+        ItemKind::SteamMissingAction { action } => crate::steam_flows::run_action(shell, action),
         // A region: crop it out of the last screenshot, copy the crop, and
         // describe it. Keep the window open so more regions can be chosen.
         ItemKind::Region { r#box } => crate::ai_flows::crop_and_describe_region(shell, r#box),
@@ -1531,6 +1545,12 @@ fn run_hidden_action(shell: &SharedShell, item: &Item, kind: ItemKind) -> Result
         }
         ItemKind::Steam { appid } => {
             open::that_detached(steam::rungameid_url(&appid)).map_err(|e| e.to_string())?;
+            shell.borrow().sounds.play("run");
+        }
+        // Steam's own install dialog takes it from here: drive, shortcuts,
+        // and the download itself.
+        ItemKind::SteamInstall { appid } => {
+            open::that_detached(steam::install_url(&appid)).map_err(|e| e.to_string())?;
             shell.borrow().sounds.play("run");
         }
         ItemKind::App { target } => {

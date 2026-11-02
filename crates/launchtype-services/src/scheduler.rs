@@ -38,8 +38,14 @@ impl Scheduler {
                     let now = clock.now();
 
                     let fired: Vec<AlertItem> = {
-                        let mut engine = timers.lock().unwrap();
-                        engine.due(now).iter().map(AlertItem::from).collect()
+                        let mut due = timers.lock().unwrap().due(now);
+                        // Stopwatches landing on the same second play one
+                        // after the other, and on Windows the last to start
+                        // cuts the rest off. Longest period last makes that
+                        // the rarer marker: the five-minute sound is heard
+                        // over the one-minute tick it lands on.
+                        due.sort_by_key(|t| t.period());
+                        due.iter().map(AlertItem::from).collect()
                     };
                     for item in fired {
                         on_alert(item);

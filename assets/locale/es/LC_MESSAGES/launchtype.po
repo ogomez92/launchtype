@@ -3896,3 +3896,143 @@ msgstr "Es demasiado grande para guardarlo en la caja fuerte. El límite es de {
 #: crates/launchtype-app/src/vault_flows.rs
 msgid "The vault folder cannot be put inside the vault."
 msgstr "La carpeta de la caja fuerte no se puede meter dentro de la caja fuerte."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "T&ype:"
+msgstr "T&ipo:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Timer (counts down, then sounds once)"
+msgstr "Temporizador (cuenta atrás y suena una vez)"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Stopwatch (sounds every so often until stopped)"
+msgstr "Cronómetro (suena cada cierto tiempo hasta detenerlo)"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Sound &every:"
+msgstr "Sonar c&ada:"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Unit"
+msgstr "Unidad"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "seconds"
+msgstr "segundos"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "minutes"
+msgstr "minutos"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "hours"
+msgstr "horas"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Stopwatch {state}"
+msgstr "Cronómetro {state}"
+
+#: crates/launchtype-core/src/timers.rs
+msgid "elapsed"
+msgstr "transcurrido"
+
+#: crates/launchtype-core/src/timers.rs
+msgid "stopwatch, sounds every {count} sec"
+msgstr "cronómetro, suena cada {count} s"
+
+#: crates/launchtype-core/src/timers.rs
+msgid "stopwatch, sounds every {count} min"
+msgstr "cronómetro, suena cada {count} min"
+
+#: crates/launchtype-core/src/timers.rs
+msgid "stopwatch, sounds every {count} h"
+msgstr "cronómetro, suena cada {count} h"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "not installed Steam games mode, press enter on a game to install it"
+msgstr "modo de juegos de Steam no instalados, pulsa intro en un juego para instalarlo"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Steam games not installed"
+msgstr "Juegos de Steam no instalados"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Enter a Steam Web API key"
+msgstr "Introducir una clave de la API web de Steam"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Asking Steam which games you own"
+msgstr "Preguntando a Steam qué juegos tienes"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Every game you own is installed"
+msgstr "Todos tus juegos están instalados"
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Could not get your Steam games: {reason} Press Enter to try again."
+msgstr "No se pudieron obtener tus juegos de Steam: {reason} Pulsa intro para volver a intentarlo."
+
+#: crates/launchtype-app/src/controller.rs
+msgid "Enter the Steam Web API key again"
+msgstr "Volver a introducir la clave de la API web de Steam"
+
+#: crates/launchtype-app/src/steam_flows.rs
+msgid "Still asking Steam which games you own"
+msgstr "Todavía preguntando a Steam qué juegos tienes"
+
+#: crates/launchtype-app/src/steam_flows.rs
+msgid "There is no telling which Steam account is yours. Enter it along with the key."
+msgstr "No hay forma de saber cuál es tu cuenta de Steam. Introdúcela junto con la clave."
+
+#: crates/launchtype-app/src/steam_flows.rs
+msgid "{count} games not installed"
+msgstr "{count} juegos no instalados"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Steam Web API key"
+msgstr "Clave de la API web de Steam"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "To list the games you own that are not installed, Launchtype asks Steam with a Steam Web API key. Get one from the page the button below opens, signed in to Steam; when it asks for a domain name, any will do. The key is stored locally in settings.json."
+msgstr "Para listar los juegos que tienes y no están instalados, Launchtype pregunta a Steam con una clave de la API web de Steam. Consíguela en la página que abre el botón de abajo, con la sesión de Steam iniciada; cuando pida un nombre de dominio, sirve cualquiera. La clave se guarda localmente en settings.json."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "&Open the Steam key page"
+msgstr "&Abrir la página de claves de Steam"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Steam &account (SteamID64, profile URL or custom URL name):"
+msgstr "Cuen&ta de Steam (SteamID64, URL del perfil o nombre de URL personalizada):"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Please enter your Steam account."
+msgstr "Por favor, introduce tu cuenta de Steam."
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Steam Web API ke&y (not installed games):"
+msgstr "Clave de la API web de Steam (juegos no &instalados):"
+
+#: crates/launchtype-app/src/dialogs.rs
+msgid "Steam a&ccount (empty for the one signed in to Steam):"
+msgstr "&Cuenta de Steam (vacía para la que tiene la sesión iniciada en Steam):"
+
+#: crates/launchtype-services/src/steam.rs
+msgid "Steam refused the Web API key. Enter it again."
+msgstr "Steam rechazó la clave de la API web. Vuelve a introducirla."
+
+#: crates/launchtype-services/src/steam.rs
+msgid "Steam answered with status {code}."
+msgstr "Steam respondió con el estado {code}."
+
+#: crates/launchtype-services/src/steam.rs
+msgid "Steam knows no account called {name}. Check the Steam account in Settings."
+msgstr "Steam no conoce ninguna cuenta llamada {name}. Revisa la cuenta de Steam en Ajustes."
+
+#: crates/launchtype-services/src/steam.rs
+msgid "Steam did not send the list of games."
+msgstr "Steam no envió la lista de juegos."
+
+#: crates/launchtype-services/src/steam.rs
+msgid "Steam listed no games for this account. If it owns some, set the game details of its profile to public."
+msgstr "Steam no mostró ningún juego de esta cuenta. Si tiene alguno, haz públicos los detalles de juegos de su perfil."

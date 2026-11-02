@@ -4,6 +4,8 @@
 //! returns, which sidesteps the Windows default-button double-click bug the
 //! Python code worked around with wx.CallAfter.
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use launchtype_core::alarms::AlarmDef;
@@ -15,10 +17,10 @@ use launchtype_core::model::Command;
 use launchtype_core::portable::{self, Target, VarSpec};
 use launchtype_core::query;
 use launchtype_core::snippet_vars;
-use launchtype_core::timers::TimerDef;
+use launchtype_core::timers::{TickUnit, TimerDef, TimerKind};
 use launchtype_core::totp::{Totp, TotpError};
 use launchtype_core::vault::EntryKind;
-use launchtype_services::sounds::{SoundPlayer, ALARM_SOUNDS, TIMER_SOUNDS};
+use launchtype_services::sounds::{SoundPlayer, ALARM_SOUNDS, STOPWATCH_SOUNDS, TIMER_SOUNDS};
 use wxdragon::dialogs::dir_dialog::DirDialog;
 use wxdragon::dialogs::file_dialog::{FileDialog, FileDialogStyle};
 use wxdragon::dialogs::message_dialog::{MessageDialog, MessageDialogStyle};
@@ -1117,6 +1119,19 @@ pub fn settings_dialog(
         labeled_password_row(&dialog, &sizer, &tr("Cl&aude API key (realtime ca item):"));
     claude_api_key_entry.set_value(&settings.settings.claude_api_key);
 
+    // `;` mode asks for the key the first time too. The account is only asked
+    // for there when it cannot be read off Steam, so this is where to point
+    // the mode at another one.
+    let steam_api_key_entry =
+        labeled_password_row(&dialog, &sizer, &tr("Steam Web API ke&y (not installed games):"));
+    steam_api_key_entry.set_value(&settings.settings.steam_api_key);
+    let steam_account_entry = labeled_row(
+        &dialog,
+        &sizer,
+        &tr("Steam a&ccount (empty for the one signed in to Steam):"),
+    );
+    steam_account_entry.set_value(&settings.settings.steam_account);
+
     let hint = StaticText::builder(&dialog)
         .with_label(&tr("Command line flags override these settings for the current run."))
         .build();
@@ -1232,6 +1247,8 @@ pub fn settings_dialog(
     settings.settings.ssh_key_path = ssh_key_entry.get_value().trim().to_string();
     settings.settings.ssh_password = ssh_password_entry.get_value();
     settings.settings.claude_api_key = claude_api_key_entry.get_value().trim().to_string();
+    settings.settings.steam_api_key = steam_api_key_entry.get_value().trim().to_string();
+    settings.settings.steam_account = steam_account_entry.get_value().trim().to_string();
     let _ = settings.save();
 
     // The window and its labels were built in the old language, so a live
@@ -1259,8 +1276,9 @@ struct SoundPicker {
     entry: TextCtrl,
     /// Stored values, parallel to the dropdown rows after the leading
     /// "No sound"; the trailing "Custom file..." row has none, so an index
-    /// past the end means "use whatever is in the entry".
-    bundled: Vec<String>,
+    /// past the end means "use whatever is in the entry". Shared, because the
+    /// timer dialog swaps the list when its type changes.
+    bundled: Rc<RefCell<Vec<String>>>,
 }
 
 impl SoundPicker {
@@ -1272,10 +1290,15 @@ impl SoundPicker {
             None | Some(0) => String::new(),
             Some(index) => self
                 .bundled
+                .borrow()
                 .get(index as usize - 1)
                 .cloned()
                 .unwrap_or_else(|| self.entry.get_value()),
         }
+    }
+
+    fn custom_index(&self) -> u32 {
+        self.bundled.borrow().len() as u32 + 1
     }
 
     /// Audition the current pick, cutting off the one before it. Silent for
@@ -1288,6 +1311,36 @@ impl SoundPicker {
             sounds.play_alert(&value);
         }
     }
+
+    /// List the tones of `category` and select `initial` among them: a
+    /// bundled tone selects its own row, anything else is a custom path.
+    fn fill(&self, sounds: &SoundPlayer, category: &str, initial: &str) {
+        let alerts = sounds.bundled_alerts(category);
+        self.choice.clear();
+        self.choice.append(&tr("No sound (system beep)"));
+        for (name, _) in &alerts {
+            self.choice.append(name);
+        }
+        self.choice.append(&tr("Custom file..."));
+        *self.bundled.borrow_mut() = alerts.into_iter().map(|(_, value)| value).collect();
+        let selected = match self.bundled.borrow().iter().position(|value| value == initial) {
+            Some(index) => index as u32 + 1,
+            None if initial.is_empty() => 0,
+            None => self.custom_index(),
+        };
+        self.choice.set_selection(selected);
+        if selected == self.custom_index() {
+            self.entry.set_value(initial);
+        }
+    }
+
+    /// Swap in another category's tones. A custom file carries over, since it
+    /// belongs to no category; a bundled tone of the old one does not.
+    fn switch_category(&self, sounds: &SoundPlayer, category: &str) {
+        let custom = self.choice.get_selection() == Some(self.custom_index());
+        let keep = if custom { self.entry.get_value() } else { String::new() };
+        self.fill(sounds, category, &keep);
+    }
 }
 
 fn sound_picker(
@@ -1297,45 +1350,29 @@ fn sound_picker(
     sounds: &Arc<SoundPlayer>,
     initial: &str,
 ) -> SoundPicker {
-    let alerts = sounds.bundled_alerts(category);
-    let bundled: Vec<String> = alerts.iter().map(|(_, value)| value.clone()).collect();
-
     let label = StaticText::builder(dialog).with_label(&tr("&Sound:")).build();
     sizer.add(&label, 0, SizerFlag::All, 0);
     let choice = Choice::builder(dialog).build();
     ax_name(&choice, &tr("&Sound:"));
-    choice.append(&tr("No sound (system beep)"));
-    for (name, _) in &alerts {
-        choice.append(name);
-    }
-    choice.append(&tr("Custom file..."));
-    let custom_index = alerts.len() as u32 + 1;
-    // An edited alert reopens on what it was saved with: a bundled tone selects
-    // its own row, anything else is a custom path.
-    let selected = match bundled.iter().position(|value| value == initial) {
-        Some(index) => index as u32 + 1,
-        None if initial.is_empty() => 0,
-        None => custom_index,
-    };
-    choice.set_selection(selected);
     sizer.add(&choice, 0, SizerFlag::Expand, 0);
 
     let row = BoxSizer::builder(Orientation::Horizontal).build();
     let file_label = StaticText::builder(dialog).with_label(&tr("Custom sound &file:")).build();
     let entry = TextCtrl::builder(dialog).build();
     ax_name(&entry, &tr("Custom sound &file:"));
-    if selected == custom_index {
-        entry.set_value(initial);
-    }
     let browse = Button::builder(dialog).with_label(&tr("&Browse...")).build();
     row.add(&file_label, 0, SizerFlag::All, 0);
     row.add(&entry, 0, SizerFlag::All, 0);
     row.add(&browse, 0, SizerFlag::All, 0);
     sizer.add_sizer(&row, 0, SizerFlag::All, 0);
 
+    let picker = SoundPicker { choice, entry, bundled: Rc::new(RefCell::new(Vec::new())) };
+    // An edited alert reopens on what it was saved with.
+    picker.fill(sounds, category, initial);
+
     {
         let dialog = *dialog;
-        let picker = SoundPicker { choice, entry, bundled: bundled.clone() };
+        let picker = picker.clone();
         let sounds = sounds.clone();
         browse.on_click(move |_| {
             let file_dialog = FileDialog::builder(&dialog)
@@ -1345,10 +1382,10 @@ fn sound_picker(
                 .build();
             if file_dialog.show_modal() == ID_OK {
                 if let Some(path) = file_dialog.get_path() {
-                    entry.set_value(&path);
+                    picker.entry.set_value(&path);
                     // Browsing only means anything on the custom row, so move
                     // the dropdown there instead of dropping the pick.
-                    choice.set_selection(custom_index);
+                    picker.choice.set_selection(picker.custom_index());
                     // set_selection does not raise a command event, so the
                     // browsed file has to be auditioned by hand.
                     picker.preview(&sounds);
@@ -1357,16 +1394,25 @@ fn sound_picker(
         });
     }
     {
-        let picker = SoundPicker { choice, entry, bundled: bundled.clone() };
+        let picker = picker.clone();
         let sounds = sounds.clone();
         choice.on_selection_changed(move |_| picker.preview(&sounds));
     }
 
-    SoundPicker { choice, entry, bundled }
+    picker
+}
+
+/// Whether the timer dialog's type dropdown is on its second row, "Stopwatch".
+fn stopwatch_chosen(choice: &Choice) -> bool {
+    choice.get_selection() == Some(1)
 }
 
 /// Add/edit timer dialog; writes to the store on OK. `existing` seeds the
 /// fields when editing. Returns true when the store changed.
+///
+/// The type dropdown picks a countdown or a stopwatch. Each has fields of its
+/// own; the other type's are disabled, which Tab skips, and the sound
+/// dropdown lists the tones written for the chosen type.
 pub fn timer_dialog(
     parent: &Frame,
     controller: &mut ModeController,
@@ -1378,12 +1424,29 @@ pub fn timer_dialog(
     let title_entry = labeled_row(&dialog, &sizer, &tr("&Title:"));
     let desc_entry = labeled_row(&dialog, &sizer, &tr("&Description:"));
 
+    let type_title = tr("T&ype:");
+    let type_label = StaticText::builder(&dialog).with_label(&type_title).build();
+    sizer.add(&type_label, 0, SizerFlag::All, 0);
+    let type_choice = Choice::builder(&dialog).build();
+    ax_name(&type_choice, &type_title);
+    type_choice.append(&tr("Timer (counts down, then sounds once)"));
+    type_choice.append(&tr("Stopwatch (sounds every so often until stopped)"));
+    sizer.add(&type_choice, 0, SizerFlag::Expand, 0);
+
+    let (minutes, repeating, every, unit) = match existing.as_ref().map(|t| &t.kind) {
+        Some(TimerKind::Countdown { minutes, repeating }) => (*minutes, *repeating, 1, TickUnit::Minute),
+        Some(TimerKind::Stopwatch { every, unit }) => (5, false, *every, *unit),
+        None => (5, false, 1, TickUnit::Minute),
+    };
+    let is_stopwatch = existing.as_ref().is_some_and(TimerDef::is_stopwatch);
+    type_choice.set_selection(u32::from(is_stopwatch));
+
     let minutes_row = BoxSizer::builder(Orientation::Horizontal).build();
     let minutes_label = StaticText::builder(&dialog).with_label(&tr("&Minutes:")).build();
     let minutes_spin = SpinCtrl::builder(&dialog)
         .with_min_value(1)
         .with_max_value(1440)
-        .with_initial_value(existing.as_ref().map_or(5, |t| t.minutes.clamp(1, 1440) as i32))
+        .with_initial_value(minutes.clamp(1, 1440) as i32)
         .build();
     ax_name(&minutes_spin, &tr("&Minutes:"));
     minutes_row.add(&minutes_label, 0, SizerFlag::All, 0);
@@ -1392,16 +1455,60 @@ pub fn timer_dialog(
 
     let repeating_cb = checkbox(&dialog, &tr("&Repeating (fires every X minutes until disabled)"));
     sizer.add(&repeating_cb, 0, SizerFlag::All, 0);
-    if let Some(seed) = &existing {
-        title_entry.set_value(&seed.title);
-        desc_entry.set_value(&seed.description);
-        repeating_cb.set_value(seed.repeating);
+    repeating_cb.set_value(repeating);
+
+    let every_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let every_title = tr("Sound &every:");
+    let every_label = StaticText::builder(&dialog).with_label(&every_title).build();
+    let every_spin = SpinCtrl::builder(&dialog)
+        .with_min_value(1)
+        .with_max_value(1440)
+        .with_initial_value(every.clamp(1, 1440) as i32)
+        .build();
+    ax_name(&every_spin, &every_title);
+    let unit_choice = Choice::builder(&dialog).build();
+    ax_name(&unit_choice, &tr("Unit"));
+    for tick_unit in TickUnit::ALL {
+        unit_choice.append(&match tick_unit {
+            TickUnit::Second => tr("seconds"),
+            TickUnit::Minute => tr("minutes"),
+            TickUnit::Hour => tr("hours"),
+        });
     }
+    unit_choice.set_selection(TickUnit::ALL.iter().position(|u| *u == unit).unwrap_or(1) as u32);
+    every_row.add(&every_label, 0, SizerFlag::All, 0);
+    every_row.add(&every_spin, 0, SizerFlag::All, 0);
+    every_row.add(&unit_choice, 0, SizerFlag::All, 0);
+    sizer.add_sizer(&every_row, 0, SizerFlag::All, 0);
+
+    let category = |stopwatch: bool| if stopwatch { STOPWATCH_SOUNDS } else { TIMER_SOUNDS };
     let seeded_sound = existing.as_ref().and_then(|t| t.sound.clone()).unwrap_or_default();
-    let sound = sound_picker(&dialog, &sizer, TIMER_SOUNDS, &controller.sounds, &seeded_sound);
+    let sound =
+        sound_picker(&dialog, &sizer, category(is_stopwatch), &controller.sounds, &seeded_sound);
     let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
     dialog.set_sizer_and_fit(sizer, true);
 
+    let show_type = move |stopwatch: bool| {
+        minutes_spin.enable(!stopwatch);
+        repeating_cb.enable(!stopwatch);
+        every_spin.enable(stopwatch);
+        unit_choice.enable(stopwatch);
+    };
+    show_type(is_stopwatch);
+    if let Some(seed) = &existing {
+        title_entry.set_value(&seed.title);
+        desc_entry.set_value(&seed.description);
+    }
+
+    {
+        let sound = sound.clone();
+        let sounds = controller.sounds.clone();
+        type_choice.on_selection_changed(move |_| {
+            let stopwatch = stopwatch_chosen(&type_choice);
+            show_type(stopwatch);
+            sound.switch_category(&sounds, category(stopwatch));
+        });
+    }
     {
         ok.on_click(move |_| {
             if title_entry.get_value().is_empty() {
@@ -1423,14 +1530,24 @@ pub fn timer_dialog(
         return false;
     }
     let sound = Some(sound.value());
-    let minutes = minutes_spin.value().max(1) as u64;
+    let kind = if stopwatch_chosen(&type_choice) {
+        let unit = TickUnit::ALL
+            .get(unit_choice.get_selection().unwrap_or(1) as usize)
+            .copied()
+            .unwrap_or(TickUnit::Minute);
+        TimerKind::Stopwatch { every: every_spin.value().max(1) as u64, unit }
+    } else {
+        TimerKind::Countdown {
+            minutes: minutes_spin.value().max(1) as u64,
+            repeating: repeating_cb.get_value(),
+        }
+    };
     match existing {
         Some(seed) => controller.timers.update(
             TimerDef {
                 title: title_entry.get_value(),
                 description: desc_entry.get_value(),
-                minutes,
-                repeating: repeating_cb.get_value(),
+                kind,
                 sound,
                 ..seed
             },
@@ -1438,13 +1555,7 @@ pub fn timer_dialog(
         ),
         None => {
             controller.timers.add(
-                TimerDef::new(
-                    title_entry.get_value(),
-                    desc_entry.get_value(),
-                    minutes,
-                    repeating_cb.get_value(),
-                    sound,
-                ),
+                TimerDef::new(title_entry.get_value(), desc_entry.get_value(), kind, sound),
                 controller.clock.now(),
             );
             true
@@ -2286,6 +2397,71 @@ pub fn confirm_past_event_day(parent: &Frame, day: &str) -> bool {
     reenter_button.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
 
     dialog.show_modal() == ID_OK
+}
+
+/// Where Steam hands out Web API keys.
+const STEAM_API_KEY_PAGE: &str = "https://steamcommunity.com/dev/apikey";
+
+/// Ask for the Steam Web API key `;` mode compares the library against, and,
+/// when `ask_account`, for the Steam account as well: there is no reading it
+/// off this machine. Returns the trimmed key and, if asked, the account.
+pub fn steam_api_key_dialog(
+    parent: &Frame,
+    current_key: &str,
+    current_account: &str,
+    ask_account: bool,
+) -> Option<(String, Option<String>)> {
+    let dialog = Dialog::builder(parent, &tr("Steam Web API key")).build();
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    let help = StaticText::builder(&dialog)
+        .with_label(&tr(
+            "To list the games you own that are not installed, Launchtype asks Steam with a Steam Web API key. \
+             Get one from the page the button below opens, signed in to Steam; when it asks for a domain name, \
+             any will do. The key is stored locally in settings.json.",
+        ))
+        .build();
+    sizer.add(&help, 0, SizerFlag::All, 5);
+    let open_button = Button::builder(&dialog).with_label(&tr("&Open the Steam key page")).build();
+    sizer.add(&open_button, 0, SizerFlag::All, 5);
+    let key_entry = labeled_password_row(&dialog, &sizer, &tr("API &key:"));
+    key_entry.set_value(current_key);
+    let account_entry = ask_account.then(|| {
+        let entry = labeled_row(
+            &dialog,
+            &sizer,
+            &tr("Steam &account (SteamID64, profile URL or custom URL name):"),
+        );
+        entry.set_value(current_account);
+        entry
+    });
+    let (ok, cancel) = ok_cancel_row(&dialog, &sizer);
+    dialog.set_sizer_and_fit(sizer, true);
+
+    open_button.on_click(move |_| {
+        let _ = open::that_detached(STEAM_API_KEY_PAGE);
+    });
+    ok.on_click(move |_| {
+        if key_entry.get_value().trim().is_empty() {
+            error_box(&dialog, &tr("Please enter the API key."), &tr("Error"));
+            return;
+        }
+        if let Some(entry) = account_entry {
+            if launchtype_core::steam::parse_steam_account(&entry.get_value()).is_none() {
+                error_box(&dialog, &tr("Please enter your Steam account."), &tr("Error"));
+                return;
+            }
+        }
+        dialog.end_modal(ID_OK);
+    });
+    cancel.on_click(move |_| dialog.end_modal(wxdragon::id::ID_CANCEL));
+
+    if dialog.show_modal() != ID_OK {
+        return None;
+    }
+    Some((
+        key_entry.get_value().trim().to_string(),
+        account_entry.map(|entry| entry.get_value().trim().to_string()),
+    ))
 }
 
 /// Prompt for Notebrook credentials; returns Some((url, token)) on OK.

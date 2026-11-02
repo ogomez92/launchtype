@@ -2,19 +2,23 @@
 //! (winsound SND_ASYNC on Windows). Effects live as `<name>.wav` in the
 //! app's `sounds/` directory; failures are silent, sounds never block.
 //!
-//! Timer and alarm tones are the exception to "play once": they repeat until
-//! the user reaches for the hotkey, so an alert that fires while they are away
-//! from the keyboard is still sounding when they get back.
+//! Alarm tones are the exception to "play once": they repeat until the user
+//! reaches for the hotkey, so an alarm that goes off while they are away from
+//! the keyboard is still sounding when they get back. Timer and stopwatch
+//! tones play once, like any other effect.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::time::Duration;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 /// Subdirectories of `sounds/` holding the alert tones offered in the
 /// timer/alarm dialogs. One per alert kind so each dropdown only lists tones
 /// written for it — wake-up tones are long and escalating, timer tones short.
 pub const ALARM_SOUNDS: &str = "alarms";
 pub const TIMER_SOUNDS: &str = "timers";
+/// Short ticks and markers: a stopwatch can sound every second.
+pub const STOPWATCH_SOUNDS: &str = "stopwatch";
 
 pub struct SoundPlayer {
     sounds_dir: PathBuf,
@@ -43,7 +47,7 @@ impl SoundPlayer {
     /// per-process, so on Windows one keystroke effect would cut a repeating
     /// alarm off outright, and an alarm outranks a keystroke either way.
     pub fn play(&self, name: &str) {
-        if !self.enabled() || alert_repeating() {
+        if !self.enabled() || alert_sounding() {
             return;
         }
         let path = self.sounds_dir.join(format!("{name}.wav"));
@@ -78,14 +82,28 @@ impl SoundPlayer {
         play_file(&path)
     }
 
-    /// Play a stored timer/alarm sound over and over until `stop_alert`. This
-    /// is what a fired timer or alarm uses: one pass of a short tone is easy
-    /// to miss from the next room, and the user says they have heard it by
-    /// bringing the window up. Returns false when the sound does not exist or
-    /// playback failed to start, leaving nothing repeating.
+    /// Play a fired timer's sound once. Until it has played through it counts
+    /// as a sounding alert: the hotkey silences it instead of bringing the
+    /// window up, and effects and stopwatch ticks hold off rather than cut it
+    /// short. Returns false when the sound does not exist or playback failed
+    /// to start.
+    pub fn play_alert_once(&self, sound: &str) -> bool {
+        let path = self.resolve_alert(sound);
+        if !path.exists() || !play_file(&path) {
+            return false;
+        }
+        let length = wav_duration(&path).unwrap_or(UNKNOWN_ALERT_LENGTH);
+        *ALERT_UNTIL.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now() + length);
+        true
+    }
+
+    /// Play a stored alarm sound over and over until `stop_alert`: one pass of
+    /// a short tone is easy to miss from the next room, and the user says they
+    /// have heard it with the hotkey. Returns false when the sound does not
+    /// exist or playback failed to start, leaving nothing repeating.
     ///
-    /// Only one alert sounds at a time — two timers coming due on the same
-    /// tick would otherwise talk over each other, and the second silences the
+    /// Only one alarm sounds at a time — two coming due on the same tick
+    /// would otherwise talk over each other, and the second silences the
     /// first the way a stop would.
     pub fn play_alert_repeating(&self, sound: &str) -> bool {
         let path = self.resolve_alert(sound);
@@ -101,10 +119,31 @@ impl SoundPlayer {
         }
     }
 
-    /// The system beep fallback for alerts without a working custom sound,
+    /// The system beep fallback for alarms without a working custom sound,
     /// repeating on the same terms as a tone would.
     pub fn beep_repeating(&self) {
         start_beep_loop(begin_alert());
+    }
+
+    /// One system beep, the fallback for timers and stopwatches without a
+    /// working sound. Off the calling thread: on macOS the beep waits for
+    /// osascript, and the scheduler has other timers to keep to.
+    pub fn beep_once(&self) {
+        if std::thread::Builder::new().name("alert-beep".into()).spawn(system_beep).is_err() {
+            system_beep();
+        }
+    }
+
+    /// Whether an alarm is looping or a timer's sound is still playing.
+    /// Stopwatch ticks do not count: one sounding every second would leave the
+    /// hotkey nothing to do but silence it.
+    pub fn alert_sounding(&self) -> bool {
+        alert_sounding()
+    }
+
+    /// Whether an alarm is looping, which a timer's one pass gives way to.
+    pub fn alarm_looping(&self) -> bool {
+        alert_repeating()
     }
 
     /// Cut off whatever is playing. Arrowing through the timer/alarm sound
@@ -116,11 +155,14 @@ impl SoundPlayer {
         self.stop_alert();
     }
 
-    /// Silence a repeating timer/alarm alert. The hotkey calls this — reaching
-    /// for it is how the user says they have heard the alert.
-    pub fn stop_alert(&self) {
+    /// Silence a sounding alarm or timer. The hotkey calls this — reaching for
+    /// it is how the user says they have heard the alert. Returns whether
+    /// there was one to silence.
+    pub fn stop_alert(&self) -> bool {
+        let was_sounding = alert_sounding();
         end_alert();
         stop_playing();
+        was_sounding
     }
 
     /// The bundled tones under `sounds/<category>/`, as
@@ -158,6 +200,14 @@ static ALERT_GENERATION: AtomicU64 = AtomicU64::new(0);
 /// Whether an alert is sounding right now, which the counter alone cannot say.
 static ALERT_REPEATING: AtomicBool = AtomicBool::new(false);
 
+/// When the one pass of a fired timer's sound ends. Not an alert generation:
+/// nothing repeats, so there is no loop to retire, only a moment to wait out.
+static ALERT_UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
+
+/// How long a timer's sound is taken to play when its length cannot be read
+/// from the file.
+const UNKNOWN_ALERT_LENGTH: Duration = Duration::from_secs(3);
+
 /// Gap between beeps when an alert has no usable sound of its own — long
 /// enough to read as an alarm rather than as a stuck key.
 const BEEP_INTERVAL: Duration = Duration::from_secs(2);
@@ -171,10 +221,55 @@ fn begin_alert() -> u64 {
 fn end_alert() {
     ALERT_REPEATING.store(false, Ordering::SeqCst);
     ALERT_GENERATION.fetch_add(1, Ordering::SeqCst);
+    *ALERT_UNTIL.lock().unwrap_or_else(|e| e.into_inner()) = None;
 }
 
 fn alert_repeating() -> bool {
     ALERT_REPEATING.load(Ordering::SeqCst)
+}
+
+fn alert_sounding() -> bool {
+    alert_repeating()
+        || ALERT_UNTIL
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some_and(|until| Instant::now() < until)
+}
+
+/// How long a WAV file plays, from its header: the data chunk's size over the
+/// format chunk's byte rate. None for anything that is not a readable WAV.
+fn wav_duration(path: &Path) -> Option<Duration> {
+    use std::io::{Read, Seek, SeekFrom};
+
+    let mut file = std::fs::File::open(path).ok()?;
+    let mut riff = [0u8; 12];
+    file.read_exact(&mut riff).ok()?;
+    if &riff[0..4] != b"RIFF" || &riff[8..12] != b"WAVE" {
+        return None;
+    }
+    let mut byte_rate = None;
+    loop {
+        let mut header = [0u8; 8];
+        file.read_exact(&mut header).ok()?;
+        let size = u32::from_le_bytes(header[4..8].try_into().ok()?);
+        // Chunks are padded to an even length.
+        let mut skip = i64::from(size) + i64::from(size & 1);
+        match &header[0..4] {
+            b"fmt " if size >= 12 => {
+                // format tag (2), channels (2), sample rate (4), byte rate (4)
+                let mut fmt = [0u8; 12];
+                file.read_exact(&mut fmt).ok()?;
+                byte_rate = Some(u32::from_le_bytes(fmt[8..12].try_into().ok()?));
+                skip -= 12;
+            }
+            b"data" => {
+                let rate = byte_rate.filter(|rate| *rate > 0)?;
+                return Some(Duration::from_secs_f64(f64::from(size) / f64::from(rate)));
+            }
+            _ => {}
+        }
+        file.seek(SeekFrom::Current(skip)).ok()?;
+    }
 }
 
 /// Whether the loop holding `generation` is still the one that should be
@@ -470,6 +565,53 @@ mod tests {
         end_alert();
         assert!(!alert_repeating(), "the hotkey leaves nothing sounding");
         assert!(!repeat_is_current(second), "and no loop still thinks it is current");
+    }
+
+    #[test]
+    fn wav_duration_reads_the_header() {
+        let dir = tempfile::tempdir().unwrap();
+        // Half a second of 8 kHz 16-bit mono, behind an odd-sized chunk the
+        // reader has to step over, padding byte included.
+        let data_len: u32 = 8000;
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(4 + 14 + 24 + 8 + data_len).to_le_bytes());
+        wav.extend_from_slice(b"WAVE");
+        wav.extend_from_slice(b"LIST");
+        wav.extend_from_slice(&5u32.to_le_bytes());
+        wav.extend_from_slice(b"hello\0");
+        wav.extend_from_slice(b"fmt ");
+        wav.extend_from_slice(&16u32.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes());
+        wav.extend_from_slice(&8000u32.to_le_bytes());
+        wav.extend_from_slice(&16000u32.to_le_bytes());
+        wav.extend_from_slice(&2u16.to_le_bytes());
+        wav.extend_from_slice(&16u16.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&data_len.to_le_bytes());
+        wav.extend(std::iter::repeat_n(0u8, data_len as usize));
+        let path = dir.path().join("half.wav");
+        std::fs::write(&path, &wav).unwrap();
+        assert_eq!(wav_duration(&path), Some(Duration::from_millis(500)));
+
+        let not_wav = dir.path().join("song.mp3");
+        std::fs::write(&not_wav, b"ID3 not a wav").unwrap();
+        assert_eq!(wav_duration(&not_wav), None);
+    }
+
+    /// A stopwatch can sound every second, and on Windows each tick cuts the
+    /// one before it off: a long tone there would never be heard whole.
+    #[test]
+    fn every_stopwatch_sound_is_short() {
+        let assets = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/sounds");
+        let player = SoundPlayer::new(&assets, true);
+        let sounds = player.bundled_alerts(STOPWATCH_SOUNDS);
+        assert_eq!(sounds.len(), 25);
+        for (name, stored) in sounds {
+            let length = wav_duration(&player.resolve_alert(&stored)).expect(&name);
+            assert!(length < Duration::from_millis(1500), "{name} plays for {length:?}");
+        }
     }
 
     #[test]

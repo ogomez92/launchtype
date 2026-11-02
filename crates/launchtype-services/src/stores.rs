@@ -247,6 +247,7 @@ impl AlarmStore {
 mod tests {
     use super::*;
     use chrono::TimeZone;
+    use launchtype_core::timers::TimerKind;
 
     fn now() -> DateTime<Local> {
         Local.with_ymd_and_hms(2026, 7, 20, 12, 0, 0).unwrap()
@@ -259,7 +260,8 @@ mod tests {
         let store = TimerStore::load(&path, now());
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "[]");
 
-        store.add(TimerDef::new("tea".into(), "".into(), 5, false, None), now());
+        let tea = TimerKind::Countdown { minutes: 5, repeating: false };
+        store.add(TimerDef::new("tea".into(), "".into(), tea, None), now());
         let id = store.engine.lock().unwrap().timers[0].id.clone();
         let on_disk = std::fs::read_to_string(&path).unwrap();
         assert!(on_disk.contains("\"tea\""));

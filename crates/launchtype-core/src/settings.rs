@@ -64,6 +64,13 @@ pub struct Settings {
     /// Realtime mode's `ca` item: the Claude API key whose spend and rate
     /// limits it reports. Local only, like the tokens above.
     pub claude_api_key: String,
+    /// `;` mode, the owned Steam games that are not installed: the Steam Web
+    /// API key it asks Steam with. Local only, like the tokens above.
+    pub steam_api_key: String,
+    /// The Steam account `;` mode asks about, as typed: a SteamID64, a
+    /// profile URL or a custom URL name. Empty means the account that last
+    /// signed in to the Steam the library belongs to.
+    pub steam_account: String,
     /// The order typed dates are read in, [`DATE_FORMAT_US`] or
     /// [`DATE_FORMAT_EU`]. A string rather than an enum so that a value this
     /// version does not know falls back to US instead of failing the whole
@@ -127,6 +134,8 @@ impl Default for Settings {
             google_calendar_url: String::new(),
             google_calendar_token: String::new(),
             claude_api_key: String::new(),
+            steam_api_key: String::new(),
+            steam_account: String::new(),
             date_format: DATE_FORMAT_US.to_string(),
             ai_model: DEFAULT_AI_MODEL.to_string(),
             command_sort_by_uses: false,

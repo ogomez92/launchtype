@@ -13,6 +13,7 @@ mod path_flows;
 mod shell;
 mod speech;
 mod ssh_flows;
+mod steam_flows;
 mod vault_flows;
 
 use std::path::PathBuf;
@@ -221,10 +222,13 @@ fn main() {
         // The guard makes the hotkey a no-op while a modal dialog holds the
         // shell borrow (matching "hotkey does nothing useful during modals").
         let on_hotkey = move || {
-            // A fired timer or alarm sounds until the user reaches for the
-            // hotkey. Silence it first, and outside the guard: an alert going
-            // off while a modal is up still has to be dismissable.
-            hotkey_sounds.stop_alert();
+            // While an alarm or a fired timer is sounding, the hotkey only
+            // silences it: the user is saying they heard it, not asking for
+            // the window. Checked outside the guard, so an alert going off
+            // while a modal is up is still dismissable.
+            if hotkey_sounds.stop_alert() {
+                return;
+            }
             if shell_for_hotkey.try_borrow_mut().is_ok() {
                 shell::toggle_visibility(&shell_for_hotkey);
             }

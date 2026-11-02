@@ -47,6 +47,29 @@ pub enum CalendarState {
     Failed(String),
 }
 
+fn steam_missing_action_item(name: String, action: &'static str) -> Item {
+    Item {
+        name,
+        shortcut: String::new(),
+        id: String::new(),
+        kind: ItemKind::SteamMissingAction { action },
+    }
+}
+
+/// Where `;` mode's games stand. Which ones the account owns comes over the
+/// network, so like the calendar the list has something to say while it is
+/// on its way and when it never arrives.
+#[derive(Debug, Clone, Default)]
+pub enum SteamMissingState {
+    /// No Web API key yet: the list offers to enter one.
+    #[default]
+    NotSetUp,
+    Loading,
+    /// The owned games found in none of the libraries, alphabetically.
+    Loaded(Vec<launchtype_core::steam::SteamGame>),
+    Failed(String),
+}
+
 fn vault_action_item(name: String, action: &'static str) -> Item {
     Item { name, shortcut: String::new(), id: String::new(), kind: ItemKind::VaultAction { action } }
 }
@@ -72,6 +95,10 @@ pub enum ItemKind {
     Variable,
     Clip,
     Steam { appid: String },
+    /// An owned Steam game that is not installed; Enter has Steam install it.
+    SteamInstall { appid: String },
+    /// A `;` row that does something: set up, or reload.
+    SteamMissingAction { action: &'static str },
     /// An installed application, launched through whatever listed it.
     App { target: AppTarget },
     Screenshot { action: &'static str },
@@ -126,6 +153,8 @@ pub struct ModeController {
     steam_games: Vec<launchtype_core::steam::SteamGame>,
     /// The shortcuts the user has given some of those games, by appid.
     pub steam_shortcuts: AppShortcutsStore,
+    /// The owned games `;` offers to install, fetched on entering the mode.
+    pub steam_missing: SteamMissingState,
     /// Everything the OS says is installed. Refreshed on entering `@` and held
     /// for the keystrokes that follow — the scan costs a few hundred
     /// milliseconds, which is fine once per visit and not once per letter.
@@ -177,6 +206,7 @@ impl ModeController {
             steam_library,
             steam_games: Vec::new(),
             steam_shortcuts,
+            steam_missing: SteamMissingState::NotSetUp,
             apps: Vec::new(),
             app_shortcuts,
             sounds,
@@ -234,6 +264,7 @@ impl ModeController {
             UiMode::Variables => self.variable_items(search),
             UiMode::Clipboard => self.clipboard_items(search),
             UiMode::Steam => self.steam_items(search),
+            UiMode::SteamNotInstalled => self.steam_missing_items(search),
             UiMode::Apps => self.app_items(search),
             UiMode::Screenshots => self.screenshot_items(search),
             UiMode::Timers => self.timer_items(search),
@@ -390,6 +421,55 @@ impl ModeController {
         let results = fuzzy_search(search, items, |i| i.name.clone());
         self.sounds.play("type");
         results
+    }
+
+    /// The owned Steam games that are not installed, alphabetically. As in
+    /// `%`, a row saying how the fetch is going leads them when nothing is
+    /// typed, and typing searches the games alone.
+    fn steam_missing_items(&self, search: &str) -> Vec<Item> {
+        let games: &[launchtype_core::steam::SteamGame] = match &self.steam_missing {
+            SteamMissingState::NotSetUp => {
+                return vec![steam_missing_action_item(tr("Enter a Steam Web API key"), "setup")]
+            }
+            SteamMissingState::Loaded(games) => games,
+            SteamMissingState::Loading | SteamMissingState::Failed(_) => &[],
+        };
+        let items: Vec<Item> = games
+            .iter()
+            .map(|game| Item {
+                name: game.name.clone(),
+                shortcut: String::new(),
+                id: game.appid.clone(),
+                kind: ItemKind::SteamInstall { appid: game.appid.clone() },
+            })
+            .collect();
+        if !search.is_empty() {
+            let results = fuzzy_search(&fold(search), items, |item| fold(&item.name));
+            self.sounds.play("type");
+            return results;
+        }
+        let mut rows = Vec::new();
+        match &self.steam_missing {
+            SteamMissingState::Loading => {
+                rows.push(steam_missing_action_item(tr("Asking Steam which games you own"), "loading"))
+            }
+            SteamMissingState::Loaded(games) if games.is_empty() => rows.push(
+                steam_missing_action_item(tr("Every game you own is installed"), "refresh"),
+            ),
+            SteamMissingState::Failed(reason) => {
+                rows.push(steam_missing_action_item(
+                    format_args(
+                        &tr("Could not get your Steam games: {reason} Press Enter to try again."),
+                        &[("reason", Arg::Str(reason))],
+                    ),
+                    "refresh",
+                ));
+                rows.push(steam_missing_action_item(tr("Enter the Steam Web API key again"), "setup"));
+            }
+            _ => {}
+        }
+        rows.extend(items);
+        rows
     }
 
     /// Installed applications. Entering the mode has normally scanned already;

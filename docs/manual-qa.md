@@ -41,6 +41,16 @@ behavioral reference: when in doubt, compare side by side on the same data.
       with Add / Edit / Delete working on them
 - [ ] Clipboard history: items numbered 1-50, re-copying moves to front
 - [ ] Steam: games listed, launch works (steam:// URL)
+- [ ] Steam not installed (`;`): with no key, the key dialog opens; its button
+      opens steamcommunity.com/dev/apikey; Cancel leaves an "Enter a Steam Web
+      API key" row
+- [ ] `;` with a key: "Asking Steam" row, then "N games not installed" is
+      announced and only games in none of the libraries are listed; Enter on
+      one opens Steam's install dialog for it
+- [ ] `;` with a wrong key: the failure row says Steam refused the key, and
+      the next visit asks for it again
+- [ ] `;` with a library outside Steam's own folder: the dialog also asks for
+      the account; a profile URL or custom URL name works
 - [ ] Applications: `@` announces the mode and lists what the Start Menu lists
       (Windows: desktop programs, Store apps and the synthesised entries like
       Task Manager; macOS: what Launchpad shows)
@@ -71,14 +81,30 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Alarms: add, toggle (on/off persists), fires at the right minute
 - [ ] Alarms: Edit reopens the alarm with its saved values and leaves it on or
       off as it was
-- [ ] A fired timer/alarm keeps its sound repeating until Ctrl+Alt+Space
+- [ ] A fired alarm keeps its sound repeating until Ctrl+Alt+Space
       (Ctrl+Cmd+Space on macOS) — including with "No sound", which repeats the
       beep — and the hotkey silences it even while a dialog is open
-- [ ] A second timer coming due while one is sounding takes the sound over
+- [ ] A fired timer plays its sound (or one beep) once and does not repeat
+- [ ] Ctrl+Alt+Space while an alarm or timer sound is playing only stops the
+      sound: the window stays hidden (or as it was); pressing it again once
+      it is quiet toggles the window as usual
+- [ ] A second alarm coming due while one is sounding takes the sound over
       instead of playing on top of it; typing in the window does not cut the
-      repeating alert short
-- [ ] Sound dropdown lists the .wav files in sounds/alarms (alarm dialog) and
-      sounds/timers (timer dialog)
+      alert short
+- [ ] Sound dropdown lists the .wav files in sounds/alarms (alarm dialog),
+      sounds/timers (timer dialog, type Timer) and sounds/stopwatch (timer
+      dialog, type Stopwatch)
+- [ ] Timer dialog: switching Type to Stopwatch disables Minutes/Repeating,
+      enables Sound every + unit, and swaps the sound list; a custom file
+      survives the switch
+- [ ] Stopwatch: starts stopped (also after a restart), Enter speaks
+      "Stopwatch started"/"stopped"; it sounds every N seconds/minutes/hours
+      without speaking, and the list shows the elapsed time
+- [ ] Two stopwatches (every 1 min and every 5 min, different sounds) run
+      together; at the five-minute mark the five-minute sound is heard
+- [ ] A timers.json from before stopwatches loads unchanged, and saving keeps
+      the old entries byte-for-byte in shape; a stopwatch is saved with
+      "type": "stopwatch", "every" and "unit"
 - [ ] Arrowing through the sound dropdown plays each tone and cuts off the one
       before it; "No sound" is silent; closing the dialog stops the preview
 - [ ] A bundled sound still plays after a deploy (it is stored relative to

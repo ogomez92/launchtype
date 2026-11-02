@@ -7,6 +7,9 @@ pub enum UiMode {
     Snippets,
     Clipboard,
     Steam,
+    /// The Steam games the account owns that are in none of this machine's
+    /// Steam libraries, to install with Enter.
+    SteamNotInstalled,
     /// Every application installed on this machine, as the OS itself lists
     /// them: Start Menu entries and Store apps on Windows, indexed application
     /// bundles on macOS.
@@ -56,6 +59,7 @@ impl UiMode {
             '?' => UiMode::Clipboard,
             '.' => UiMode::Commands,
             ',' => UiMode::Steam,
+            ';' => UiMode::SteamNotInstalled,
             '@' => UiMode::Apps,
             '\'' => UiMode::Screenshots,
             '[' => UiMode::Timers,
@@ -84,6 +88,7 @@ impl UiMode {
             UiMode::Clipboard => '?',
             UiMode::Commands => '.',
             UiMode::Steam => ',',
+            UiMode::SteamNotInstalled => ';',
             UiMode::Apps => '@',
             UiMode::Screenshots => '\'',
             UiMode::Timers => '[',
@@ -106,11 +111,12 @@ impl UiMode {
 
     /// Every user-selectable mode, in the order shown by the modes menu. Kept
     /// in sync with [`from_trigger_char`]; Regions is excluded (no trigger).
-    pub const MENU_MODES: [UiMode; 20] = [
+    pub const MENU_MODES: [UiMode; 21] = [
         UiMode::Commands,
         UiMode::Snippets,
         UiMode::Clipboard,
         UiMode::Steam,
+        UiMode::SteamNotInstalled,
         UiMode::Apps,
         UiMode::Screenshots,
         UiMode::Timers,
@@ -140,6 +146,7 @@ mod tests {
         assert_eq!(UiMode::from_trigger_char('?'), Some(UiMode::Clipboard));
         assert_eq!(UiMode::from_trigger_char('.'), Some(UiMode::Commands));
         assert_eq!(UiMode::from_trigger_char(','), Some(UiMode::Steam));
+        assert_eq!(UiMode::from_trigger_char(';'), Some(UiMode::SteamNotInstalled));
         assert_eq!(UiMode::from_trigger_char('@'), Some(UiMode::Apps));
         assert_eq!(UiMode::from_trigger_char('\''), Some(UiMode::Screenshots));
         assert_eq!(UiMode::from_trigger_char('['), Some(UiMode::Timers));

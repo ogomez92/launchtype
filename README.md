@@ -267,6 +267,7 @@ The Settings button in the UI opens a dialog where you can persist the following
 - Start in snippets mode when invoked
 - Check for machine-specific paths at startup (see [Portable paths](#portable-paths-variables))
 - Steam library path
+- Steam Web API key and Steam account, for [not installed Steam games](#steam-games-not-installed)
 - AI model used for screenshot descriptions (Claude Opus, Sonnet or Haiku)
 - Interface language (same as the system, English or Spanish) — applied the next time the app starts
 - Date format: the order typed dates are read in, year first either way — year, month, day (US, `20251001`) or year, day, month (European, `20150110`). Used by [Google Calendar mode](#google-calendar)
@@ -354,6 +355,16 @@ Once in Steam mode, you can search for games by name using fuzzy matching, just 
 
 Games can carry shortcuts, the same way apps do in `@` mode: select a game and press Edit (Alt+E), type the shortcut, and press OK. Typing that shortcut exactly in `,` mode then leaves that game as the only result, and the list shows it after the name. Clearing the field takes the shortcut away, and so does Delete on the game — which removes the shortcut only, never the game. A shortcut belongs to one game at a time. They are kept in `steam_shortcuts.json` beside `commands.json`, filed under the game's appid rather than its name, so they survive rescans and renamed games.
 
+### Steam games not installed
+
+Typing `;` (semicolon) lists the games your Steam account owns that are not installed, alphabetically, and Enter on one opens Steam's own install dialog for it (`steam://install/<appid>`), where you choose the drive and start the download. Search works as in `,` mode.
+
+Launchtype asks Steam which games the account owns, which takes a Steam Web API key. The first time you enter `;` it asks for one; the dialog has a button that opens [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey), where Steam gives you a key once you are signed in (it asks for a domain name; any will do). The key is kept in `settings.json`, and the Settings dialog is where to change it. A key Steam turns down is forgotten, so the next visit asks again.
+
+The account is the one that last signed in to the Steam your library belongs to, read from Steam's `config/loginusers.vdf`. When that cannot be read — the library is on another drive, say — the dialog asks for the account too: a SteamID64, a profile URL, or a custom URL name. Settings has the same field, to point the mode at another account.
+
+A game counts as installed when its appmanifest is in the configured library or in any other library Steam's `libraryfolders.vdf` lists, so games on a second drive are not offered again. Steam only shares the list of an account whose game details are public, or with that account's own key.
+
 To go back to commands mode, press the period key (.).
 
 ## Applications
@@ -408,23 +419,30 @@ To go back to commands mode, press the period key (.).
 
 ## Timers
 
-Timer mode can be accessed by pressing `[` (left bracket) in the input field. Timers count down for a number of minutes and then notify you.
+Timer mode can be accessed by pressing `[` (left bracket) in the input field. It holds two types of timer, picked from the **Type** dropdown in the dialog:
+
+- A **timer** counts down for a number of minutes and then notifies you.
+- A **stopwatch** has no end: once started it plays its sound every so many seconds, minutes or hours until you stop it. Several can run at once — for a talk, say, one sounding every minute and another, with a different sound, every five.
 
 Add a timer with the Add button, or change one with the Edit button. The dialog lets you set:
 
-- A **title** and **description** (announced via your screen reader when the timer fires).
-- The number of **minutes** to count down.
-- A **repeating** checkbox.
-- A **sound**, picked from the tones bundled in `sounds/timers/`. Choose "Custom file..." to use any .wav on your system via Browse, or "No sound" for the system beep. Each pick plays as you land on it, so you can arrow through the list to audition the tones.
+- A **title** and **description** (announced via your screen reader when a timer fires; stopwatches only sound).
+- The **type**: timer or stopwatch. The fields of the other type are disabled.
+- For a timer, the number of **minutes** to count down and a **repeating** checkbox.
+- For a stopwatch, how often it sounds: a number and a unit (**seconds**, **minutes** or **hours**).
+- A **sound**, picked from the tones bundled in `sounds/timers/` for timers or `sounds/stopwatch/` for stopwatches (short ticks and markers, so one can sound every second). Choose "Custom file..." to use any .wav on your system via Browse, or "No sound" for the system beep. Each pick plays as you land on it, so you can arrow through the list to audition the tones.
 
-When a timer fires it speaks its title and description, then keeps playing its sound — or beeping — until you press Ctrl+Alt+Space (Ctrl+Cmd+Space on Mac). One that goes off while you are away from the keyboard is still sounding when you get back, and the hotkey silences it even if a dialog is open.
+When a timer fires it speaks its title and description and plays its sound — or beeps — once. A stopwatch plays its sound each time, without speaking. Pressing Ctrl+Alt+Space (Ctrl+Cmd+Space on Mac) while a timer's or an alarm's sound is playing just stops the sound; the window does not come up. When two stopwatches sound on the same second, the one with the longer interval is the one heard.
 
-Editing a timer that is counting down restarts the countdown against the new number of minutes.
+Editing a timer that is counting down restarts the countdown against the new number of minutes. Editing a running stopwatch keeps it running with the new interval.
 
 Timers display in the list with their current state:
 
 - **Non-repeating timers** show as `stopped` until started. Running them (Enter or Alt+R) starts the countdown; running them again while they are already counting down **resets** the timer. They fire once and then stop.
 - **Repeating timers** fire every X minutes until manually disabled. They default to **on**, and running them (Enter or Alt+R) **toggles** them on/off.
+- **Stopwatches** show as `stopped` until started, also after Launchtype restarts. Running them (Enter or Alt+R) **toggles** them on/off; while running they show how long they have been going.
+
+Timers made before stopwatches existed load unchanged, and `timers.json` keeps them in the same format; a stopwatch is saved as an entry of its own, with `"type": "stopwatch"`.
 
 To go back to commands mode, press the period key (.).
 
@@ -438,7 +456,7 @@ Add an alarm with the Add button, or change one with the Edit button. The dialog
 - The **hour** (0-23) and **minute** (0-59).
 - A **sound**, picked from the tones bundled in `sounds/alarms/`. Choose "Custom file..." to use any .wav on your system via Browse, or "No sound" for the system beep. Each pick plays as you land on it, so you can arrow through the list to audition the tones.
 
-As with timers, a firing alarm speaks its title and description and then keeps playing its sound — or beeping — until you press Ctrl+Alt+Space (Ctrl+Cmd+Space on Mac).
+A firing alarm speaks its title and description and then keeps playing its sound — or beeping — until you press Ctrl+Alt+Space (Ctrl+Cmd+Space on Mac). Alarms are the only alerts that repeat: one that goes off while you are away from the keyboard is still sounding when you get back. While it sounds, the hotkey only silences it, even if a dialog is open; press it again to bring the window up.
 
 Editing an alarm keeps it on or off as it was.
 
@@ -680,9 +698,10 @@ The app has several modes, each accessed by typing a special character in the in
 | `-` | Snippets | Copy text snippets to clipboard |
 | `?` | Clipboard | Access clipboard history |
 | `,` | Steam | Launch installed Steam games |
+| `;` | Steam not installed | Install the games your Steam account owns that are not installed |
 | `@` | Applications | Launch any program installed on this machine |
 | `'` | Screenshots | Capture, describe or crop a window or the full screen |
-| `[` | Timers | Count down for X minutes (one-shot or repeating) |
+| `[` | Timers | Count down for X minutes (one-shot or repeating), or sound every so often as a stopwatch |
 | `]` | Alarms | Fire at a time of day (24-hour) |
 | `#` | Notebrook | Post a quick note to your Notebrook |
 | `%` | Google Calendar | The next 30 days of your calendar, and adding events at 8:00 |

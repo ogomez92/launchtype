@@ -267,6 +267,7 @@ El botón Ajustes de la interfaz abre un diálogo donde puedes guardar estas pre
 - Arrancar en modo sustituciones al invocar
 - Buscar rutas específicas de este equipo al iniciar (ver [Rutas portables](#rutas-portables-variables))
 - Ruta de la biblioteca de Steam
+- Clave de la API web de Steam y cuenta de Steam, para los [juegos de Steam no instalados](#juegos-de-steam-no-instalados)
 - Modelo de IA para las descripciones de capturas (Claude Opus, Sonnet o Haiku)
 - Idioma de la interfaz (el mismo del sistema, inglés o español); se aplica al reiniciar la aplicación
 - Formato de fecha: el orden en que se leen las fechas escritas, siempre con el año primero: año, mes, día (EE. UU., `20251001`) o año, día, mes (europeo, `20150110`). Lo usa el [modo Google Calendar](#google-calendar)
@@ -354,6 +355,16 @@ Estando en modo Steam, puedes buscar juegos por nombre con búsqueda difusa igua
 
 Los juegos pueden tener accesos abreviados, igual que las aplicaciones en el modo `@`: selecciona un juego, pulsa Editar (Alt+E), escribe el acceso abreviado y pulsa Aceptar. A partir de entonces, escribir exactamente ese acceso abreviado en el modo `,` deja ese juego como único resultado, y la lista lo muestra detrás del nombre. Vaciar el campo quita el acceso abreviado, y también lo quita Eliminar sobre el juego — que solo borra el acceso abreviado, nunca el juego. Cada acceso abreviado pertenece a un solo juego. Se guardan en `steam_shortcuts.json` junto a `commands.json`, asociados al appid del juego y no a su nombre, así que sobreviven a los reescaneos y a los juegos que cambian de nombre.
 
+### Juegos de Steam no instalados
+
+Escribir `;` (punto y coma) lista por orden alfabético los juegos que tiene tu cuenta de Steam y no están instalados, e Intro sobre uno abre el diálogo de instalación del propio Steam (`steam://install/<appid>`), donde eliges la unidad y empiezas la descarga. La búsqueda funciona igual que en el modo `,`.
+
+Launchtype pregunta a Steam qué juegos tiene la cuenta, y para eso hace falta una clave de la API web de Steam. La primera vez que entras en `;` te la pide; el diálogo tiene un botón que abre [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey), donde Steam te da una clave con la sesión iniciada (pide un nombre de dominio; sirve cualquiera). La clave se guarda en `settings.json`, y se cambia desde el diálogo de Ajustes. Una clave que Steam rechaza se olvida, así que la próxima vez se vuelve a pedir.
+
+La cuenta es la última que inició sesión en el Steam al que pertenece tu biblioteca, leída del `config/loginusers.vdf` de Steam. Cuando no se puede leer —por ejemplo, porque la biblioteca está en otra unidad— el diálogo pide también la cuenta: un SteamID64, una URL de perfil o un nombre de URL personalizada. Ajustes tiene el mismo campo, para apuntar el modo a otra cuenta.
+
+Un juego cuenta como instalado cuando su appmanifest está en la biblioteca configurada o en cualquier otra biblioteca que liste el `libraryfolders.vdf` de Steam, así que los juegos de una segunda unidad no se vuelven a ofrecer. Steam solo comparte la lista de una cuenta cuyos detalles de juegos son públicos, o con la clave de esa misma cuenta.
+
 Para volver a comandos, pulsa la tecla punto (.).
 
 ## Aplicaciones
@@ -408,23 +419,30 @@ Para volver a comandos, pulsa la tecla punto (.).
 
 ## Temporizadores
 
-El modo de temporizadores se abre escribiendo `[` (corchete izquierdo) en la caja. Los temporizadores cuentan atrás durante unos minutos y luego te avisan.
+El modo de temporizadores se abre escribiendo `[` (corchete izquierdo) en la caja. Hay dos tipos, que se eligen en el desplegable **Tipo** del diálogo:
+
+- Un **temporizador** cuenta atrás durante unos minutos y luego te avisa.
+- Un **cronómetro** no tiene final: una vez iniciado, reproduce su sonido cada tantos segundos, minutos u horas hasta que lo detienes. Pueden funcionar varios a la vez; para una presentación, por ejemplo, uno que suene cada minuto y otro, con un sonido distinto, cada cinco.
 
 Añade uno con el botón Añadir, o modifícalo con el botón Editar. El diálogo permite configurar:
 
-- Un **título** y una **descripción** (que se anuncian por el lector de pantalla al dispararse).
-- El número de **minutos** de la cuenta atrás.
-- Una casilla de **repetición**.
-- Un **sonido**, elegido entre los tonos incluidos en `sounds/timers/`. Selecciona «Archivo personalizado...» para usar cualquier .wav de tu sistema con Examinar, o «Sin sonido» para el pitido del sistema. Cada opción suena al llegar a ella, así que puedes recorrer la lista con las flechas para escuchar los tonos.
+- Un **título** y una **descripción** (que se anuncian por el lector de pantalla cuando salta un temporizador; los cronómetros solo suenan).
+- El **tipo**: temporizador o cronómetro. Los campos del otro tipo quedan desactivados.
+- Para un temporizador, el número de **minutos** de la cuenta atrás y una casilla de **repetición**.
+- Para un cronómetro, cada cuánto suena: un número y una unidad (**segundos**, **minutos** u **horas**).
+- Un **sonido**, elegido entre los tonos incluidos en `sounds/timers/` para los temporizadores o en `sounds/stopwatch/` para los cronómetros (golpes y marcas cortas, para que uno pueda sonar cada segundo). Selecciona «Archivo personalizado...» para usar cualquier .wav de tu sistema con Examinar, o «Sin sonido» para el pitido del sistema. Cada opción suena al llegar a ella, así que puedes recorrer la lista con las flechas para escuchar los tonos.
 
-Cuando salta un temporizador se anuncian su título y su descripción, y su sonido —o el pitido— se repite hasta que pulsas Ctrl+Alt+Espacio (Ctrl+Cmd+Espacio en Mac). Uno que salte mientras estás lejos del teclado sigue sonando cuando vuelves, y el atajo lo calla aunque haya un diálogo abierto.
+Cuando salta un temporizador se anuncian su título y su descripción y su sonido —o el pitido— suena una vez. Un cronómetro reproduce su sonido cada vez, sin hablar. Si pulsas Ctrl+Alt+Espacio (Ctrl+Cmd+Espacio en Mac) mientras suena un temporizador o una alarma, solo se detiene el sonido; la ventana no aparece. Cuando dos cronómetros suenan en el mismo segundo, se oye el del intervalo más largo.
 
-Editar un temporizador que está contando reinicia la cuenta atrás con los nuevos minutos.
+Editar un temporizador que está contando reinicia la cuenta atrás con los nuevos minutos. Editar un cronómetro en marcha lo mantiene en marcha con el nuevo intervalo.
 
 Los temporizadores aparecen en la lista con su estado actual:
 
 - Los **no repetitivos** aparecen como `parado` hasta que se inician. Al ejecutarlos (Intro o Alt+R) empieza la cuenta atrás; ejecutarlos de nuevo mientras cuentan **reinicia** el temporizador. Se disparan una vez y se detienen.
 - Los **repetitivos** se disparan cada X minutos hasta que se desactivan. Vienen **activados** por defecto, y ejecutarlos (Intro o Alt+R) los **alterna** entre activado y desactivado.
+- Los **cronómetros** aparecen como `detenido` hasta que se inician, también después de reiniciar Launchtype. Ejecutarlos (Intro o Alt+R) los **alterna** entre en marcha y detenido; mientras funcionan muestran cuánto tiempo llevan.
+
+Los temporizadores creados antes de que existieran los cronómetros se cargan igual, y `timers.json` los guarda con el mismo formato; un cronómetro se guarda como una entrada propia, con `"type": "stopwatch"`.
 
 Para volver a comandos, pulsa la tecla punto (.).
 
@@ -438,7 +456,7 @@ Añade una con el botón Añadir, o modifícala con el botón Editar. El diálog
 - La **hora** (0-23) y los **minutos** (0-59).
 - Un **sonido**, elegido entre los tonos incluidos en `sounds/alarms/`. Selecciona «Archivo personalizado...» para usar cualquier .wav de tu sistema con Examinar, o «Sin sonido» para el pitido del sistema. Cada opción suena al llegar a ella, así que puedes recorrer la lista con las flechas para escuchar los tonos.
 
-Igual que con los temporizadores, al saltar una alarma se anuncian su título y su descripción, y su sonido —o el pitido— se repite hasta que pulsas Ctrl+Alt+Espacio (Ctrl+Cmd+Espacio en Mac).
+Al saltar una alarma se anuncian su título y su descripción, y su sonido —o el pitido— se repite hasta que pulsas Ctrl+Alt+Espacio (Ctrl+Cmd+Espacio en Mac). Las alarmas son los únicos avisos que se repiten: una que salte mientras estás lejos del teclado sigue sonando cuando vuelves. Mientras suena, el atajo solo la calla, aunque haya un diálogo abierto; púlsalo otra vez para mostrar la ventana.
 
 Editar una alarma mantiene su estado de activada o desactivada.
 
@@ -680,9 +698,10 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `-` | Sustituciones | Copiar fragmentos de texto al portapapeles |
 | `?` | Portapapeles | Acceder al historial del portapapeles |
 | `,` | Steam | Lanzar juegos de Steam instalados |
+| `;` | Steam no instalados | Instalar los juegos de tu cuenta de Steam que no están instalados |
 | `@` | Aplicaciones | Lanzar cualquier programa instalado en este equipo |
 | `'` | Capturas | Capturar, describir o recortar una ventana o la pantalla completa |
-| `[` | Temporizadores | Cuenta atrás de X minutos (una vez o repetitiva) |
+| `[` | Temporizadores | Cuenta atrás de X minutos (una vez o repetitiva), o un cronómetro que suena cada cierto tiempo |
 | `]` | Alarmas | Se disparan a una hora del día (formato 24 horas) |
 | `#` | Notebrook | Publicar una nota rápida en tu Notebrook |
 | `%` | Google Calendar | Los próximos 30 días de tu calendario, y añadir eventos a las 8:00 |
