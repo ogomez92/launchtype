@@ -98,10 +98,16 @@ behavioral reference: when in doubt, compare side by side on the same data.
       enables Sound every + unit, and swaps the sound list; a custom file
       survives the switch
 - [ ] Stopwatch: starts stopped (also after a restart), Enter speaks
-      "Stopwatch started"/"stopped"; it sounds every N seconds/minutes/hours
-      without speaking, and the list shows the elapsed time
+      "Stopwatch started"/"stopped"; every N seconds/minutes/hours it plays
+      its sound and speaks its title and the time ("talk: 5 minutes"), staying
+      on whole intervals over a long run
+- [ ] A running stopwatch's list row ends in "running, 1:15 elapsed", however
+      long the title. With focus in the input field the time keeps moving; with
+      focus in the list the rows hold still and the screen reader stays quiet,
+      and moving focus to the list reads the current time
 - [ ] Two stopwatches (every 1 min and every 5 min, different sounds) run
-      together; at the five-minute mark the five-minute sound is heard
+      together; at the five-minute mark the five-minute sound and announcement
+      are heard
 - [ ] A timers.json from before stopwatches loads unchanged, and saving keeps
       the old entries byte-for-byte in shape; a stopwatch is saved with
       "type": "stopwatch", "every" and "unit"

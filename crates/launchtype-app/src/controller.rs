@@ -561,6 +561,13 @@ impl ModeController {
         results
     }
 
+    /// A timer's list label as of now, or `None` for an id that is not a timer.
+    pub fn timer_label(&self, id: &str) -> Option<String> {
+        let engine = self.timers.engine.lock().unwrap();
+        let timer = engine.timers.iter().find(|t| t.id == id)?;
+        Some(engine.item_label(timer, self.clock.now()))
+    }
+
     fn alarm_items(&self, search: &str) -> Vec<Item> {
         let engine = self.alarms.engine.lock().unwrap();
         let items: Vec<Item> = engine

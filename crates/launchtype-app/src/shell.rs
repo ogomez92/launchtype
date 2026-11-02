@@ -21,6 +21,7 @@ use launchtype_services::audio_devices::{self, Direction};
 use launchtype_services::{apps, clipboard, notebrook, steam};
 use wxdragon::dialogs::file_dialog::{FileDialog, FileDialogStyle};
 use wxdragon::prelude::*;
+use wxdragon::timer::Timer;
 
 use crate::controller::{Item, ItemKind, ModeController};
 use crate::speech::speak_now;
@@ -82,6 +83,8 @@ pub struct Shell {
     pub scheduler: Option<Scheduler>,
     /// Wipes the vault key once it has gone unused for the configured time.
     pub vault_locker: Option<VaultLocker>,
+    /// Keeps the times in timer mode's list current while the window is up.
+    timer_list_clock: Option<Timer<Frame>>,
     /// Transient "explore regions" state: the full-resolution capture and
     /// the size it was sent to the AI at (region boxes are in that space).
     pub screenshot_image: Option<launchtype_services::screenshot::RgbaImage>,
@@ -211,6 +214,7 @@ pub fn build_shell(
         poller: None,
         scheduler: None,
         vault_locker: None,
+        timer_list_clock: None,
         screenshot_image: None,
         screenshot_sent_size: None,
     }));
@@ -818,6 +822,49 @@ pub fn toggle_visibility(shell: &SharedShell) {
     }
 }
 
+/// Start the clock that keeps the times in timer mode's list current. Lives on
+/// the shell for the rest of the run.
+pub fn start_timer_list_clock(shell: &SharedShell) {
+    let timer = Timer::new(&shell.borrow().frame);
+    let ticking = shell.clone();
+    timer.on_tick(move |_| refresh_timer_labels(&ticking));
+    timer.start(1000, false);
+    shell.borrow_mut().timer_list_clock = Some(timer);
+}
+
+/// Rewrite the rows of timer mode's list whose time has moved on.
+///
+/// Not while the list has the keyboard: rewriting a row means deleting and
+/// reinserting it, under the screen reader's feet, once a second. The times are
+/// current as of the moment focus reaches the list, and the next rebuild.
+fn refresh_timer_labels(shell: &SharedShell) {
+    let changed: Vec<(u32, String)> = {
+        // Borrowed means a modal dialog is up, and the list can wait for it.
+        let Ok(mut s) = shell.try_borrow_mut() else {
+            return;
+        };
+        if s.mode != UiMode::Timers || !s.frame.is_shown() || s.list.has_focus() {
+            return;
+        }
+        let s = &mut *s;
+        let mut changed = Vec::new();
+        for (row, item) in s.items.iter_mut().enumerate() {
+            if let Some(label) = s.controller.timer_label(&item.id) {
+                if label != item.name {
+                    item.name.clone_from(&label);
+                    changed.push((row as u32, label));
+                }
+            }
+        }
+        changed
+    };
+    // Shared, not exclusive: the list's selection handler borrows the shell.
+    let s = shell.borrow();
+    for (row, label) in changed {
+        s.list.set_string(row, &label);
+    }
+}
+
 pub fn update_list(shell: &SharedShell) {
     let mut s = shell.borrow_mut();
 
@@ -869,9 +916,11 @@ pub fn update_list(shell: &SharedShell) {
     s.list.clear();
     for item in &s.items {
         // Stats, region and conversion lines are full sentences; don't clip
-        // them so the screen reader announces the whole thing.
+        // them so the screen reader announces the whole thing. A timer's state
+        // comes last in its label, and it is the part that matters.
         let mut label: String = match item.kind {
             ItemKind::Stat
+            | ItemKind::Timer
             | ItemKind::Region { .. }
             | ItemKind::Conversion { .. }
             | ItemKind::PathAction { .. }

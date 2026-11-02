@@ -276,8 +276,10 @@ impl TimerEngine {
         self.started.remove(timer_id);
     }
 
-    /// Timers whose deadline has passed; repeating countdowns and stopwatches
-    /// reschedule from `now`, one-shot ones deactivate.
+    /// Timers whose deadline has passed. Repeating countdowns reschedule from
+    /// `now`, one-shot ones deactivate. Stopwatches keep to their marks, so a
+    /// fire that comes a moment late does not push every later one back and
+    /// the time they announce stays on whole intervals.
     pub fn due(&mut self, now: DateTime<Local>) -> Vec<TimerDef> {
         let mut fired = Vec::new();
         for timer in &self.timers {
@@ -287,7 +289,13 @@ impl TimerEngine {
             };
             if now >= deadline {
                 fired.push(timer.clone());
-                let next = if timer.repeats() { Some(now + timer.period()) } else { None };
+                let next = if timer.is_stopwatch() {
+                    Some(next_mark(deadline, timer.period(), now))
+                } else if timer.repeats() {
+                    Some(now + timer.period())
+                } else {
+                    None
+                };
                 self.next_fire.insert(timer.id.clone(), next);
             }
         }
@@ -335,6 +343,35 @@ impl TimerEngine {
             ],
         )
     }
+}
+
+/// The first interval mark after `now`, counting from `deadline`. Marks missed
+/// altogether, by a machine that was asleep, are skipped rather than made up.
+fn next_mark(deadline: DateTime<Local>, period: Duration, now: DateTime<Local>) -> DateTime<Local> {
+    let period_ms = period.num_milliseconds();
+    let missed = (now - deadline).num_milliseconds() / period_ms;
+    deadline + Duration::milliseconds(period_ms * (missed + 1))
+}
+
+/// Seconds in words for the screen reader, which makes a poor job of `1:05:00`:
+/// "1 hour, 5 minutes". Parts that are zero are left out.
+pub fn spoken_duration(seconds: i64) -> String {
+    let (hours, minutes, secs) = (seconds / 3600, (seconds % 3600) / 60, seconds % 60);
+    let part = |count: i64, one: String, many: String| {
+        let template = if count == 1 { one } else { many };
+        format_args(&template, &[("count", Arg::Int(count))])
+    };
+    let mut parts = Vec::new();
+    if hours > 0 {
+        parts.push(part(hours, tr("{count} hour"), tr("{count} hours")));
+    }
+    if minutes > 0 {
+        parts.push(part(minutes, tr("{count} minute"), tr("{count} minutes")));
+    }
+    if secs > 0 || parts.is_empty() {
+        parts.push(part(secs, tr("{count} second"), tr("{count} seconds")));
+    }
+    parts.join(", ")
 }
 
 /// "running, 4:59 left" and the like.
@@ -550,6 +587,37 @@ mod tests {
         let fires: usize =
             (1..=10).map(|s| engine.due(t0() + Duration::seconds(s)).len()).sum();
         assert_eq!(fires, 10);
+    }
+
+    #[test]
+    fn stopwatch_keeps_to_its_marks_when_a_fire_comes_late() {
+        let timer = stopwatch(1, TickUnit::Minute);
+        let id = timer.id.clone();
+        let mut engine = TimerEngine::from_defs(vec![timer], t0());
+        engine.toggle(&id, t0());
+
+        // The scheduler looks once a second, so a fire is often a little late.
+        assert_eq!(engine.due(t0() + Duration::milliseconds(60_900)).len(), 1);
+        assert!(engine.due(t0() + Duration::seconds(119)).is_empty());
+        assert_eq!(engine.due(t0() + Duration::seconds(120)).len(), 1);
+        assert_eq!(engine.elapsed_seconds(&id, t0() + Duration::seconds(120)), Some(120));
+
+        // Waking from sleep sounds once and picks up at the next mark.
+        assert_eq!(engine.due(t0() + Duration::seconds(605)).len(), 1);
+        assert!(engine.due(t0() + Duration::seconds(659)).is_empty());
+        assert_eq!(engine.due(t0() + Duration::seconds(660)).len(), 1);
+    }
+
+    #[test]
+    fn spoken_duration_leaves_out_zero_parts() {
+        assert_eq!(spoken_duration(0), "0 seconds");
+        assert_eq!(spoken_duration(1), "1 second");
+        assert_eq!(spoken_duration(45), "45 seconds");
+        assert_eq!(spoken_duration(60), "1 minute");
+        assert_eq!(spoken_duration(300), "5 minutes");
+        assert_eq!(spoken_duration(3600), "1 hour");
+        assert_eq!(spoken_duration(3900), "1 hour, 5 minutes");
+        assert_eq!(spoken_duration(7261), "2 hours, 1 minute, 1 second");
     }
 
     #[test]

@@ -4,11 +4,13 @@
 //! An alarm's sound repeats until the user reaches for the hotkey; a timer's
 //! plays once. Either announcement is spoken once, since a screen reader
 //! repeating itself would bury whatever the user is listening to. A stopwatch
-//! only sounds: it may go off every second, and has nothing new to say.
+//! has something new to say each time, so each time it speaks how long it has
+//! been running: its title and the time, and not its description.
 
 use std::sync::Arc;
 
 use launchtype_core::speech::Speaker;
+use launchtype_core::timers::spoken_duration;
 
 use crate::sounds::SoundPlayer;
 
@@ -26,17 +28,24 @@ pub enum AlertKind {
     Alarm,
     /// A countdown that ran out: announced, and its sound plays once.
     Timer,
-    /// A stopwatch marking another interval: its sound plays once, unspoken.
-    Tick,
+    /// A stopwatch marking another interval: the time it has been running is
+    /// announced, and its sound plays once.
+    Tick { elapsed_seconds: i64 },
 }
 
-impl From<&launchtype_core::timers::TimerDef> for AlertItem {
-    fn from(t: &launchtype_core::timers::TimerDef) -> Self {
+impl AlertItem {
+    /// `elapsed_seconds` is how long the timer has been running, which only a
+    /// stopwatch has.
+    pub fn from_timer(t: &launchtype_core::timers::TimerDef, elapsed_seconds: Option<i64>) -> Self {
         AlertItem {
             title: t.title.clone(),
             description: t.description.clone(),
             sound: t.sound.clone(),
-            kind: if t.is_stopwatch() { AlertKind::Tick } else { AlertKind::Timer },
+            kind: if t.is_stopwatch() {
+                AlertKind::Tick { elapsed_seconds: elapsed_seconds.unwrap_or(0) }
+            } else {
+                AlertKind::Timer
+            },
         }
     }
 }
@@ -57,6 +66,16 @@ pub fn alert_message(item: &AlertItem) -> String {
         item.title.clone()
     } else {
         format!("{}: {}", item.title, item.description)
+    }
+}
+
+/// What a stopwatch says each time it sounds: "talk: 5 minutes".
+fn tick_message(title: &str, elapsed_seconds: i64) -> String {
+    let time = spoken_duration(elapsed_seconds);
+    if title.is_empty() {
+        time
+    } else {
+        format!("{title}: {time}")
     }
 }
 
@@ -83,9 +102,10 @@ pub fn fire_alert(item: &AlertItem, speaker: &Arc<dyn Speaker>, sounds: &SoundPl
                 sounds.beep_once();
             }
         }
-        AlertKind::Tick => {
-            // A tick gives way to any alarm or timer still sounding rather
-            // than cut it short.
+        AlertKind::Tick { elapsed_seconds } => {
+            speaker.speak(&tick_message(&item.title, elapsed_seconds), true);
+            // The sound gives way to any alarm or timer still sounding rather
+            // than cut it short; the announcement is enough.
             if sounds.alert_sounding() {
                 return;
             }
@@ -111,5 +131,11 @@ mod tests {
         assert_eq!(alert_message(&item), "tea: ready");
         item.description.clear();
         assert_eq!(alert_message(&item), "tea");
+    }
+
+    #[test]
+    fn tick_says_the_title_and_the_time() {
+        assert_eq!(tick_message("talk", 300), "talk: 5 minutes");
+        assert_eq!(tick_message("", 90), "1 minute, 30 seconds");
     }
 }

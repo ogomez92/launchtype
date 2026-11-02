@@ -426,13 +426,13 @@ Timer mode can be accessed by pressing `[` (left bracket) in the input field. It
 
 Add a timer with the Add button, or change one with the Edit button. The dialog lets you set:
 
-- A **title** and **description** (announced via your screen reader when a timer fires; stopwatches only sound).
+- A **title** and **description** (announced via your screen reader when a timer fires; a stopwatch announces only its title and the time).
 - The **type**: timer or stopwatch. The fields of the other type are disabled.
 - For a timer, the number of **minutes** to count down and a **repeating** checkbox.
 - For a stopwatch, how often it sounds: a number and a unit (**seconds**, **minutes** or **hours**).
 - A **sound**, picked from the tones bundled in `sounds/timers/` for timers or `sounds/stopwatch/` for stopwatches (short ticks and markers, so one can sound every second). Choose "Custom file..." to use any .wav on your system via Browse, or "No sound" for the system beep. Each pick plays as you land on it, so you can arrow through the list to audition the tones.
 
-When a timer fires it speaks its title and description and plays its sound — or beeps — once. A stopwatch plays its sound each time, without speaking. Pressing Ctrl+Alt+Space (Ctrl+Cmd+Space on Mac) while a timer's or an alarm's sound is playing just stops the sound; the window does not come up. When two stopwatches sound on the same second, the one with the longer interval is the one heard.
+When a timer fires it speaks its title and description and plays its sound — or beeps — once. A stopwatch plays its sound each time and speaks its title and how long it has been running ("talk: 5 minutes"). Pressing Ctrl+Alt+Space (Ctrl+Cmd+Space on Mac) while a timer's or an alarm's sound is playing just stops the sound; the window does not come up. When two stopwatches sound on the same second, the one with the longer interval is the one heard, in sound and in speech.
 
 Editing a timer that is counting down restarts the countdown against the new number of minutes. Editing a running stopwatch keeps it running with the new interval.
 
@@ -440,7 +440,7 @@ Timers display in the list with their current state:
 
 - **Non-repeating timers** show as `stopped` until started. Running them (Enter or Alt+R) starts the countdown; running them again while they are already counting down **resets** the timer. They fire once and then stop.
 - **Repeating timers** fire every X minutes until manually disabled. They default to **on**, and running them (Enter or Alt+R) **toggles** them on/off.
-- **Stopwatches** show as `stopped` until started, also after Launchtype restarts. Running them (Enter or Alt+R) **toggles** them on/off; while running they show how long they have been going.
+- **Stopwatches** show as `stopped` until started, also after Launchtype restarts. Running them (Enter or Alt+R) **toggles** them on/off; while running they show how long they have been going. The time keeps moving while focus is in the input field; while focus is in the list the rows hold still, so the screen reader is not disturbed.
 
 Timers made before stopwatches existed load unchanged, and `timers.json` keeps them in the same format; a stopwatch is saved as an entry of its own, with `"type": "stopwatch"`.
 

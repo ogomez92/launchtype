@@ -426,13 +426,13 @@ El modo de temporizadores se abre escribiendo `[` (corchete izquierdo) en la caj
 
 Añade uno con el botón Añadir, o modifícalo con el botón Editar. El diálogo permite configurar:
 
-- Un **título** y una **descripción** (que se anuncian por el lector de pantalla cuando salta un temporizador; los cronómetros solo suenan).
+- Un **título** y una **descripción** (que se anuncian por el lector de pantalla cuando salta un temporizador; un cronómetro solo anuncia su título y el tiempo).
 - El **tipo**: temporizador o cronómetro. Los campos del otro tipo quedan desactivados.
 - Para un temporizador, el número de **minutos** de la cuenta atrás y una casilla de **repetición**.
 - Para un cronómetro, cada cuánto suena: un número y una unidad (**segundos**, **minutos** u **horas**).
 - Un **sonido**, elegido entre los tonos incluidos en `sounds/timers/` para los temporizadores o en `sounds/stopwatch/` para los cronómetros (golpes y marcas cortas, para que uno pueda sonar cada segundo). Selecciona «Archivo personalizado...» para usar cualquier .wav de tu sistema con Examinar, o «Sin sonido» para el pitido del sistema. Cada opción suena al llegar a ella, así que puedes recorrer la lista con las flechas para escuchar los tonos.
 
-Cuando salta un temporizador se anuncian su título y su descripción y su sonido —o el pitido— suena una vez. Un cronómetro reproduce su sonido cada vez, sin hablar. Si pulsas Ctrl+Alt+Espacio (Ctrl+Cmd+Espacio en Mac) mientras suena un temporizador o una alarma, solo se detiene el sonido; la ventana no aparece. Cuando dos cronómetros suenan en el mismo segundo, se oye el del intervalo más largo.
+Cuando salta un temporizador se anuncian su título y su descripción y su sonido —o el pitido— suena una vez. Un cronómetro reproduce su sonido cada vez y anuncia su título y cuánto tiempo lleva en marcha («charla: 5 minutos»). Si pulsas Ctrl+Alt+Espacio (Ctrl+Cmd+Espacio en Mac) mientras suena un temporizador o una alarma, solo se detiene el sonido; la ventana no aparece. Cuando dos cronómetros suenan en el mismo segundo, se oye el del intervalo más largo, tanto el sonido como el anuncio.
 
 Editar un temporizador que está contando reinicia la cuenta atrás con los nuevos minutos. Editar un cronómetro en marcha lo mantiene en marcha con el nuevo intervalo.
 
@@ -440,7 +440,7 @@ Los temporizadores aparecen en la lista con su estado actual:
 
 - Los **no repetitivos** aparecen como `parado` hasta que se inician. Al ejecutarlos (Intro o Alt+R) empieza la cuenta atrás; ejecutarlos de nuevo mientras cuentan **reinicia** el temporizador. Se disparan una vez y se detienen.
 - Los **repetitivos** se disparan cada X minutos hasta que se desactivan. Vienen **activados** por defecto, y ejecutarlos (Intro o Alt+R) los **alterna** entre activado y desactivado.
-- Los **cronómetros** aparecen como `detenido` hasta que se inician, también después de reiniciar Launchtype. Ejecutarlos (Intro o Alt+R) los **alterna** entre en marcha y detenido; mientras funcionan muestran cuánto tiempo llevan.
+- Los **cronómetros** aparecen como `detenido` hasta que se inician, también después de reiniciar Launchtype. Ejecutarlos (Intro o Alt+R) los **alterna** entre en marcha y detenido; mientras funcionan muestran cuánto tiempo llevan. El tiempo avanza mientras el foco está en el campo de entrada; con el foco en la lista las filas no cambian, para no molestar al lector de pantalla.
 
 Los temporizadores creados antes de que existieran los cronómetros se cargan igual, y `timers.json` los guarda con el mismo formato; un cronómetro se guarda como una entrada propia, con `"type": "stopwatch"`.
 

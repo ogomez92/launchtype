@@ -3949,6 +3949,30 @@ msgstr "cronómetro, suena cada {count} min"
 msgid "stopwatch, sounds every {count} h"
 msgstr "cronómetro, suena cada {count} h"
 
+#: crates/launchtype-core/src/timers.rs
+msgid "{count} hour"
+msgstr "{count} hora"
+
+#: crates/launchtype-core/src/timers.rs
+msgid "{count} hours"
+msgstr "{count} horas"
+
+#: crates/launchtype-core/src/timers.rs
+msgid "{count} minute"
+msgstr "{count} minuto"
+
+#: crates/launchtype-core/src/timers.rs
+msgid "{count} minutes"
+msgstr "{count} minutos"
+
+#: crates/launchtype-core/src/timers.rs
+msgid "{count} second"
+msgstr "{count} segundo"
+
+#: crates/launchtype-core/src/timers.rs
+msgid "{count} seconds"
+msgstr "{count} segundos"
+
 #: crates/launchtype-app/src/shell.rs
 msgid "not installed Steam games mode, press enter on a game to install it"
 msgstr "modo de juegos de Steam no instalados, pulsa intro en un juego para instalarlo"

@@ -212,6 +212,8 @@ fn main() {
             s.vault_locker = Some(VaultLocker::start(vault.clone(), Arc::new(SystemClock)));
         }
 
+        shell::start_timer_list_clock(&shell);
+
         if !effective_start_minimized {
             shell::toggle_visibility(&shell);
         }
