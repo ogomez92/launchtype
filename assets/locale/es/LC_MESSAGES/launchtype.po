@@ -4060,3 +4060,131 @@ msgstr "Steam no envió la lista de juegos."
 #: crates/launchtype-services/src/steam.rs
 msgid "Steam listed no games for this account. If it owns some, set the game details of its profile to public."
 msgstr "Steam no mostró ningún juego de esta cuenta. Si tiene alguno, haz públicos los detalles de juegos de su perfil."
+
+#: crates/launchtype-app/src/shell.rs
+msgid "does it work mode, paste a link, an email address or a file path and press enter"
+msgstr "modo ¿funciona?, pega un enlace, una dirección de correo o una ruta de archivo y pulsa intro"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Does it work?"
+msgstr "¿Funciona?"
+
+#: crates/launchtype-app/src/check_flows.rs
+msgid "Paste a link, an email address or a file path first"
+msgstr "Primero pega un enlace, una dirección de correo o una ruta de archivo"
+
+#: crates/launchtype-app/src/check_flows.rs
+msgid "Checking"
+msgstr "Comprobando"
+
+#: crates/launchtype-core/src/check.rs
+msgid "Invalid: that is not a link, an email address or a full file path."
+msgstr "No válido: no es un enlace, una dirección de correo ni una ruta de archivo completa."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Invalid: that is not a valid link."
+msgstr "No válido: ese enlace no es válido."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Invalid: that is not a valid email address."
+msgstr "No válido: esa dirección de correo no es válida."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Invalid: only http and https links can be checked, not {scheme}."
+msgstr "No válido: solo se pueden comprobar enlaces http y https, no {scheme}."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Invalid: only paths on this computer can be checked, not network shares."
+msgstr "No válido: solo se pueden comprobar rutas de este equipo, no carpetas compartidas de red."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Works."
+msgstr "Funciona."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Works, but it takes you to {address}."
+msgstr "Funciona, pero te lleva a {address}."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Broken: that page does not exist (status {status})."
+msgstr "Roto: esa página no existe (estado {status})."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Could not confirm: that page asks for a login (status {status})."
+msgstr "Sin confirmar: esa página pide iniciar sesión (estado {status})."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Could not confirm: the server refused to answer (status {status}). It may still open in a browser."
+msgstr "Sin confirmar: el servidor se negó a responder (estado {status}). Puede que aun así se abra en un navegador."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Broken: the server has a problem (status {status})."
+msgstr "Roto: el servidor tiene un problema (estado {status})."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Could not confirm: the server answered with status {status}."
+msgstr "Sin confirmar: el servidor respondió con el estado {status}."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Works: {domain} receives email, but there is no way to tell from here whether this address exists."
+msgstr "Funciona: {domain} recibe correo, pero desde aquí no se puede saber si esta dirección existe."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Broken: {domain} does not accept email."
+msgstr "Roto: {domain} no acepta correo."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Broken: the domain {domain} does not exist."
+msgstr "Roto: el dominio {domain} no existe."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Broken: {domain} exists but has no mail server."
+msgstr "Roto: {domain} existe pero no tiene servidor de correo."
+
+#: crates/launchtype-core/src/check.rs
+msgid "Could not confirm: there was no answer about {domain}. Check your connection."
+msgstr "Sin confirmar: no hubo respuesta sobre {domain}. Revisa tu conexión."
+
+#: crates/launchtype-services/src/check.rs
+msgid "Broken: could not find the server {host}. Check the address and your connection."
+msgstr "Roto: no se encontró el servidor {host}. Revisa la dirección y tu conexión."
+
+#: crates/launchtype-services/src/check.rs
+msgid "Broken: the link keeps redirecting and never arrives."
+msgstr "Roto: el enlace redirige una y otra vez y nunca llega."
+
+#: crates/launchtype-services/src/check.rs
+msgid "Broken: {host} took too long to answer."
+msgstr "Roto: {host} tardó demasiado en responder."
+
+#: crates/launchtype-services/src/check.rs
+msgid "Broken: the security certificate of {host} is not valid."
+msgstr "Roto: el certificado de seguridad de {host} no es válido."
+
+#: crates/launchtype-services/src/check.rs
+msgid "Broken: could not connect to {host}."
+msgstr "Roto: no se pudo conectar con {host}."
+
+#: crates/launchtype-services/src/check.rs
+msgid "Broken: the connection to {host} failed: {reason}"
+msgstr "Roto: falló la conexión con {host}: {reason}"
+
+#: crates/launchtype-services/src/check.rs
+msgid "Works: that folder exists."
+msgstr "Funciona: esa carpeta existe."
+
+#: crates/launchtype-services/src/check.rs
+msgid "Works: that file exists."
+msgstr "Funciona: ese archivo existe."
+
+#: crates/launchtype-services/src/check.rs
+msgid "Broken: there is nothing at that path."
+msgstr "Roto: no hay nada en esa ruta."
+
+#: crates/launchtype-services/src/check.rs
+msgid "Could not confirm: Launchtype is not allowed to read that path."
+msgstr "Sin confirmar: Launchtype no tiene permiso para leer esa ruta."
+
+#: crates/launchtype-services/src/check.rs
+msgid "Could not confirm: {reason}"
+msgstr "Sin confirmar: {reason}"

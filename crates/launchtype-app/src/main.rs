@@ -4,6 +4,7 @@
 
 mod ai_flows;
 mod calendar_flows;
+mod check_flows;
 mod controller;
 mod dialogs;
 mod hotkey;

@@ -6,6 +6,7 @@ pub mod ai;
 pub mod alerts;
 pub mod apps;
 pub mod audio_devices;
+pub mod check;
 pub mod clipboard;
 pub mod google_calendar;
 pub mod media;

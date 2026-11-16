@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use launchtype_core::alarms::AlarmEngine;
 use launchtype_core::calendar::{self, Event, DAYS_AHEAD};
+use launchtype_core::check::Checked;
 use launchtype_core::apps::{without_steam, App, AppTarget};
 use launchtype_core::clipboard_history::ClipboardHistory;
 use launchtype_core::clock::{Clock, SystemClock};
@@ -130,6 +131,9 @@ pub enum ItemKind {
     /// is the device's, with "current" on the default one; `device` is the
     /// device's name alone, for saying what was switched to.
     AudioDevice { direction: Direction, device: String },
+    /// A past check in `"` mode. The item's name is the result and its id the
+    /// text as it was pasted, which Enter checks again.
+    Checked,
     /// One event on the user's Google Calendar, carried whole so Edit can
     /// say what it is now and tell the calendar which one to change.
     CalendarEvent { event: Event },
@@ -178,6 +182,8 @@ pub struct ModeController {
     audio_devices: Vec<audio_devices::Device>,
     /// The next month of Google Calendar, fetched on entering `%`.
     pub calendar: CalendarState,
+    /// The answers `"` mode has had so far, newest first.
+    pub checks: Vec<Checked>,
 }
 
 impl ModeController {
@@ -216,6 +222,7 @@ impl ModeController {
             paths: Vec::new(),
             audio_devices: Vec::new(),
             calendar: CalendarState::NotSetUp,
+            checks: Vec::new(),
         }
     }
 
@@ -279,6 +286,7 @@ impl ModeController {
             UiMode::AudioInputs => self.audio_device_items(search, Direction::Input),
             UiMode::AudioOutputs => self.audio_device_items(search, Direction::Output),
             UiMode::GoogleCalendar => self.calendar_items(search),
+            UiMode::Check => self.check_items(),
             UiMode::Stats => self.stats_items(),
             // The input field holds the command being typed, so it must not
             // filter the transcript away (same reasoning as screenshots mode).
@@ -807,6 +815,20 @@ impl ModeController {
                 shortcut: String::new(),
                 id: String::new(),
                 kind: ItemKind::Stat,
+            })
+            .collect()
+    }
+
+    /// Past checks. The input field holds the next thing to check rather than
+    /// a search, so it does not filter them (same reasoning as SSH mode).
+    fn check_items(&self) -> Vec<Item> {
+        self.checks
+            .iter()
+            .map(|check| Item {
+                name: format!("{} {}", check.outcome.sentence, check.text),
+                shortcut: String::new(),
+                id: check.text.clone(),
+                kind: ItemKind::Checked,
             })
             .collect()
     }

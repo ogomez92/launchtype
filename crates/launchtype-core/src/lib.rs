@@ -8,6 +8,7 @@ pub mod apps;
 pub mod bitwarden;
 pub mod bitwarden_export;
 pub mod calendar;
+pub mod check;
 pub mod clipboard_history;
 pub mod imaging;
 pub mod clock;

@@ -680,6 +680,18 @@ En el modo `}` cada salida suena con un pitido corto (una décima de segundo de 
 
 En Windows el cambio abarca los tres usos que fija el panel de Sonido (consola, multimedia y comunicaciones), así que las llamadas también lo siguen.
 
+## ¿Funciona?
+
+Pulsa `"` (comillas dobles: Mayús+2 en un teclado español, Mayús+' en uno estadounidense), pega un enlace, una dirección de correo o una ruta de archivo en la caja y pulsa intro. La ventana sigue abierta y la respuesta se anuncia cuando llega, con el sonido de coincidencia si funciona y el de error si no. Lo que no se puede confirmar cuenta como que no funciona, y también lo que no se puede comprobar en absoluto, como un texto que no es ninguna de las tres cosas; ese se queda en la caja para corregirlo.
+
+Las respuestas también se añaden al principio de la lista, hasta que se cierra Launchtype. Intro con la caja vacía vuelve a comprobar la fila seleccionada.
+
+- **Enlaces**: se piden como lo haría un navegador, siguiendo las redirecciones, y solo se leen las cabeceras, así que un enlace a un archivo grande no descarga nada. La dirección se puede escribir sin `https://`. Si un enlace acaba en otro sitio, se dice dónde: un documento privado que te manda a una página de inicio de sesión "funciona", pero te enterarás. Los sitios suelen rechazar las peticiones automáticas, así que un 403 o un 429 se anuncia como "sin confirmar" y no como roto. Un sitio que muestra una página de "no encontrado" con un estado de éxito no se distingue de uno que funciona.
+- **Direcciones de correo**: se comprueba lo que se puede, que el dominio exista y tenga servidor de correo, lo que detecta `oscar@gmial.con` pero no una errata antes de la `@`. No hay forma fiable de preguntar si un buzón existe. La consulta va al DNS sobre HTTPS público de Cloudflare, y solo se envía el dominio.
+- **Rutas de archivo**: tienen que ser rutas completas de este equipo; las comillas y `file://` valen. Las carpetas compartidas de red (`\\host\share`) se rechazan sin tocarlas: preguntarle a Windows por una inicia sesión en esa máquina con tu cuenta, y el texto pegado puede venir de cualquier parte.
+
+Para volver al modo comandos, pulsa la tecla del punto (.).
+
 ## Ejecutar como administrador
 
 Al añadir o editar un comando puedes marcar la casilla "Ejecutar como administrador". El comando se lanzará con privilegios elevados (aparecerá el cuadro de UAC al ejecutarlo).
@@ -715,6 +727,7 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `/` | Rutas | Actúa sobre los archivos del portapapeles: convertir, transcribir, preguntar a Claude, abrir |
 | `{` | Entradas de audio | Hace predeterminado un micrófono u otra entrada |
 | `}` | Salidas de audio | Hace predeterminado un altavoz o auricular, oyendo cada uno antes |
+| `"` | ¿Funciona? | Comprueba si un enlace, una dirección de correo o una ruta de archivo funciona |
 | `.` | (cualquier modo) | Volver al modo Comandos |
 
 ## Retroalimentación de audio

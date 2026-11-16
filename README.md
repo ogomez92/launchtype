@@ -680,6 +680,18 @@ In `}` mode every output plays a short beep (a tenth of a second of A440) the mo
 
 On Windows the switch covers all three roles the Sound control panel sets (console, multimedia and communications), so calls follow it too.
 
+## Does it work?
+
+Press `"` (double quote: Shift+2 on a Spanish keyboard, Shift+' on a US one), paste a link, an email address or a file path into the input field, and press Enter. The window stays up and the answer is announced when it arrives, over the match sound if it works and the error sound if it does not. Anything that cannot be confirmed counts as not working, and so does anything that cannot be checked at all, such as text that is none of the three; that stays in the field to be corrected.
+
+Answers also go at the top of the list, until Launchtype closes. Enter with the field empty checks the selected row again.
+
+- **Links** are requested the way a browser would, following redirects, and only the headers are read, so a link to a large file downloads nothing. The address can be written without `https://`. A link that ends up somewhere else says where: a private document that sends you to a login page still "works", but you will hear about it. Sites often turn automated requests away, so a 403 or a 429 is reported as "could not confirm" rather than as broken. A site that shows a "not found" page with a success status cannot be told from a working one.
+- **Email addresses** are checked as far as can be done: whether the domain exists and has a mail server, which catches `oscar@gmial.con` but not a typo before the `@`. There is no reliable way to ask whether a mailbox exists. The question goes to Cloudflare's public DNS over HTTPS, and only the domain is sent.
+- **File paths** must be full paths on this computer; quotes and `file://` are fine. Network shares (`\\host\share`) are refused without being touched: asking Windows about one logs in to that machine with your account, and pasted text can come from anywhere.
+
+To go back to commands mode, press the period key (.).
+
 ## Run as administrator
 
 When adding or editing a command you can tick the "Run as administrator" checkbox. The command will be launched with elevated privileges (a UAC prompt will appear on launch).
@@ -715,6 +727,7 @@ The app has several modes, each accessed by typing a special character in the in
 | `/` | Paths | Act on the files on the clipboard: convert, transcribe, ask Claude, open |
 | `{` | Audio inputs | Make a microphone or other input the system default |
 | `}` | Audio outputs | Make a speaker or headset the system default, hearing each one first |
+| `"` | Does it work? | Check whether a link, an email address or a file path works |
 | `.` | (any mode) | Return to Commands mode |
 
 ## Audio Feedback

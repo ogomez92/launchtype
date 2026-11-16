@@ -927,6 +927,7 @@ pub fn update_list(shell: &SharedShell) {
             | ItemKind::AudioDevice { .. }
             | ItemKind::CalendarEvent { .. }
             | ItemKind::CalendarAction { .. }
+            | ItemKind::Checked
             | ItemKind::SteamMissingAction { .. } => item.name.clone(),
             _ => item.name.chars().take(40).collect(),
         };
@@ -941,7 +942,9 @@ pub fn update_list(shell: &SharedShell) {
     // reading it out on every keystroke would be useless noise.
     if !s.items.is_empty() && mode != UiMode::Ssh {
         s.list.set_selection(0, true);
-        if !value.is_empty() {
+        // In `"` mode the field holds the next thing to check, and the list is
+        // past answers, so typing has no result to read out.
+        if !value.is_empty() && mode != UiMode::Check {
             preview_audio_output(&s);
             let count = s.items.len();
             let first = s.list.get_string(0).unwrap_or_default();
@@ -1079,6 +1082,9 @@ fn mode_announcement(mode: UiMode) -> String {
             "audio output mode, each device plays a tone as you select it, press enter to make it the default"
         ),
         UiMode::GoogleCalendar => tr("Google Calendar mode"),
+        UiMode::Check => {
+            tr("does it work mode, paste a link, an email address or a file path and press enter")
+        }
         UiMode::Regions => unreachable!("no trigger char"),
     }
 }
@@ -1131,6 +1137,7 @@ fn mode_name(mode: UiMode) -> String {
         UiMode::Units => tr("Unit conversion"),
         UiMode::Vault => tr("Encrypted vault"),
         UiMode::GoogleCalendar => tr("Google Calendar"),
+        UiMode::Check => tr("Does it work?"),
         UiMode::Regions => tr("Regions"),
     }
 }
@@ -1171,6 +1178,10 @@ pub fn run_clicked(shell: &SharedShell) {
     }
     if mode == UiMode::Ssh {
         crate::ssh_flows::run_ssh_command(shell);
+        return;
+    }
+    if mode == UiMode::Check {
+        crate::check_flows::run(shell);
         return;
     }
 

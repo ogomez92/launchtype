@@ -45,6 +45,9 @@ pub enum UiMode {
     AudioOutputs,
     /// The next month of the user's Google Calendar, and a way to add to it.
     GoogleCalendar,
+    /// "Does it work?": paste a link, an email address or a local path, and
+    /// find out (see [`crate::check`]).
+    Check,
     /// Entered programmatically after "explore regions" analysis, not by a
     /// trigger character: lists the AI-detected regions of the last screenshot.
     Regions,
@@ -76,6 +79,7 @@ impl UiMode {
             '{' => UiMode::AudioInputs,
             '}' => UiMode::AudioOutputs,
             '%' => UiMode::GoogleCalendar,
+            '"' => UiMode::Check,
             _ => return None,
         })
     }
@@ -105,13 +109,14 @@ impl UiMode {
             UiMode::AudioInputs => '{',
             UiMode::AudioOutputs => '}',
             UiMode::GoogleCalendar => '%',
+            UiMode::Check => '"',
             UiMode::Regions => return None,
         })
     }
 
     /// Every user-selectable mode, in the order shown by the modes menu. Kept
     /// in sync with [`from_trigger_char`]; Regions is excluded (no trigger).
-    pub const MENU_MODES: [UiMode; 21] = [
+    pub const MENU_MODES: [UiMode; 22] = [
         UiMode::Commands,
         UiMode::Snippets,
         UiMode::Clipboard,
@@ -133,6 +138,7 @@ impl UiMode {
         UiMode::AudioInputs,
         UiMode::AudioOutputs,
         UiMode::GoogleCalendar,
+        UiMode::Check,
     ];
 }
 
@@ -163,6 +169,7 @@ mod tests {
         assert_eq!(UiMode::from_trigger_char('{'), Some(UiMode::AudioInputs));
         assert_eq!(UiMode::from_trigger_char('}'), Some(UiMode::AudioOutputs));
         assert_eq!(UiMode::from_trigger_char('%'), Some(UiMode::GoogleCalendar));
+        assert_eq!(UiMode::from_trigger_char('"'), Some(UiMode::Check));
         assert_eq!(UiMode::from_trigger_char('a'), None);
         assert_eq!(UiMode::from_trigger_char(' '), None);
     }

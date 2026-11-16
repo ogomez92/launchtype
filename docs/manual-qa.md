@@ -22,7 +22,7 @@ behavioral reference: when in doubt, compare side by side on the same data.
 - [ ] Typing into the input field echoes normally
 - [ ] The results list has no label of its own: arrowing through it speaks only
       the items, never a "Results" prefix (and never "Sort commands by:")
-- [ ] Every mode trigger speaks its announcement (- ? . , @ ' [ ] # + ! : $ = * _ /)
+- [ ] Every mode trigger speaks its announcement (- ? . , @ ' [ ] # + ! : $ = * _ / ")
 - [ ] Typing a search speaks the first result; multiple results speak
       "{first}, {n} search results shown, use down arrow..."
 - [ ] Down arrow in the input field focuses the result after the selected one
@@ -174,6 +174,24 @@ behavioral reference: when in doubt, compare side by side on the same data.
       "Connected"
 - [ ] SSH: `exit` as a command shows the error alert, and the next command
       reconnects
+
+## Does it work? (`"`)
+- [ ] `"` announces the mode; typing in the field reads no results
+- [ ] A working link: "Checking", then the match sound and "Works."; the field
+      is empty and the row is at the top of the list
+- [ ] A missing page, a host that does not exist, and a link with a bad
+      certificate (expired.badssl.com): error sound and a sentence saying which
+- [ ] A link that redirects elsewhere says where it landed; http to https does not
+- [ ] A site that refuses bots (403): error sound and "Could not confirm"
+- [ ] `oscar@gmail.com` works; `oscar@example.com` and a made-up domain get the
+      error sound
+- [ ] A file and a folder work, in quotes too; a missing path gets the error sound
+- [ ] `\\host\share`, `hello there` and `ftp://x.com`: error sound, nothing
+      probed, and the text stays in the field
+- [ ] Enter with the field empty checks the selected row again; with no rows it
+      says to paste something, over the error sound
+- [ ] Hide the window or open Settings during a slow check: the answer is still
+      announced, and nothing crashes
 
 ## Path mode (`/`)
 Needs ffmpeg on PATH (or named in Settings), and Whisper for the transcription

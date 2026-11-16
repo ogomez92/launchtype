@@ -235,10 +235,11 @@ pub fn parse_paths(text: &str) -> Vec<String> {
 ///
 /// `//` is a POSIX absolute path with a redundant slash rather than a share,
 /// but [`clean`] produces exactly that shape for `file://host/share`, and no
-/// real POSIX path is written that way, so both are treated as remote.
+/// real POSIX path is written that way, so both are treated as remote. The two
+/// slashes may also differ: Windows reads `/\host\share` as a share as well.
 pub fn is_network_location(value: &str) -> bool {
     let bytes = value.as_bytes();
-    matches!(bytes, [b'\\', b'\\', rest @ ..] | [b'/', b'/', rest @ ..] if !rest.is_empty())
+    matches!(bytes, [b'\\' | b'/', b'\\' | b'/', rest @ ..] if !rest.is_empty())
 }
 
 /// One line into candidates: the quoted runs if there are any, else the line.
@@ -258,7 +259,7 @@ fn split_line(line: &str) -> Vec<String> {
 }
 
 /// Trim, unquote, and turn a `file://` URL back into a path.
-fn clean(candidate: &str) -> String {
+pub(crate) fn clean(candidate: &str) -> String {
     let trimmed = candidate.trim().trim_matches('"').trim();
     let Some(rest) = trimmed.strip_prefix("file://") else {
         return trimmed.to_string();
