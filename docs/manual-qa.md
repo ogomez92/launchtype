@@ -51,6 +51,10 @@ behavioral reference: when in doubt, compare side by side on the same data.
       the next visit asks for it again
 - [ ] `;` with a library outside Steam's own folder: the dialog also asks for
       the account; a profile URL or custom URL name works
+- [ ] Uninstall Steam games (`)`): games from every library are listed largest
+      first with their size ("Name, 12.5 GB"); typing searches names only;
+      Enter opens Steam's uninstall confirmation, and cancelling it there
+      leaves the game installed
 - [ ] Applications: `@` announces the mode and lists what the Start Menu lists
       (Windows: desktop programs, Store apps and the synthesised entries like
       Task Manager; macOS: what Launchpad shows)

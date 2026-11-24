@@ -56,6 +56,46 @@ pub fn parse_appmanifest(content: &str) -> Option<SteamGame> {
     Some(SteamGame { name: name.to_string(), appid: appid.to_string() })
 }
 
+/// An installed game and the bytes it takes, for `)` mode to uninstall.
+#[derive(Debug, Clone, PartialEq)]
+pub struct InstalledGame {
+    pub game: SteamGame,
+    /// `SizeOnDisk` from the manifest; `None` when Steam did not write one.
+    pub size: Option<u64>,
+}
+
+/// Parse one appmanifest_*.acf along with the size Steam records for it, so
+/// no folder has to be walked to learn it.
+pub fn parse_installed_game(content: &str) -> Option<InstalledGame> {
+    let game = parse_appmanifest(content)?;
+    let size = acf_value(content, "SizeOnDisk").and_then(|size| size.parse().ok());
+    Some(InstalledGame { game, size })
+}
+
+/// Largest first, which is what someone freeing space wants at the top;
+/// games of unknown size go last, and ties alphabetically.
+pub fn sort_largest_first(games: &mut [InstalledGame]) {
+    games.sort_by(|a, b| {
+        b.size
+            .cmp(&a.size)
+            .then_with(|| a.game.name.to_lowercase().cmp(&b.game.name.to_lowercase()))
+    });
+}
+
+/// A size as the list reads it: gigabytes with one decimal, or whole
+/// megabytes below a gigabyte (1024-based, as Steam itself shows them).
+pub fn format_size(bytes: u64) -> String {
+    const MB: f64 = 1024.0 * 1024.0;
+    const GB: f64 = MB * 1024.0;
+    let bytes = bytes as f64;
+    if bytes >= GB {
+        let text = format!("{:.1}", bytes / GB);
+        format!("{} GB", text.strip_suffix(".0").unwrap_or(&text))
+    } else {
+        format!("{} MB", (bytes / MB).round() as u64)
+    }
+}
+
 /// A KeyValues ("VDF") value: Steam's config files are quoted keys, each
 /// followed by a quoted string or a braced block of more of the same.
 #[derive(Debug, Clone, PartialEq)]
@@ -283,6 +323,36 @@ mod tests {
         // The Python regex needs \s+ between key and value.
         assert!(acf_value("\"appid\"\"620\"", "appid").is_none());
         assert_eq!(acf_value("\"appid\"  \"620\"", "appid"), Some("620"));
+    }
+
+    #[test]
+    fn the_size_on_disk_comes_with_the_game() {
+        let content = MANIFEST.replace("\"StateFlags\"", "\"SizeOnDisk\"\t\t\"13421772800\"\n\t\"StateFlags\"");
+        let installed = parse_installed_game(&content).unwrap();
+        assert_eq!(installed.game.appid, "620");
+        assert_eq!(installed.size, Some(13_421_772_800));
+        assert_eq!(parse_installed_game(MANIFEST).unwrap().size, None);
+    }
+
+    #[test]
+    fn the_largest_games_come_first_and_unknown_sizes_last() {
+        let game = |name: &str, size: Option<u64>| InstalledGame {
+            game: SteamGame { name: name.into(), appid: "1".into() },
+            size,
+        };
+        let mut games =
+            vec![game("small", Some(1)), game("unknown", None), game("b big", Some(9)), game("A big", Some(9))];
+        sort_largest_first(&mut games);
+        let names: Vec<_> = games.iter().map(|g| g.game.name.as_str()).collect();
+        assert_eq!(names, ["A big", "b big", "small", "unknown"]);
+    }
+
+    #[test]
+    fn sizes_read_in_gigabytes_or_megabytes() {
+        assert_eq!(format_size(13_421_772_800), "12.5 GB");
+        assert_eq!(format_size(2 * 1024 * 1024 * 1024), "2 GB");
+        assert_eq!(format_size(850 * 1024 * 1024), "850 MB");
+        assert_eq!(format_size(0), "0 MB");
     }
 
     const LOGINUSERS: &str = r#"

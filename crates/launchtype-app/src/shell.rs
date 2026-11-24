@@ -928,6 +928,8 @@ pub fn update_list(shell: &SharedShell) {
             | ItemKind::CalendarEvent { .. }
             | ItemKind::CalendarAction { .. }
             | ItemKind::Checked
+            // The size comes last, and a long name would clip it away.
+            | ItemKind::SteamUninstall { .. }
             | ItemKind::SteamMissingAction { .. } => item.name.clone(),
             _ => item.name.chars().take(40).collect(),
         };
@@ -1000,6 +1002,7 @@ fn apply_mode_switch(s: &mut Shell, new_mode: UiMode) -> ModeEntry {
         UiMode::Snippets => s.controller.reload_snippets(),
         UiMode::Variables => s.controller.reload_variables(),
         UiMode::Steam => s.controller.rescan_steam(),
+        UiMode::SteamUninstall => s.controller.rescan_steam_uninstall(),
         // Rescanned on every entry, like Steam: programs get installed while
         // the launcher sits in the tray, and a stale list is a mode that
         // cannot reach the app you installed this morning. The walk runs
@@ -1060,6 +1063,9 @@ fn mode_announcement(mode: UiMode) -> String {
         UiMode::Steam => tr("Steam games mode"),
         UiMode::SteamNotInstalled => {
             tr("not installed Steam games mode, press enter on a game to install it")
+        }
+        UiMode::SteamUninstall => {
+            tr("uninstall Steam games mode, largest first, press enter on a game to uninstall it")
         }
         UiMode::Apps => tr("applications mode, type the name of a program to launch it"),
         UiMode::Screenshots => tr("screenshots mode"),
@@ -1125,6 +1131,7 @@ fn mode_name(mode: UiMode) -> String {
         UiMode::Clipboard => tr("Clipboard history"),
         UiMode::Steam => tr("Steam games"),
         UiMode::SteamNotInstalled => tr("Steam games not installed"),
+        UiMode::SteamUninstall => tr("Uninstall Steam games"),
         UiMode::Apps => tr("Applications"),
         UiMode::Screenshots => tr("Screenshots"),
         UiMode::Timers => tr("Timers"),
@@ -1611,6 +1618,11 @@ fn run_hidden_action(shell: &SharedShell, item: &Item, kind: ItemKind) -> Result
         // and the download itself.
         ItemKind::SteamInstall { appid } => {
             open::that_detached(steam::install_url(&appid)).map_err(|e| e.to_string())?;
+            shell.borrow().sounds.play("run");
+        }
+        // Steam asks for confirmation itself before deleting anything.
+        ItemKind::SteamUninstall { appid } => {
+            open::that_detached(steam::uninstall_url(&appid)).map_err(|e| e.to_string())?;
             shell.borrow().sounds.play("run");
         }
         ItemKind::App { target } => {

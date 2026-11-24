@@ -698,6 +698,10 @@ When adding or editing a command you can tick the "Run as administrator" checkbo
 
 ## Copying command arguments
 
+### Uninstall Steam games
+
+Typing `)` (closing parenthesis) lists the Steam games installed in any of Steam's libraries, largest first, each with the space it takes (`Portal 2, 12.5 GB`). The size is the one Steam records in the game's appmanifest, so nothing is measured on disk and the list appears at once. Enter on a game opens Steam's own uninstall confirmation for it (`steam://uninstall/<appid>`); nothing is deleted until you confirm there. Typing searches the game names.
+
 Select a command in the list and press `Alt+O` (or use the Copy Args button) to copy that command's arguments to the clipboard. Useful for commands that store URLs or long argument strings you want to grab quickly.
 
 ## Mode Switching Summary
@@ -711,6 +715,7 @@ The app has several modes, each accessed by typing a special character in the in
 | `?` | Clipboard | Access clipboard history |
 | `,` | Steam | Launch installed Steam games |
 | `;` | Steam not installed | Install the games your Steam account owns that are not installed |
+| `)` | Uninstall Steam games | Uninstall installed Steam games, largest first |
 | `@` | Applications | Launch any program installed on this machine |
 | `'` | Screenshots | Capture, describe or crop a window or the full screen |
 | `[` | Timers | Count down for X minutes (one-shot or repeating), or sound every so often as a stopwatch |

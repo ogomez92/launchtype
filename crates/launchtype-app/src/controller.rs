@@ -23,7 +23,7 @@ use launchtype_services::audio_devices::{self, Direction};
 use launchtype_core::placeholders::Placeholders;
 use launchtype_services::snippets::{load_snippets, Snippet};
 use launchtype_services::sounds::SoundPlayer;
-use launchtype_services::steam::scan_games;
+use launchtype_services::steam::{installed_games_by_size, scan_games};
 use launchtype_services::stores::{AlarmStore, AppShortcutsStore, CommandsStore, TimerStore};
 
 /// How many emoji the list will show at once. There are close to two thousand,
@@ -98,6 +98,9 @@ pub enum ItemKind {
     Steam { appid: String },
     /// An owned Steam game that is not installed; Enter has Steam install it.
     SteamInstall { appid: String },
+    /// An installed Steam game; Enter has Steam uninstall it, after Steam's
+    /// own confirmation.
+    SteamUninstall { appid: String },
     /// A `;` row that does something: set up, or reload.
     SteamMissingAction { action: &'static str },
     /// An installed application, launched through whatever listed it.
@@ -159,6 +162,9 @@ pub struct ModeController {
     pub steam_shortcuts: AppShortcutsStore,
     /// The owned games `;` offers to install, fetched on entering the mode.
     pub steam_missing: SteamMissingState,
+    /// The installed games `)` offers to uninstall, largest first, scanned
+    /// on entering the mode.
+    steam_uninstall: Vec<launchtype_core::steam::InstalledGame>,
     /// Everything the OS says is installed. Refreshed on entering `@` and held
     /// for the keystrokes that follow — the scan costs a few hundred
     /// milliseconds, which is fine once per visit and not once per letter.
@@ -213,6 +219,7 @@ impl ModeController {
             steam_games: Vec::new(),
             steam_shortcuts,
             steam_missing: SteamMissingState::NotSetUp,
+            steam_uninstall: Vec::new(),
             apps: Vec::new(),
             app_shortcuts,
             sounds,
@@ -244,6 +251,12 @@ impl ModeController {
         self.steam_games = scan_games(&self.steam_library);
     }
 
+    /// Every library this time, not just the configured one: a game on a
+    /// second drive takes space all the same.
+    pub fn rescan_steam_uninstall(&mut self) {
+        self.steam_uninstall = installed_games_by_size(&self.steam_library);
+    }
+
     /// Where the shortcuts given to `mode`'s rows are kept: Steam games have a
     /// file of their own, and anything else is an installed app.
     pub fn launch_shortcuts(&mut self, mode: UiMode) -> &mut AppShortcutsStore {
@@ -272,6 +285,7 @@ impl ModeController {
             UiMode::Clipboard => self.clipboard_items(search),
             UiMode::Steam => self.steam_items(search),
             UiMode::SteamNotInstalled => self.steam_missing_items(search),
+            UiMode::SteamUninstall => self.steam_uninstall_items(search),
             UiMode::Apps => self.app_items(search),
             UiMode::Screenshots => self.screenshot_items(search),
             UiMode::Timers => self.timer_items(search),
@@ -478,6 +492,35 @@ impl ModeController {
         }
         rows.extend(items);
         rows
+    }
+
+    /// Installed Steam games with their sizes, largest first. Typing searches
+    /// the names alone, so a digit typed never matches a size.
+    fn steam_uninstall_items(&self, search: &str) -> Vec<Item> {
+        let games: Vec<&launchtype_core::steam::InstalledGame> = self.steam_uninstall.iter().collect();
+        let games = if search.is_empty() {
+            games
+        } else {
+            let results = fuzzy_search(&fold(search), games, |installed| fold(&installed.game.name));
+            self.sounds.play("type");
+            results
+        };
+        games
+            .into_iter()
+            .map(|installed| Item {
+                name: match installed.size {
+                    Some(size) => format!(
+                        "{}, {}",
+                        installed.game.name,
+                        launchtype_core::steam::format_size(size)
+                    ),
+                    None => installed.game.name.clone(),
+                },
+                shortcut: String::new(),
+                id: installed.game.appid.clone(),
+                kind: ItemKind::SteamUninstall { appid: installed.game.appid.clone() },
+            })
+            .collect()
     }
 
     /// Installed applications. Entering the mode has normally scanned already;

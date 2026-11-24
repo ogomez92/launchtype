@@ -3981,6 +3981,14 @@ msgstr "modo de juegos de Steam no instalados, pulsa intro en un juego para inst
 msgid "Steam games not installed"
 msgstr "Juegos de Steam no instalados"
 
+#: crates/launchtype-app/src/shell.rs
+msgid "uninstall Steam games mode, largest first, press enter on a game to uninstall it"
+msgstr "modo de desinstalar juegos de Steam, los más grandes primero, pulsa intro en un juego para desinstalarlo"
+
+#: crates/launchtype-app/src/shell.rs
+msgid "Uninstall Steam games"
+msgstr "Desinstalar juegos de Steam"
+
 #: crates/launchtype-app/src/controller.rs
 msgid "Enter a Steam Web API key"
 msgstr "Introducir una clave de la API web de Steam"

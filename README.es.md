@@ -365,6 +365,10 @@ La cuenta es la última que inició sesión en el Steam al que pertenece tu bibl
 
 Un juego cuenta como instalado cuando su appmanifest está en la biblioteca configurada o en cualquier otra biblioteca que liste el `libraryfolders.vdf` de Steam, así que los juegos de una segunda unidad no se vuelven a ofrecer. Steam solo comparte la lista de una cuenta cuyos detalles de juegos son públicos, o con la clave de esa misma cuenta.
 
+### Desinstalar juegos de Steam
+
+Escribir `)` (cierre de paréntesis) lista los juegos de Steam instalados en cualquiera de las bibliotecas de Steam, los más grandes primero, cada uno con el espacio que ocupa (`Portal 2, 12.5 GB`). El tamaño es el que Steam apunta en el appmanifest del juego, así que no se mide nada en disco y la lista sale al instante. Intro sobre un juego abre la confirmación de desinstalación del propio Steam (`steam://uninstall/<appid>`); no se borra nada hasta que confirmas allí. Escribir busca por el nombre del juego.
+
 Para volver a comandos, pulsa la tecla punto (.).
 
 ## Aplicaciones
@@ -711,6 +715,7 @@ La aplicación tiene varios modos, cada uno accesible escribiendo un carácter e
 | `?` | Portapapeles | Acceder al historial del portapapeles |
 | `,` | Steam | Lanzar juegos de Steam instalados |
 | `;` | Steam no instalados | Instalar los juegos de tu cuenta de Steam que no están instalados |
+| `)` | Desinstalar juegos de Steam | Desinstalar juegos de Steam instalados, los más grandes primero |
 | `@` | Aplicaciones | Lanzar cualquier programa instalado en este equipo |
 | `'` | Capturas | Capturar, describir o recortar una ventana o la pantalla completa |
 | `[` | Temporizadores | Cuenta atrás de X minutos (una vez o repetitiva), o un cronómetro que suena cada cierto tiempo |

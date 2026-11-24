@@ -8,8 +8,8 @@ use std::time::Duration;
 
 use launchtype_core::i18n::{format_args, tr, Arg};
 use launchtype_core::steam::{
-    library_folder_paths, most_recent_steam_id, parse_appmanifest, parse_owned_games,
-    SteamAccount, SteamGame,
+    library_folder_paths, most_recent_steam_id, parse_appmanifest, parse_installed_game,
+    parse_owned_games, sort_largest_first, InstalledGame, SteamAccount, SteamGame,
 };
 
 const API_TIMEOUT: Duration = Duration::from_secs(20);
@@ -17,23 +17,40 @@ const API_TIMEOUT: Duration = Duration::from_secs(20);
 /// Scan `library_path` for `appmanifest_*.acf` files; unreadable directories
 /// or files are skipped. Games come back sorted alphabetically by name.
 pub fn scan_games(library_path: &Path) -> Vec<SteamGame> {
-    let mut games = Vec::new();
-    let Ok(entries) = std::fs::read_dir(library_path) else {
-        return games;
-    };
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else { continue };
-        if !(name.starts_with("appmanifest_") && name.ends_with(".acf")) {
-            continue;
-        }
-        if let Ok(content) = std::fs::read_to_string(entry.path()) {
-            if let Some(game) = parse_appmanifest(&content) {
-                games.push(game);
-            }
-        }
-    }
+    let mut games: Vec<SteamGame> =
+        manifests(library_path).iter().filter_map(|content| parse_appmanifest(content)).collect();
     games.sort_by_key(|game| game.name.to_lowercase());
+    games
+}
+
+/// The contents of every readable `appmanifest_*.acf` in one `steamapps` folder.
+fn manifests(library_path: &Path) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(library_path) else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .filter(|entry| {
+            entry.file_name().to_str().is_some_and(|name| {
+                name.starts_with("appmanifest_") && name.ends_with(".acf")
+            })
+        })
+        .filter_map(|entry| std::fs::read_to_string(entry.path()).ok())
+        .collect()
+}
+
+/// The games installed in any of Steam's libraries (see [`library_folders`]),
+/// each with the size its manifest records, largest first. Reading the size
+/// off the manifest costs nothing beyond the scan `,` already does.
+pub fn installed_games_by_size(library_path: &Path) -> Vec<InstalledGame> {
+    let mut seen = HashSet::new();
+    let mut games: Vec<InstalledGame> = library_folders(library_path)
+        .iter()
+        .flat_map(|folder| manifests(folder))
+        .filter_map(|content| parse_installed_game(&content))
+        .filter(|installed| seen.insert(installed.game.appid.clone()))
+        .collect();
+    sort_largest_first(&mut games);
     games
 }
 
@@ -45,6 +62,11 @@ pub fn rungameid_url(appid: &str) -> String {
 /// The steam:// URL that opens Steam's install dialog for a game.
 pub fn install_url(appid: &str) -> String {
     format!("steam://install/{appid}")
+}
+
+/// The steam:// URL that opens Steam's own uninstall confirmation for a game.
+pub fn uninstall_url(appid: &str) -> String {
+    format!("steam://uninstall/{appid}")
 }
 
 /// Every library this Steam installs into, as `steamapps` folders: the one
@@ -159,7 +181,10 @@ pub fn resolve_account(api_key: &str, account: &SteamAccount) -> Result<String, 
     }
 }
 
-/// Every game the account owns, free ones it has played included.
+/// Every game the account owns, free ones it has played included. Steam
+/// leaves out games it has not reviewed for its store ("unvetted") and ones
+/// claimed as free licenses unless asked for them — a good share of the
+/// small audio games among them — so both are asked for.
 pub fn owned_games(api_key: &str, steam_id: &str) -> Result<Vec<SteamGame>, SteamApiError> {
     let body = call(
         "IPlayerService/GetOwnedGames/v1/",
@@ -168,6 +193,8 @@ pub fn owned_games(api_key: &str, steam_id: &str) -> Result<Vec<SteamGame>, Stea
             ("steamid", steam_id),
             ("include_appinfo", "1"),
             ("include_played_free_games", "1"),
+            ("skip_unvetted_apps", "0"),
+            ("include_free_sub", "1"),
             ("format", "json"),
         ],
     )?;
@@ -243,6 +270,21 @@ mod tests {
         assert_eq!(library_folders(&steamapps).len(), 2);
         let installed = installed_appids(&steamapps);
         assert_eq!(installed, ["620".to_string(), "440".to_string()].into());
+
+        std::fs::write(
+            other_steamapps.join("appmanifest_440.acf"),
+            "\"appid\"	\"440\"
+\"name\"	\"Game 440\"
+\"SizeOnDisk\"	\"900\"
+",
+        )
+        .unwrap();
+        let by_size: Vec<_> = installed_games_by_size(&steamapps)
+            .into_iter()
+            .map(|installed| (installed.game.appid, installed.size))
+            .collect();
+        assert_eq!(by_size, [("440".to_string(), Some(900)), ("620".to_string(), None)]);
+        assert_eq!(uninstall_url("440"), "steam://uninstall/440");
     }
 
     #[test]
